@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
 import { computeTotals, TAX_NOTES } from "@/lib/invoices";
 import type { Prisma, CompanySettings } from "@/lib/generated/prisma/client";
 
@@ -8,10 +9,40 @@ const eur = new Intl.NumberFormat("de-AT", { style: "currency", currency: "EUR" 
 const dateFmt = new Intl.DateTimeFormat("de-AT", { dateStyle: "medium" });
 const num = (d: Prisma.Decimal | number) => Number(d);
 
-export function renderInvoicePdf(
+// EPC069-12 ("GiroCode"): SEPA-Überweisungsdaten als QR-Code, von den meisten Banking-Apps lesbar.
+function buildGiroCodeData(settings: CompanySettings, invoice: InvoiceWithLines): string {
+  const amount = num(invoice.grossTotal).toFixed(2);
+  return [
+    "BCD",
+    "002",
+    "1",
+    "SCT",
+    settings.bic ?? "",
+    settings.name.slice(0, 70),
+    settings.iban.replace(/\s/g, ""),
+    `EUR${amount}`,
+    "",
+    "",
+    invoice.number ?? "",
+  ].join("\n");
+}
+
+async function renderGiroCodePng(settings: CompanySettings, invoice: InvoiceWithLines): Promise<Buffer> {
+  return QRCode.toBuffer(buildGiroCodeData(settings, invoice), {
+    type: "png",
+    errorCorrectionLevel: "M",
+    margin: 1,
+    width: 240,
+  });
+}
+
+export async function renderInvoicePdf(
   invoice: InvoiceWithLines,
   settings: CompanySettings,
 ): Promise<Buffer> {
+  const showGiroCode = invoice.type === "INVOICE" && Boolean(settings.iban) && num(invoice.grossTotal) > 0;
+  const giroCodePng = showGiroCode ? await renderGiroCodePng(settings, invoice) : null;
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "A4", margins: { top: 50, bottom: 60, left: 55, right: 55 } });
     const chunks: Buffer[] = [];
@@ -158,11 +189,23 @@ export function renderInvoicePdf(
       ]
         .filter(Boolean)
         .join("  ·  ");
-      doc.fontSize(9).fillColor("#444444").text(bank, { width: pageWidth });
+      const textWidth = pageWidth - (giroCodePng ? 100 : 0);
+      doc.fontSize(9).fillColor("#444444").text(bank, { width: textWidth });
       if (invoice.number) {
-        doc.text(`Verwendungszweck: ${invoice.number}`, { width: pageWidth });
+        doc.text(`Verwendungszweck: ${invoice.number}`, { width: textWidth });
       }
       doc.fillColor("#000000");
+
+      if (giroCodePng) {
+        const qrSize = 80;
+        const qrY = Math.min(doc.y - 15, doc.page.height - doc.page.margins.bottom - qrSize);
+        doc.image(giroCodePng, 55 + pageWidth - qrSize, qrY, { width: qrSize, height: qrSize });
+        doc.fontSize(7).fillColor("#888888").text("Zahlen per Banking-App", 55 + pageWidth - qrSize, qrY + qrSize + 2, {
+          width: qrSize,
+          align: "center",
+        });
+        doc.fillColor("#000000").fontSize(10);
+      }
     }
 
     doc.end();

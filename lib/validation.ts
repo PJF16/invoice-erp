@@ -34,6 +34,7 @@ const money = z.number().min(0).max(99_999_999);
 const dateString = z.iso.date().or(z.iso.datetime()).transform((s) => new Date(s));
 
 export const customerSchema = z.object({
+  customerNumber: optionalTrimmed,
   name: z.string().trim().min(1, "Name ist erforderlich"),
   contactPerson: optionalTrimmed,
   email: z.email("Ungültige E-Mail-Adresse").nullable().optional().or(z.literal("").transform(() => null)),
@@ -162,9 +163,19 @@ export const exportScheduleSchema = z.object({
   emailBody: z.string().min(1),
 });
 
+const moduleArray = z.array(z.enum(["STOCK", "INVOICES"])).default(["STOCK", "INVOICES"]);
+
 export const userSchema = z.object({
   email: z.email("Ungültige E-Mail-Adresse"),
   name: z.string().trim().min(1, "Name ist erforderlich"),
   password: z.string().min(8, "Passwort muss mindestens 8 Zeichen haben"),
   role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
+  modules: moduleArray,
+});
+
+export const updateUserSchema = z.object({
+  name: z.string().trim().min(1, "Name ist erforderlich"),
+  role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
+  modules: moduleArray,
+  password: z.union([z.string().min(8, "Passwort muss mindestens 8 Zeichen haben"), z.literal("")]).optional(),
 });

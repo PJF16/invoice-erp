@@ -6,6 +6,7 @@ import { TAX_TREATMENT_OPTIONS } from "@/lib/format";
 
 type CustomerData = {
   id?: string;
+  customerNumber: string | null;
   name: string;
   contactPerson: string | null;
   email: string | null;
@@ -33,6 +34,7 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
       method: isEdit ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        customerNumber: (form.get("customerNumber") as string) || null,
         name: form.get("name"),
         contactPerson: (form.get("contactPerson") as string) || null,
         email: (form.get("email") as string) || null,
@@ -69,6 +71,15 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium">Firmenname *</label>
               <input name="name" required defaultValue={customer?.name ?? ""} autoFocus className={input} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Kundennummer</label>
+              <input
+                name="customerNumber"
+                defaultValue={customer?.customerNumber ?? ""}
+                placeholder="z.B. K-1001"
+                className={`${input} font-mono`}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium">Ansprechperson</label>

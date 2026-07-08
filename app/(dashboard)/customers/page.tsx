@@ -24,6 +24,7 @@ export default async function CustomersPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
+              <th className="px-4 py-3">Kd.-Nr.</th>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Ort</th>
               <th className="px-4 py-3">UID</th>
@@ -36,13 +37,14 @@ export default async function CustomersPage() {
           <tbody>
             {customers.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                   Noch keine Kunden angelegt.
                 </td>
               </tr>
             )}
             {customers.map((c) => (
               <tr key={c.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                <td className="px-4 py-3 font-mono text-xs text-gray-500">{c.customerNumber ?? "–"}</td>
                 <td className="px-4 py-3 font-medium">{c.name}</td>
                 <td className="px-4 py-3 text-gray-500">
                   {[c.zip, c.city].filter(Boolean).join(" ")}
@@ -58,6 +60,7 @@ export default async function CustomersPage() {
                   <CustomerRowActions
                     customer={{
                       id: c.id,
+                      customerNumber: c.customerNumber,
                       name: c.name,
                       contactPerson: c.contactPerson,
                       email: c.email,

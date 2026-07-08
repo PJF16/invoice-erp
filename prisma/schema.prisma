@@ -12,6 +12,11 @@ enum Role {
   MEMBER
 }
 
+enum Module {
+  STOCK
+  INVOICES
+}
+
 enum TaxTreatment {
   STANDARD
   REVERSE_CHARGE
@@ -57,6 +62,7 @@ model User {
   name         String
   passwordHash String
   role         Role       @default(MEMBER)
+  modules      Module[]   @default([STOCK, INVOICES])
   createdAt    DateTime   @default(now())
   movements    Movement[]
 }
@@ -122,6 +128,7 @@ model CompanySettings {
 
 model Customer {
   id                  String             @id @default(cuid())
+  customerNumber      String?            @unique
   name                String
   contactPerson       String?
   email               String?
