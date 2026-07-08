@@ -44,7 +44,7 @@ export default async function ItemDetailPage({
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Link href="/" className="text-sm text-gray-500 hover:text-gray-900">
+      <Link href="/stock" className="text-sm text-gray-500 hover:text-gray-900">
         ← Zurück zum Bestand
       </Link>
       <div className="mt-2 mb-6 flex flex-wrap items-end justify-between gap-4">

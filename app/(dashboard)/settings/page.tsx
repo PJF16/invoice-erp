@@ -34,6 +34,11 @@ export default async function SettingsPage() {
           paymentDays: settings.paymentDays,
           emailSubject: settings.emailSubject,
           emailBody: settings.emailBody,
+          autoReminders: settings.autoReminders,
+          reminderDays: settings.reminderDays,
+          maxReminders: settings.maxReminders,
+          reminderSubject: settings.reminderSubject,
+          reminderBody: settings.reminderBody,
           lastInvoiceYear: settings.lastInvoiceYear,
           lastInvoiceSeq: settings.lastInvoiceSeq,
         }}

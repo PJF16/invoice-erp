@@ -63,8 +63,9 @@ export function renderInvoicePdf(
     }
 
     // Titel
+    const docTitle = invoice.type === "CREDIT_NOTE" ? "Stornorechnung" : "Rechnung";
     doc.text("", 55, Math.max(doc.y, y) + 30);
-    doc.fontSize(14).font("Helvetica-Bold").text(`Rechnung ${invoice.number ?? "(Entwurf)"}`);
+    doc.fontSize(14).font("Helvetica-Bold").text(`${docTitle} ${invoice.number ?? "(Entwurf)"}`);
     doc.moveDown(0.8);
 
     // Tabelle
@@ -142,7 +143,9 @@ export function renderInvoicePdf(
     // Zahlungsinfo
     doc.moveDown(1.5);
     doc.fontSize(10).text(
-      `Zahlbar ohne Abzug bis ${dateFmt.format(invoice.dueDate)}.`,
+      invoice.type === "CREDIT_NOTE"
+        ? "Der Betrag wird gutgeschrieben bzw. mit offenen Forderungen verrechnet."
+        : `Zahlbar ohne Abzug bis ${dateFmt.format(invoice.dueDate)}.`,
       55,
       doc.y,
       { width: pageWidth },

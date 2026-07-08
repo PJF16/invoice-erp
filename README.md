@@ -17,7 +17,10 @@ Modernes Lagerverwaltungs- und Rechnungsprogramm für ein österreichisches Unte
 - **Rechnungserstellung** mit Positionen aus Softwareartikeln, Hardware (bucht beim Finalisieren automatisch aus dem Lager aus) und Freitext
 - **USt pro Position** (20/13/10/0%) und **Steuerbehandlung pro Rechnung**: Standard, Reverse Charge (EU-B2B, z.B. deutsches Unternehmen), innergemeinschaftliche Lieferung, Ausfuhr — jeweils mit gesetzlichem Hinweis auf dem PDF
 - **Fortlaufende Rechnungsnummern** pro Jahr, Präfix in den Einstellungen konfigurierbar (z.B. `RE-2026-001`)
-- **Workflow**: Entwurf → Finalisieren (Nummer + Ausbuchung) → per E-Mail senden (PDF-Anhang) → bezahlt / storniert (Storno bucht Hardware zurück)
+- **Workflow**: Entwurf → Finalisieren (Nummer + Ausbuchung) → per E-Mail senden (PDF-Anhang) → bezahlt / storniert
+- **Stornorechnungen**: Stornieren erzeugt einen eigenen Beleg mit eigener Nummer und negierten Beträgen (buchhalterisch korrekt), bucht Hardware zurück und verknüpft beide Belege
+- **Dashboard** (Startseite): Monatsumsatz, offene Posten, Überfälliges, Umsatz der letzten 6 Monate, Top-Kunden, letzte Rechnungen
+- **Mahnwesen**: Überfällige Rechnungen mit Mahnstufen; Zahlungserinnerungen manuell per Klick oder automatisch (Einstellungen: erste Erinnerung nach X Tagen, Wiederholung im selben Abstand, Maximalanzahl; Vorlagen mit Platzhaltern)
 - **Wiederkehrende Rechnungen** (monatlich/quartalsweise/jährlich): werden vom eingebauten Scheduler automatisch erzeugt und versendet; **Softwareartikel-Preise werden bei jeder Erzeugung neu gelesen** — Preisänderungen wirken automatisch auf alle künftigen Rechnungen
 - **Kundenverwaltung** mit UID und Standard-Steuerbehandlung pro Kunde
 - **Einstellungen**: Firmendaten, UID, Bankverbindung (erscheint auf dem PDF), Zahlungsziel, E-Mail-Vorlagen
@@ -88,7 +91,8 @@ Falls das Image kein Seed-Tooling enthält, alternativ lokal mit `DATABASE_URL` 
 | `/api/invoices/{id}/finalize` | POST | Nummer vergeben + Hardware ausbuchen |
 | `/api/invoices/{id}/send` | POST | Per E-Mail versenden (PDF-Anhang) |
 | `/api/invoices/{id}/pdf` | GET | PDF abrufen |
-| `/api/invoices/{id}/status` | POST | Bezahlt/Storno/Offen |
+| `/api/invoices/{id}/status` | POST | Bezahlt/Offen; `CANCELED` erzeugt eine Stornorechnung |
+| `/api/invoices/{id}/remind` | POST | Zahlungserinnerung senden |
 | `/api/recurring-invoices`, `…/{id}` | GET, POST, PATCH, DELETE | Wiederkehrende Rechnungen |
 | `/api/recurring-invoices/{id}/run` | POST | Sofort eine Rechnung erzeugen |
 | `/api/settings` | GET, PUT | Firmeneinstellungen (PUT nur Admin) |

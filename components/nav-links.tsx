@@ -5,9 +5,13 @@ import { usePathname } from "next/navigation";
 
 const groups: { title: string; links: { href: string; label: string }[] }[] = [
   {
+    title: "Übersicht",
+    links: [{ href: "/", label: "Dashboard" }],
+  },
+  {
     title: "Lager",
     links: [
-      { href: "/", label: "Bestand" },
+      { href: "/stock", label: "Bestand" },
       { href: "/items", label: "Artikel" },
       { href: "/warehouses", label: "Lager" },
       { href: "/movements", label: "Historie" },
@@ -17,6 +21,7 @@ const groups: { title: string; links: { href: string; label: string }[] }[] = [
     title: "Rechnungen",
     links: [
       { href: "/invoices", label: "Rechnungen" },
+      { href: "/reminders", label: "Mahnwesen" },
       { href: "/recurring", label: "Wiederkehrend" },
       { href: "/customers", label: "Kunden" },
       { href: "/software", label: "Software" },

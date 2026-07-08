@@ -15,6 +15,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       lines: { orderBy: { position: "asc" } },
       customer: true,
       recurringInvoice: { select: { id: true, name: true } },
+      relatedInvoice: { select: { id: true, number: true } },
+      stornoInvoices: { select: { id: true, number: true } },
     },
   });
   if (!invoice) notFound();
@@ -30,7 +32,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       <div className="mt-2 mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">Rechnung {invoice.number ?? "(Entwurf)"}</h1>
+            <h1 className="text-2xl font-semibold">
+              {invoice.type === "CREDIT_NOTE" ? "Stornorechnung" : "Rechnung"} {invoice.number ?? "(Entwurf)"}
+            </h1>
             <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium ${badge.className}`}>
               {badge.label}
             </span>
@@ -45,11 +49,28 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               Automatisch erzeugt aus Vorlage „{invoice.recurringInvoice.name}"
             </p>
           )}
+          {invoice.relatedInvoice && (
+            <p className="mt-1 text-sm text-gray-500">
+              Storno zu{" "}
+              <Link href={`/invoices/${invoice.relatedInvoice.id}`} className="text-blue-600 hover:underline">
+                Rechnung {invoice.relatedInvoice.number}
+              </Link>
+            </p>
+          )}
+          {invoice.stornoInvoices.length > 0 && (
+            <p className="mt-1 text-sm text-gray-500">
+              Storniert durch{" "}
+              <Link href={`/invoices/${invoice.stornoInvoices[0].id}`} className="text-blue-600 hover:underline">
+                Stornorechnung {invoice.stornoInvoices[0].number}
+              </Link>
+            </p>
+          )}
         </div>
         <InvoiceActions
           invoice={{
             id: invoice.id,
             status: invoice.status,
+            type: invoice.type,
             number: invoice.number,
             customerEmail: invoice.customer.email,
           }}

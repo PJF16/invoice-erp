@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSession, handleApiError } from "@/lib/api-helpers";
-import { cancelInvoice } from "@/lib/invoices";
+import { createStornoInvoice } from "@/lib/invoices";
 
 const statusSchema = z.object({ status: z.enum(["PAID", "CANCELED", "OPEN"]) });
 
@@ -16,8 +16,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     if (parsed.data.status === "CANCELED") {
-      const invoice = await cancelInvoice(id, session.user.id);
-      return NextResponse.json(invoice);
+      const storno = await createStornoInvoice(id, session.user.id);
+      return NextResponse.json(storno);
     }
 
     const existing = await prisma.invoice.findUnique({ where: { id } });

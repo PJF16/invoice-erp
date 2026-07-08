@@ -8,6 +8,7 @@ type Props = {
   invoice: {
     id: string;
     status: string;
+    type: string;
     number: string | null;
     customerEmail: string | null;
   };
@@ -31,6 +32,10 @@ export function InvoiceActions({ invoice }: Props) {
     if (res.ok) {
       if (body === "DELETE") {
         router.push("/invoices");
+      } else if (name === "cancel") {
+        // Zur neu erzeugten Stornorechnung springen
+        const storno = await res.json().catch(() => null);
+        if (storno?.id) router.push(`/invoices/${storno.id}`);
       }
       router.refresh();
     } else {
@@ -92,7 +97,7 @@ export function InvoiceActions({ invoice }: Props) {
                   `/api/invoices/${invoice.id}/send`,
                   {},
                   invoice.customerEmail
-                    ? `Rechnung per E-Mail an ${invoice.customerEmail} senden?`
+                    ? `${invoice.type === "CREDIT_NOTE" ? "Stornorechnung" : "Rechnung"} per E-Mail an ${invoice.customerEmail} senden?`
                     : undefined,
                 )
               }
@@ -100,13 +105,15 @@ export function InvoiceActions({ invoice }: Props) {
             >
               {loading === "send" ? "Sende…" : s === "SENT" ? "Erneut senden" : "Per E-Mail senden"}
             </button>
-            <button
-              disabled={loading !== null}
-              onClick={() => action("paid", `/api/invoices/${invoice.id}/status`, { status: "PAID" })}
-              className={`${btn} bg-green-600 text-white hover:bg-green-700`}
-            >
-              {loading === "paid" ? "…" : "Als bezahlt markieren"}
-            </button>
+            {invoice.type === "INVOICE" && (
+              <button
+                disabled={loading !== null}
+                onClick={() => action("paid", `/api/invoices/${invoice.id}/status`, { status: "PAID" })}
+                className={`${btn} bg-green-600 text-white hover:bg-green-700`}
+              >
+                {loading === "paid" ? "…" : "Als bezahlt markieren"}
+              </button>
+            )}
           </>
         )}
 
@@ -120,7 +127,7 @@ export function InvoiceActions({ invoice }: Props) {
           </button>
         )}
 
-        {s !== "DRAFT" && s !== "CANCELED" && (
+        {invoice.type === "INVOICE" && s !== "DRAFT" && s !== "CANCELED" && (
           <button
             disabled={loading !== null}
             onClick={() =>
@@ -128,7 +135,7 @@ export function InvoiceActions({ invoice }: Props) {
                 "cancel",
                 `/api/invoices/${invoice.id}/status`,
                 { status: "CANCELED" },
-                "Rechnung stornieren? Ausgebuchte Hardware wird ins Lager zurückgebucht.",
+                "Stornorechnung erstellen? Es wird ein eigener Beleg mit negierten Beträgen erzeugt und ausgebuchte Hardware ins Lager zurückgebucht.",
               )
             }
             className={`${btn} border border-red-200 text-red-600 hover:bg-red-50`}

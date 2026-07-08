@@ -5,12 +5,17 @@ export async function register() {
   if (process.env.DISABLE_RECURRING_SCHEDULER === "1") return;
 
   const { runDueRecurringInvoices } = await import("@/lib/recurring");
+  const { runAutoReminders } = await import("@/lib/reminders");
 
   const run = async () => {
     try {
       const { generated } = await runDueRecurringInvoices();
       if (generated > 0) {
         console.log(`Scheduler: ${generated} wiederkehrende Rechnung(en) erzeugt.`);
+      }
+      const { sent } = await runAutoReminders();
+      if (sent > 0) {
+        console.log(`Scheduler: ${sent} Zahlungserinnerung(en) versendet.`);
       }
     } catch (e) {
       console.error("Scheduler-Fehler:", e);

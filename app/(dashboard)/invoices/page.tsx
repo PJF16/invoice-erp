@@ -86,6 +86,11 @@ export default async function InvoicesPage({
                     <Link href={`/invoices/${inv.id}`} className="hover:text-blue-700 hover:underline">
                       {inv.number ?? "(Entwurf)"}
                     </Link>
+                    {inv.type === "CREDIT_NOTE" && (
+                      <span className="ml-1.5 inline-block rounded-full border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-700">
+                        Storno
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">{inv.customerName || inv.customer.name}</td>
                   <td className="px-4 py-3 text-gray-500">{formatDate(inv.issueDate)}</td>

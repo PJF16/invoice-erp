@@ -117,6 +117,11 @@ export const settingsSchema = z.object({
   paymentDays: z.number().int().min(0).max(365).default(14),
   emailSubject: z.string().trim().min(1).default("Rechnung {nummer}"),
   emailBody: z.string().min(1),
+  autoReminders: z.boolean().default(false),
+  reminderDays: z.number().int().min(1).max(90).default(7),
+  maxReminders: z.number().int().min(1).max(10).default(3),
+  reminderSubject: z.string().trim().min(1).default("Zahlungserinnerung zu Rechnung {nummer}"),
+  reminderBody: z.string().min(1),
 });
 
 export const userSchema = z.object({

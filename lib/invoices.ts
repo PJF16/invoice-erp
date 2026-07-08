@@ -103,6 +103,22 @@ export async function createDraftInvoice(input: CreateInvoiceInput) {
   });
 }
 
+/** Vergibt atomar die nächste fortlaufende Nummer ({Präfix}{Jahr}-{lfd. Nr}). */
+async function assignNumberTx(tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0], issueDate: Date) {
+  const settings = await tx.companySettings.upsert({
+    where: { id: "singleton" },
+    update: {},
+    create: { id: "singleton" },
+  });
+  const year = issueDate.getFullYear();
+  const seq = settings.lastInvoiceYear === year ? settings.lastInvoiceSeq + 1 : 1;
+  await tx.companySettings.update({
+    where: { id: "singleton" },
+    data: { lastInvoiceYear: year, lastInvoiceSeq: seq },
+  });
+  return `${settings.invoicePrefix}${year}-${String(seq).padStart(3, "0")}`;
+}
+
 /**
  * Finalisiert einen Entwurf: vergibt die fortlaufende Rechnungsnummer
  * ({Präfix}{Jahr}-{lfd. Nr}), friert die Kundendaten ein und bucht
@@ -117,18 +133,7 @@ export async function finalizeInvoice(invoiceId: string, userId: string) {
     if (!invoice) throw new ApiError(404, "Rechnung nicht gefunden");
     if (invoice.status !== "DRAFT") throw new ApiError(400, "Nur Entwürfe können finalisiert werden");
 
-    const settings = await tx.companySettings.upsert({
-      where: { id: "singleton" },
-      update: {},
-      create: { id: "singleton" },
-    });
-    const year = invoice.issueDate.getFullYear();
-    const seq = settings.lastInvoiceYear === year ? settings.lastInvoiceSeq + 1 : 1;
-    await tx.companySettings.update({
-      where: { id: "singleton" },
-      data: { lastInvoiceYear: year, lastInvoiceSeq: seq },
-    });
-    const number = `${settings.invoicePrefix}${year}-${String(seq).padStart(3, "0")}`;
+    const number = await assignNumberTx(tx, invoice.issueDate);
 
     for (const line of invoice.lines) {
       if (line.itemId && line.warehouseId) {
@@ -160,16 +165,26 @@ export async function finalizeInvoice(invoiceId: string, userId: string) {
   });
 }
 
-/** Storniert eine Rechnung und bucht ausgebuchte Hardware zurück ins Lager. */
-export async function cancelInvoice(invoiceId: string, userId: string) {
+/**
+ * Storniert eine Rechnung buchhalterisch korrekt: erzeugt eine Stornorechnung
+ * (eigener Beleg mit eigener Nummer und negierten Beträgen), bucht ausgebuchte
+ * Hardware zurück ins Lager und setzt die Originalrechnung auf CANCELED.
+ */
+export async function createStornoInvoice(invoiceId: string, userId: string) {
   return prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findUnique({
       where: { id: invoiceId },
-      include: { lines: true },
+      include: { lines: true, stornoInvoices: true },
     });
     if (!invoice) throw new ApiError(404, "Rechnung nicht gefunden");
-    if (invoice.status === "CANCELED") throw new ApiError(400, "Rechnung ist bereits storniert");
+    if (invoice.type !== "INVOICE") throw new ApiError(400, "Stornorechnungen können nicht storniert werden");
     if (invoice.status === "DRAFT") throw new ApiError(400, "Entwürfe können gelöscht statt storniert werden");
+    if (invoice.status === "CANCELED" || invoice.stornoInvoices.length > 0) {
+      throw new ApiError(400, "Rechnung ist bereits storniert");
+    }
+
+    const now = new Date();
+    const number = await assignNumberTx(tx, now);
 
     for (const line of invoice.lines) {
       if (line.itemId && line.warehouseId) {
@@ -179,11 +194,48 @@ export async function cancelInvoice(invoiceId: string, userId: string) {
           type: "IN",
           quantity: Math.round(Number(line.quantity)),
           userId,
-          note: `Storno Rechnung ${invoice.number}`,
+          note: `Stornorechnung ${number} zu ${invoice.number}`,
         });
       }
     }
 
-    return tx.invoice.update({ where: { id: invoiceId }, data: { status: "CANCELED" } });
+    const storno = await tx.invoice.create({
+      data: {
+        number,
+        type: "CREDIT_NOTE",
+        relatedInvoiceId: invoice.id,
+        status: "OPEN",
+        customerId: invoice.customerId,
+        customerName: invoice.customerName,
+        customerAddress: invoice.customerAddress,
+        customerUid: invoice.customerUid,
+        issueDate: now,
+        dueDate: now,
+        servicePeriodStart: invoice.servicePeriodStart,
+        servicePeriodEnd: invoice.servicePeriodEnd,
+        taxTreatment: invoice.taxTreatment,
+        notes: `Storno zu Rechnung ${invoice.number} vom ${new Intl.DateTimeFormat("de-AT", { dateStyle: "medium" }).format(invoice.issueDate)}.`,
+        netTotal: -Number(invoice.netTotal),
+        taxTotal: -Number(invoice.taxTotal),
+        grossTotal: -Number(invoice.grossTotal),
+        lines: {
+          create: invoice.lines.map((line) => ({
+            position: line.position,
+            description: line.description,
+            quantity: Number(line.quantity),
+            unit: line.unit,
+            unitPrice: -Number(line.unitPrice),
+            taxRate: line.taxRate,
+            lineNet: -Number(line.lineNet),
+            softwareItemId: line.softwareItemId,
+            itemId: line.itemId,
+            warehouseId: line.warehouseId,
+          })),
+        },
+      },
+    });
+
+    await tx.invoice.update({ where: { id: invoiceId }, data: { status: "CANCELED" } });
+    return storno;
   });
 }

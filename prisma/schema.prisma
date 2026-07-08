@@ -27,6 +27,11 @@ enum InvoiceStatus {
   CANCELED
 }
 
+enum InvoiceType {
+  INVOICE
+  CREDIT_NOTE
+}
+
 enum RecurringInterval {
   MONTHLY
   QUARTERLY
@@ -101,6 +106,11 @@ model CompanySettings {
   emailBody       String @default("Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung {nummer}.\n\nMit freundlichen Grüßen")
   lastInvoiceYear Int    @default(0)
   lastInvoiceSeq  Int    @default(0)
+  autoReminders   Boolean @default(false)
+  reminderDays    Int     @default(7)
+  maxReminders    Int     @default(3)
+  reminderSubject String  @default("Zahlungserinnerung zu Rechnung {nummer}")
+  reminderBody    String  @default("Sehr geehrte Damen und Herren,\n\ndürfen wir Sie freundlich daran erinnern, dass die Rechnung {nummer} vom {datum} über {betrag} seit {tage} Tagen überfällig ist?\n\nBitte überweisen Sie den offenen Betrag auf das angegebene Konto. Sollte sich Ihre Zahlung mit dieser Erinnerung überschnitten haben, betrachten Sie dieses Schreiben bitte als gegenstandslos.\n\nMit freundlichen Grüßen")
 }
 
 model Customer {
@@ -135,6 +145,12 @@ model SoftwareItem {
 model Invoice {
   id                 String            @id @default(cuid())
   number             String?           @unique
+  type               InvoiceType       @default(INVOICE)
+  relatedInvoice     Invoice?          @relation("Storno", fields: [relatedInvoiceId], references: [id])
+  relatedInvoiceId   String?
+  stornoInvoices     Invoice[]         @relation("Storno")
+  reminderCount      Int               @default(0)
+  lastReminderAt     DateTime?
   status             InvoiceStatus     @default(DRAFT)
   customer           Customer          @relation(fields: [customerId], references: [id])
   customerId         String

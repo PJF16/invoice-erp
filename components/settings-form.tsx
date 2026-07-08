@@ -4,6 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Settings = {
+  autoReminders: boolean;
+  reminderDays: number;
+  maxReminders: number;
+  reminderSubject: string;
+  reminderBody: string;
   name: string;
   street: string;
   zip: string;
@@ -60,6 +65,11 @@ export function SettingsForm({
         paymentDays: Number(form.get("paymentDays")),
         emailSubject: form.get("emailSubject"),
         emailBody: form.get("emailBody"),
+        autoReminders: form.get("autoReminders") === "on",
+        reminderDays: Number(form.get("reminderDays")),
+        maxReminders: Number(form.get("maxReminders")),
+        reminderSubject: form.get("reminderSubject"),
+        reminderBody: form.get("reminderBody"),
       }),
     });
     setLoading(false);
@@ -184,6 +194,38 @@ export function SettingsForm({
             <p className="mt-1 text-xs text-gray-500">
               Platzhalter: <code className="font-mono">{"{nummer}"}</code> = Rechnungsnummer,{" "}
               <code className="font-mono">{"{kunde}"}</code> = Kundenname
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-4 text-sm font-semibold">Mahnwesen</h2>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="autoReminders" defaultChecked={settings.autoReminders} />
+          Zahlungserinnerungen automatisch versenden (benötigt SMTP)
+        </label>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={label}>Erste Erinnerung nach … Tagen Überfälligkeit</label>
+            <input name="reminderDays" type="number" min={1} max={90} defaultValue={settings.reminderDays} className={input} />
+            <p className="mt-1 text-xs text-gray-500">Weitere Erinnerungen folgen im selben Abstand.</p>
+          </div>
+          <div>
+            <label className={label}>Maximale Anzahl Erinnerungen</label>
+            <input name="maxReminders" type="number" min={1} max={10} defaultValue={settings.maxReminders} className={input} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={label}>Betreff-Vorlage</label>
+            <input name="reminderSubject" defaultValue={settings.reminderSubject} className={input} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={label}>Text-Vorlage</label>
+            <textarea name="reminderBody" rows={6} defaultValue={settings.reminderBody} className={input} />
+            <p className="mt-1 text-xs text-gray-500">
+              Platzhalter: <code className="font-mono">{"{nummer}"}</code>, <code className="font-mono">{"{kunde}"}</code>,{" "}
+              <code className="font-mono">{"{datum}"}</code> (Rechnungsdatum), <code className="font-mono">{"{betrag}"}</code>,{" "}
+              <code className="font-mono">{"{tage}"}</code> (Tage überfällig)
             </p>
           </div>
         </div>
