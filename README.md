@@ -1,6 +1,6 @@
 # Lagerverwaltung (invoice-erp)
 
-Modernes Lagerverwaltungsprogramm mit Mehrbenutzer-Login, mehreren Lagern, Lieferanten-Erfassung und vollständiger Bewegungshistorie. Dazu eine iOS-App mit Barcode-Scanner ([ios/](ios/README.md)). Geplant: Rechnungsmodul.
+Modernes Lagerverwaltungs- und Rechnungsprogramm für ein österreichisches Unternehmen: Mehrbenutzer-Login, mehrere Lager, Lieferanten-Erfassung, vollständige Bewegungshistorie, Rechnungserstellung mit korrekter USt (inkl. Reverse Charge) und automatische wiederkehrende Rechnungen. Dazu eine iOS-App mit Barcode-Scanner ([ios/](ios/README.md)).
 
 ## Funktionen
 
@@ -10,7 +10,31 @@ Modernes Lagerverwaltungsprogramm mit Mehrbenutzer-Login, mehreren Lagern, Liefe
 - **Lager**: beliebig viele Standorte
 - **Historie**: jede Bewegung mit Zeitpunkt, Typ (Eingang/Ausgang/Korrektur), Menge, Lager und Benutzer
 - **Benutzer**: Admin kann Mitarbeiter-Konten anlegen (Rollen: Admin / Mitarbeiter)
-- **REST-API** unter `/api/…` — dieselben Endpunkte nutzt später die iOS-App (inkl. `GET /api/items/by-barcode/{code}`)
+- **REST-API** unter `/api/…` — dieselben Endpunkte nutzt die iOS-App (inkl. `GET /api/items/by-barcode/{code}`)
+
+### Rechnungen
+
+- **Rechnungserstellung** mit Positionen aus Softwareartikeln, Hardware (bucht beim Finalisieren automatisch aus dem Lager aus) und Freitext
+- **USt pro Position** (20/13/10/0%) und **Steuerbehandlung pro Rechnung**: Standard, Reverse Charge (EU-B2B, z.B. deutsches Unternehmen), innergemeinschaftliche Lieferung, Ausfuhr — jeweils mit gesetzlichem Hinweis auf dem PDF
+- **Fortlaufende Rechnungsnummern** pro Jahr, Präfix in den Einstellungen konfigurierbar (z.B. `RE-2026-001`)
+- **Workflow**: Entwurf → Finalisieren (Nummer + Ausbuchung) → per E-Mail senden (PDF-Anhang) → bezahlt / storniert (Storno bucht Hardware zurück)
+- **Wiederkehrende Rechnungen** (monatlich/quartalsweise/jährlich): werden vom eingebauten Scheduler automatisch erzeugt und versendet; **Softwareartikel-Preise werden bei jeder Erzeugung neu gelesen** — Preisänderungen wirken automatisch auf alle künftigen Rechnungen
+- **Kundenverwaltung** mit UID und Standard-Steuerbehandlung pro Kunde
+- **Einstellungen**: Firmendaten, UID, Bankverbindung (erscheint auf dem PDF), Zahlungsziel, E-Mail-Vorlagen
+
+### E-Mail-Versand (SMTP)
+
+Für den (automatischen) Rechnungsversand in der `.env` konfigurieren:
+
+```bash
+SMTP_HOST="smtp.example.com"
+SMTP_PORT="587"
+SMTP_USER="rechnung@firma.at"
+SMTP_PASS="…"
+SMTP_FROM="Firma GmbH <rechnung@firma.at>"
+```
+
+Der Scheduler prüft stündlich auf fällige wiederkehrende Rechnungen (deaktivierbar mit `DISABLE_RECURRING_SCHEDULER=1`). Ohne SMTP-Konfiguration werden Rechnungen trotzdem erzeugt, nur nicht versendet.
 
 ## Entwicklung
 
@@ -57,5 +81,16 @@ Falls das Image kein Seed-Tooling enthält, alternativ lokal mit `DATABASE_URL` 
 | `/api/suppliers` | GET | Alle bisher verwendeten Lieferanten |
 | `/api/movements` | GET, POST | Historie / Buchung (`type`: `IN`, `OUT`, `ADJUST`) |
 | `/api/users` | GET, POST | Benutzer (nur Admin) |
+| `/api/customers`, `/api/customers/{id}` | GET, POST, PATCH, DELETE | Kunden |
+| `/api/software-items`, `/api/software-items/{id}` | GET, POST, PATCH, DELETE | Softwareartikel |
+| `/api/invoices` | GET, POST | Rechnungen (POST erzeugt Entwurf) |
+| `/api/invoices/{id}` | GET, PATCH, DELETE | Rechnung (Bearbeiten/Löschen nur Entwurf) |
+| `/api/invoices/{id}/finalize` | POST | Nummer vergeben + Hardware ausbuchen |
+| `/api/invoices/{id}/send` | POST | Per E-Mail versenden (PDF-Anhang) |
+| `/api/invoices/{id}/pdf` | GET | PDF abrufen |
+| `/api/invoices/{id}/status` | POST | Bezahlt/Storno/Offen |
+| `/api/recurring-invoices`, `…/{id}` | GET, POST, PATCH, DELETE | Wiederkehrende Rechnungen |
+| `/api/recurring-invoices/{id}/run` | POST | Sofort eine Rechnung erzeugen |
+| `/api/settings` | GET, PUT | Firmeneinstellungen (PUT nur Admin) |
 
 Alle Endpunkte erfordern eine angemeldete Session.

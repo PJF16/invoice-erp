@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
 import type { MovementType } from "@/lib/generated/prisma/enums";
+import type { Prisma } from "@/lib/generated/prisma/client";
+
+export type Tx = Prisma.TransactionClient;
 
 type BookMovementInput = {
   itemId: string;
@@ -17,13 +20,18 @@ type BookMovementInput = {
  * IN erhöht, OUT verringert (nie unter 0), ADJUST setzt den Bestand absolut.
  */
 export async function bookMovement(input: BookMovementInput) {
+  return prisma.$transaction((tx) => bookMovementTx(tx, input));
+}
+
+/** Wie bookMovement, aber innerhalb einer bestehenden Transaktion (z.B. Rechnungs-Finalisierung). */
+export async function bookMovementTx(tx: Tx, input: BookMovementInput) {
   const { itemId, warehouseId, type, quantity, userId, supplier, note } = input;
 
   if (type !== "ADJUST" && quantity <= 0) {
     throw new ApiError(400, "Menge muss größer als 0 sein");
   }
 
-  return prisma.$transaction(async (tx) => {
+  {
     const item = await tx.item.findUnique({ where: { id: itemId } });
     if (!item) throw new ApiError(404, "Artikel nicht gefunden");
     const warehouse = await tx.warehouse.findUnique({ where: { id: warehouseId } });
@@ -68,5 +76,5 @@ export async function bookMovement(input: BookMovementInput) {
     });
 
     return { movement, newQuantity };
-  });
+  }
 }

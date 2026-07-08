@@ -21,3 +21,7 @@ Lagerverwaltung (Phase 1) und später Rechnungsprogramm. Deutschsprachige Oberfl
 - API-Routen: Zod-Schemas aus `lib/validation.ts`, Fehler über `handleApiError()`; Fehlermeldungen auf Deutsch.
 - Die REST-API unter `app/api/` wird von der iOS-App (`ios/`, SwiftUI + XcodeGen) mitbenutzt — Breaking Changes vermeiden. iOS-Login läuft über den NextAuth-Credentials-Flow (`/api/auth/csrf` → `/api/auth/callback/credentials`, Session-Cookie).
 - Lieferant ist ein Freitextfeld auf `Movement` (nur bei Eingängen); Autocomplete über `GET /api/suppliers` (distinct).
+- Rechnungslogik zentral in `lib/invoices.ts` (`computeTotals`, `finalizeInvoice`, `cancelInvoice`): Nummernvergabe atomar über `CompanySettings.lastInvoiceSeq`, Hardware-Positionen buchen via `bookMovementTx()` innerhalb derselben Transaktion. Kundendaten werden bei Finalisierung als Snapshot eingefroren.
+- Bei `taxTreatment !== STANDARD` (Reverse Charge, ig. Lieferung, Ausfuhr) werden alle Positionen mit 0% gerechnet; der Hinweistext kommt aus `TAX_NOTES`.
+- Wiederkehrende Rechnungen: `lib/recurring.ts` liest Softwareartikel-Preise ERST bei der Erzeugung (Kernanforderung — nie Preise in `RecurringInvoiceLine` snapshotten). Scheduler in `instrumentation.ts` (stündlich).
+- PDF: `lib/invoice-pdf.ts` (pdfkit; ist in `next.config.ts` als `serverExternalPackages` eingetragen, sonst fehlen die Font-Dateien). E-Mail: `lib/mailer.ts` (SMTP aus env; `SMTP_JSON=1` = Test-Transport ohne echten Versand).

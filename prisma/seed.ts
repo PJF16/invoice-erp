@@ -27,6 +27,12 @@ async function main() {
     create: { name: "Hauptlager", location: "Zentrale" },
   });
 
+  await prisma.companySettings.upsert({
+    where: { id: "singleton" },
+    update: {},
+    create: { id: "singleton" },
+  });
+
   console.log(`Seed fertig. Admin-Login: ${adminEmail} / ${adminPassword}`);
 }
 
