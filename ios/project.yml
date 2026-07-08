@@ -1,0 +1,26 @@
+name: LagerScanner
+options:
+  bundleIdPrefix: com.pjf16
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  LagerScanner:
+    type: application
+    platform: iOS
+    sources: [LagerScanner]
+    info:
+      path: LagerScanner/Info.plist
+      properties:
+        CFBundleDisplayName: Lager
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSCameraUsageDescription: "Die Kamera wird zum Scannen von Barcodes benötigt."
+        NSAppTransportSecurity:
+          # Erlaubt HTTP im lokalen Netz (Server ohne TLS). Für Internet-Zugriff HTTPS verwenden.
+          NSAllowsArbitraryLoads: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pjf16.LagerScanner
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic

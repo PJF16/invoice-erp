@@ -19,4 +19,5 @@ Lagerverwaltung (Phase 1) und später Rechnungsprogramm. Deutschsprachige Oberfl
 
 - Bestandsänderungen laufen ausschließlich über `bookMovement()` in `lib/movements.ts` (Transaktion: Movement + Stock zusammen; OUT nie unter 0). Nie `Stock` direkt schreiben.
 - API-Routen: Zod-Schemas aus `lib/validation.ts`, Fehler über `handleApiError()`; Fehlermeldungen auf Deutsch.
-- Die REST-API unter `app/api/` wird später von einer iOS-App mitbenutzt — Breaking Changes vermeiden.
+- Die REST-API unter `app/api/` wird von der iOS-App (`ios/`, SwiftUI + XcodeGen) mitbenutzt — Breaking Changes vermeiden. iOS-Login läuft über den NextAuth-Credentials-Flow (`/api/auth/csrf` → `/api/auth/callback/credentials`, Session-Cookie).
+- Lieferant ist ein Freitextfeld auf `Movement` (nur bei Eingängen); Autocomplete über `GET /api/suppliers` (distinct).

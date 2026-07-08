@@ -1,6 +1,6 @@
 # Lagerverwaltung (invoice-erp)
 
-Modernes Lagerverwaltungsprogramm mit Mehrbenutzer-Login, mehreren Lagern und vollständiger Bewegungshistorie. Phase 2 (geplant): iOS-App mit Barcode-Scanner, Phase 3: Rechnungen.
+Modernes Lagerverwaltungsprogramm mit Mehrbenutzer-Login, mehreren Lagern, Lieferanten-Erfassung und vollständiger Bewegungshistorie. Dazu eine iOS-App mit Barcode-Scanner ([ios/](ios/README.md)). Geplant: Rechnungsmodul.
 
 ## Funktionen
 
@@ -54,6 +54,7 @@ Falls das Image kein Seed-Tooling enthält, alternativ lokal mit `DATABASE_URL` 
 | `/api/warehouses` | GET, POST | Lager |
 | `/api/warehouses/{id}` | PATCH, DELETE | Lager ändern/löschen |
 | `/api/stock` | GET | Bestand, Filter: `?warehouseId=`, `?q=` |
+| `/api/suppliers` | GET | Alle bisher verwendeten Lieferanten |
 | `/api/movements` | GET, POST | Historie / Buchung (`type`: `IN`, `OUT`, `ADJUST`) |
 | `/api/users` | GET, POST | Benutzer (nur Admin) |
 
