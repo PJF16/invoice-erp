@@ -6,6 +6,7 @@ export async function register() {
 
   const { runDueRecurringInvoices } = await import("@/lib/recurring");
   const { runAutoReminders } = await import("@/lib/reminders");
+  const { runDueExportSchedules } = await import("@/lib/export-schedule");
 
   const run = async () => {
     try {
@@ -16,6 +17,10 @@ export async function register() {
       const { sent } = await runAutoReminders();
       if (sent > 0) {
         console.log(`Scheduler: ${sent} Zahlungserinnerung(en) versendet.`);
+      }
+      const { sent: exportsSent } = await runDueExportSchedules();
+      if (exportsSent > 0) {
+        console.log(`Scheduler: ${exportsSent} Belegexport(e) versendet.`);
       }
     } catch (e) {
       console.error("Scheduler-Fehler:", e);

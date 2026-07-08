@@ -1,34 +1,8 @@
-import nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
 import { getSettings, isSmtpConfigured } from "@/lib/settings";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
-
-function getTransport() {
-  // Für Tests/Entwicklung: SMTP_JSON=1 gibt die Mail als JSON aus statt zu senden.
-  if (process.env.SMTP_JSON === "1") {
-    return nodemailer.createTransport({ jsonTransport: true });
-  }
-  if (!process.env.SMTP_HOST) {
-    throw new ApiError(
-      400,
-      "SMTP ist nicht konfiguriert. Bitte SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS und SMTP_FROM in der .env setzen.",
-    );
-  }
-  const port = Number(process.env.SMTP_PORT ?? 587);
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port,
-    secure: port === 465,
-    auth: process.env.SMTP_USER
-      ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-      : undefined,
-  });
-}
-
-function fillTemplate(template: string, vars: Record<string, string>) {
-  return template.replace(/\{(\w+)\}/g, (m, key) => vars[key] ?? m);
-}
+import { getMailTransport, fillMailTemplate } from "@/lib/mail-transport";
 
 /** Versendet eine finalisierte Rechnung als PDF-Anhang an die Kunden-E-Mail. */
 export async function sendInvoiceEmail(invoiceId: string) {
@@ -49,12 +23,12 @@ export async function sendInvoiceEmail(invoiceId: string) {
   const pdf = await renderInvoicePdf(invoice, settings);
   const vars = { nummer: invoice.number, kunde: invoice.customerName || invoice.customer.name };
 
-  const transport = getTransport();
+  const transport = getMailTransport();
   await transport.sendMail({
     from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
     to: invoice.customer.email,
-    subject: fillTemplate(settings.emailSubject, vars),
-    text: fillTemplate(settings.emailBody, vars),
+    subject: fillMailTemplate(settings.emailSubject, vars),
+    text: fillMailTemplate(settings.emailBody, vars),
     attachments: [
       {
         filename: `Rechnung_${invoice.number.replace(/[^\w-]/g, "_")}.pdf`,

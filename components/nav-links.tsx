@@ -25,6 +25,7 @@ const groups: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/recurring", label: "Wiederkehrend" },
       { href: "/customers", label: "Kunden" },
       { href: "/software", label: "Software" },
+      { href: "/export", label: "Export" },
     ],
   },
 ];

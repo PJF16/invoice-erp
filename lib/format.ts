@@ -28,3 +28,15 @@ export const INTERVAL_LABELS: Record<string, string> = {
   QUARTERLY: "Quartalsweise",
   YEARLY: "Jährlich",
 };
+
+export const EXPORT_PERIOD_LABELS: Record<string, string> = {
+  PREVIOUS_MONTH: "Vormonat",
+  PREVIOUS_QUARTER: "Vorquartal",
+  PREVIOUS_YEAR: "Vorjahr",
+  ALL_TIME: "Alle Belege",
+};
+
+export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  INVOICE: "Rechnungen",
+  CREDIT_NOTE: "Gutschriften",
+};

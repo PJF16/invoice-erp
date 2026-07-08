@@ -1,8 +1,8 @@
-import nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
 import { getSettings, isSmtpConfigured } from "@/lib/settings";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
+import { getMailTransport, fillMailTemplate } from "@/lib/mail-transport";
 
 const eur = new Intl.NumberFormat("de-AT", { style: "currency", currency: "EUR" });
 const dateFmt = new Intl.DateTimeFormat("de-AT", { dateStyle: "medium" });
@@ -24,28 +24,6 @@ export function overdueWhere() {
     status: { in: ["OPEN", "SENT"] as ("OPEN" | "SENT")[] },
     dueDate: { lt: startOfToday() },
   };
-}
-
-function getTransport() {
-  if (process.env.SMTP_JSON === "1") {
-    return nodemailer.createTransport({ jsonTransport: true });
-  }
-  if (!process.env.SMTP_HOST) {
-    throw new ApiError(400, "SMTP ist nicht konfiguriert — Zahlungserinnerungen können nicht versendet werden.");
-  }
-  const port = Number(process.env.SMTP_PORT ?? 587);
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port,
-    secure: port === 465,
-    auth: process.env.SMTP_USER
-      ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-      : undefined,
-  });
-}
-
-function fillTemplate(template: string, vars: Record<string, string>) {
-  return template.replace(/\{(\w+)\}/g, (m, key) => vars[key] ?? m);
 }
 
 /** Versendet eine Zahlungserinnerung mit Rechnungs-PDF und zählt die Mahnstufe hoch. */
@@ -75,12 +53,12 @@ export async function sendReminderEmail(invoiceId: string) {
     tage: String(daysOverdue(invoice.dueDate)),
   };
 
-  const transport = getTransport();
+  const transport = getMailTransport();
   await transport.sendMail({
     from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
     to: invoice.customer.email,
-    subject: fillTemplate(settings.reminderSubject, vars),
-    text: fillTemplate(settings.reminderBody, vars),
+    subject: fillMailTemplate(settings.reminderSubject, vars),
+    text: fillMailTemplate(settings.reminderBody, vars),
     attachments: [
       {
         filename: `Rechnung_${invoice.number.replace(/[^\w-]/g, "_")}.pdf`,

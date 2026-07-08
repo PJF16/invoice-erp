@@ -38,6 +38,13 @@ enum RecurringInterval {
   YEARLY
 }
 
+enum ExportPeriod {
+  PREVIOUS_MONTH
+  PREVIOUS_QUARTER
+  PREVIOUS_YEAR
+  ALL_TIME
+}
+
 enum MovementType {
   IN
   OUT
@@ -225,6 +232,21 @@ model RecurringInvoiceLine {
   quantity           Decimal          @db.Decimal(10, 2)
   unit               String           @default("Stk")
   taxRate            Int              @default(20)
+}
+
+model ExportSchedule {
+  id             String            @id @default(cuid())
+  name           String
+  active         Boolean           @default(true)
+  interval       RecurringInterval @default(MONTHLY)
+  nextRun        DateTime
+  period         ExportPeriod      @default(PREVIOUS_MONTH)
+  types          InvoiceType[]     @default([INVOICE])
+  recipientEmail String
+  emailSubject   String            @default("Belegexport {zeitraum}")
+  emailBody      String            @default("Sehr geehrte Damen und Herren,\n\nanbei der Belegexport für {zeitraum}.\n\nMit freundlichen Grüßen")
+  lastRunAt      DateTime?
+  createdAt      DateTime          @default(now())
 }
 
 model Movement {

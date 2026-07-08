@@ -21,6 +21,7 @@ Modernes Lagerverwaltungs- und Rechnungsprogramm für ein österreichisches Unte
 - **Stornorechnungen**: Stornieren erzeugt einen eigenen Beleg mit eigener Nummer und negierten Beträgen (buchhalterisch korrekt), bucht Hardware zurück und verknüpft beide Belege
 - **Dashboard** (Startseite): Monatsumsatz, offene Posten, Überfälliges, Umsatz der letzten 6 Monate, Top-Kunden, letzte Rechnungen
 - **Mahnwesen**: Überfällige Rechnungen mit Mahnstufen; Zahlungserinnerungen manuell per Klick oder automatisch (Einstellungen: erste Erinnerung nach X Tagen, Wiederholung im selben Abstand, Maximalanzahl; Vorlagen mit Platzhaltern)
+- **Export**: Rechnungen und Gutschriften gefiltert nach Zeitraum, Status und Kunde als ZIP herunterladen; zusätzlich **geplante Exporte**, die zu einem festen Zeitpunkt automatisch erzeugt und per E-Mail versendet werden (z.B. „alle Rechnungen des Vormonats" monatlich am 1. an die Steuerberatung)
 - **Wiederkehrende Rechnungen** (monatlich/quartalsweise/jährlich): werden vom eingebauten Scheduler automatisch erzeugt und versendet; **Softwareartikel-Preise werden bei jeder Erzeugung neu gelesen** — Preisänderungen wirken automatisch auf alle künftigen Rechnungen
 - **Kundenverwaltung** mit UID und Standard-Steuerbehandlung pro Kunde
 - **Einstellungen**: Firmendaten, UID, Bankverbindung (erscheint auf dem PDF), Zahlungsziel, E-Mail-Vorlagen
@@ -96,5 +97,8 @@ Falls das Image kein Seed-Tooling enthält, alternativ lokal mit `DATABASE_URL` 
 | `/api/recurring-invoices`, `…/{id}` | GET, POST, PATCH, DELETE | Wiederkehrende Rechnungen |
 | `/api/recurring-invoices/{id}/run` | POST | Sofort eine Rechnung erzeugen |
 | `/api/settings` | GET, PUT | Firmeneinstellungen (PUT nur Admin) |
+| `/api/export` | POST | Belege gefiltert als ZIP herunterladen |
+| `/api/export-schedules`, `…/{id}` | GET, POST, PATCH, DELETE | Geplante Exporte |
+| `/api/export-schedules/{id}/run` | POST | Sofort ausführen und versenden |
 
 Alle Endpunkte erfordern eine angemeldete Session.

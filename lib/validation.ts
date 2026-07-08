@@ -124,6 +124,44 @@ export const settingsSchema = z.object({
   reminderBody: z.string().min(1),
 });
 
+const invoiceTypeArray = z
+  .array(z.enum(["INVOICE", "CREDIT_NOTE"]))
+  .min(1, "Mindestens ein Dokumenttyp ist erforderlich");
+
+export const exportFilterSchema = z.object({
+  dateFrom: dateString.nullable().optional(),
+  dateTo: dateString.nullable().optional(),
+  types: invoiceTypeArray,
+  status: z.enum(["OPEN", "SENT", "PAID", "CANCELED"]).nullable().optional(),
+  customerId: optionalTrimmed,
+});
+
+const emailListSchema = z
+  .string()
+  .trim()
+  .min(1, "E-Mail-Adresse ist erforderlich")
+  .refine(
+    (v) =>
+      v
+        .split(/[,;]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .every((s) => z.email().safeParse(s).success),
+    "Eine oder mehrere E-Mail-Adressen sind ungültig",
+  );
+
+export const exportScheduleSchema = z.object({
+  name: z.string().trim().min(1, "Name ist erforderlich"),
+  active: z.boolean().default(true),
+  interval: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).default("MONTHLY"),
+  nextRun: dateString,
+  period: z.enum(["PREVIOUS_MONTH", "PREVIOUS_QUARTER", "PREVIOUS_YEAR", "ALL_TIME"]).default("PREVIOUS_MONTH"),
+  types: invoiceTypeArray,
+  recipientEmail: emailListSchema,
+  emailSubject: z.string().trim().min(1).default("Belegexport {zeitraum}"),
+  emailBody: z.string().min(1),
+});
+
 export const userSchema = z.object({
   email: z.email("Ungültige E-Mail-Adresse"),
   name: z.string().trim().min(1, "Name ist erforderlich"),

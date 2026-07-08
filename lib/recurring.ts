@@ -2,23 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { createDraftInvoice, finalizeInvoice, type LineInput } from "@/lib/invoices";
 import { sendInvoiceEmail } from "@/lib/mailer";
 import { getSettings, isSmtpConfigured } from "@/lib/settings";
-import type { RecurringInterval } from "@/lib/generated/prisma/enums";
-
-function addInterval(date: Date, interval: RecurringInterval): Date {
-  const d = new Date(date);
-  switch (interval) {
-    case "MONTHLY":
-      d.setMonth(d.getMonth() + 1);
-      break;
-    case "QUARTERLY":
-      d.setMonth(d.getMonth() + 3);
-      break;
-    case "YEARLY":
-      d.setFullYear(d.getFullYear() + 1);
-      break;
-  }
-  return d;
-}
+import { addInterval } from "@/lib/dates";
 
 /**
  * Erzeugt aus einer Vorlage eine finalisierte Rechnung.
