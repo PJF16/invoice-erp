@@ -24,6 +24,7 @@ export const movementSchema = z.object({
   warehouseId: z.string().min(1),
   type: z.enum(["IN", "OUT", "ADJUST"]),
   quantity: z.number().int("Menge muss ganzzahlig sein").min(0),
+  supplier: optionalTrimmed,
   note: optionalTrimmed,
 });
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ItemForm, ItemRowActions } from "@/components/item-form";
 
@@ -40,7 +41,11 @@ export default async function ItemsPage() {
             )}
             {items.map((item) => (
               <tr key={item.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium">{item.name}</td>
+                <td className="px-4 py-3 font-medium">
+                  <Link href={`/items/${item.id}`} className="hover:text-blue-700 hover:underline">
+                    {item.name}
+                  </Link>
+                </td>
                 <td className="px-4 py-3 text-gray-500">{item.sku ?? "–"}</td>
                 <td className="px-4 py-3 font-mono text-xs text-gray-500">{item.barcode ?? "–"}</td>
                 <td className="px-4 py-3 text-right font-semibold tabular-nums">

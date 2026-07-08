@@ -8,6 +8,7 @@ type BookMovementInput = {
   type: MovementType;
   quantity: number;
   userId: string;
+  supplier?: string | null;
   note?: string | null;
 };
 
@@ -16,7 +17,7 @@ type BookMovementInput = {
  * IN erhöht, OUT verringert (nie unter 0), ADJUST setzt den Bestand absolut.
  */
 export async function bookMovement(input: BookMovementInput) {
-  const { itemId, warehouseId, type, quantity, userId, note } = input;
+  const { itemId, warehouseId, type, quantity, userId, supplier, note } = input;
 
   if (type !== "ADJUST" && quantity <= 0) {
     throw new ApiError(400, "Menge muss größer als 0 sein");
@@ -62,7 +63,7 @@ export async function bookMovement(input: BookMovementInput) {
     });
 
     const movement = await tx.movement.create({
-      data: { itemId, warehouseId, type, quantity: movementQuantity, userId, note },
+      data: { itemId, warehouseId, type, quantity: movementQuantity, userId, supplier, note },
       include: { item: true, warehouse: true },
     });
 

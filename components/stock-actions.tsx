@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Props = {
@@ -15,6 +15,15 @@ export function StockActions({ itemId, itemName, warehouses, defaultWarehouseId 
   const [mode, setMode] = useState<"IN" | "OUT" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [suppliers, setSuppliers] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (mode !== "IN") return;
+    fetch("/api/suppliers")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setSuppliers)
+      .catch(() => {});
+  }, [mode]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -29,6 +38,7 @@ export function StockActions({ itemId, itemName, warehouses, defaultWarehouseId 
         warehouseId: form.get("warehouseId"),
         type: mode,
         quantity: Number(form.get("quantity")),
+        supplier: (form.get("supplier") as string) || null,
         note: (form.get("note") as string) || null,
       }),
     });
@@ -102,6 +112,22 @@ export function StockActions({ itemId, itemName, warehouses, defaultWarehouseId 
                   className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
+              {mode === "IN" && (
+                <div>
+                  <label className="block text-sm font-medium">Lieferant (optional)</label>
+                  <input
+                    name="supplier"
+                    type="text"
+                    list="supplier-suggestions"
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                  <datalist id="supplier-suggestions">
+                    {suppliers.map((s) => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium">Notiz (optional)</label>
                 <input

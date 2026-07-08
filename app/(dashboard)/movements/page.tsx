@@ -84,6 +84,7 @@ export default async function MovementsPage({
               <th className="px-4 py-3">Artikel</th>
               <th className="px-4 py-3 text-right">Menge</th>
               <th className="px-4 py-3">Lager</th>
+              <th className="px-4 py-3">Lieferant</th>
               <th className="px-4 py-3">Benutzer</th>
               <th className="px-4 py-3">Notiz</th>
             </tr>
@@ -91,7 +92,7 @@ export default async function MovementsPage({
           <tbody>
             {movements.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                   Noch keine Bewegungen.
                 </td>
               </tr>
@@ -114,6 +115,7 @@ export default async function MovementsPage({
                   {Math.abs(m.quantity)}
                 </td>
                 <td className="px-4 py-3 text-gray-500">{m.warehouse.name}</td>
+                <td className="px-4 py-3 text-gray-500">{m.supplier ?? "–"}</td>
                 <td className="px-4 py-3 text-gray-500">{m.user.name}</td>
                 <td className="px-4 py-3 text-xs text-gray-500">{m.note ?? ""}</td>
               </tr>

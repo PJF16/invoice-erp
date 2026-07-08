@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { StockActions } from "@/components/stock-actions";
 
@@ -105,7 +106,11 @@ export default async function StockPage({
             )}
             {rows.map((row) => (
               <tr key={row.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium">{row.name}</td>
+                <td className="px-4 py-3 font-medium">
+                  <Link href={`/items/${row.id}`} className="hover:text-blue-700 hover:underline">
+                    {row.name}
+                  </Link>
+                </td>
                 <td className="px-4 py-3 text-gray-500">{row.sku ?? "–"}</td>
                 <td
                   className={`px-4 py-3 text-right font-semibold tabular-nums ${
