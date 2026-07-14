@@ -26,6 +26,9 @@ COPY --from=builder /app/public ./public
 # Prisma CLI + Schema für Migrationen beim Container-Start
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+# Generierter Prisma-Client wird von prisma/seed.ts direkt (außerhalb des
+# Next-Bundles) benötigt; explizit kopieren statt auf Tracing zu verlassen
+COPY --from=builder /app/lib/generated ./lib/generated
 # Next.js standalone-Tracing kopiert pg-Abhängigkeiten (z.B. postgres-array) oft
 # unvollständig; alte Reste entfernen, damit npm install sie sauber neu auflöst
 RUN rm -rf node_modules/pg node_modules/pg-* node_modules/postgres-* node_modules/@prisma/adapter-pg
