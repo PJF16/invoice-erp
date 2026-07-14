@@ -11,7 +11,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen flex-1">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white">
+      <aside className="flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white print:hidden">
         <div className="px-5 py-5">
           <span className="text-lg font-semibold tracking-tight">📦 Lager</span>
         </div>
@@ -22,7 +22,7 @@ export default async function DashboardLayout({
           <LogoutButton />
         </div>
       </aside>
-      <main className="flex-1 overflow-x-auto p-6 lg:p-8">{children}</main>
+      <main className="flex-1 overflow-x-auto p-6 lg:p-8 print:p-0">{children}</main>
     </div>
   );
 }

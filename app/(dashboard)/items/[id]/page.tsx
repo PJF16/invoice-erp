@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { StockActions } from "@/components/stock-actions";
+import { ItemBarcodeActions } from "@/components/item-barcode-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -57,11 +58,14 @@ export default async function ItemDetailPage({
           </p>
           {item.description && <p className="mt-1 text-sm text-gray-500">{item.description}</p>}
         </div>
-        <StockActions
-          itemId={item.id}
-          itemName={item.name}
-          warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}
-        />
+        <div className="flex items-end gap-2">
+          <ItemBarcodeActions itemId={item.id} barcode={item.barcode} />
+          <StockActions
+            itemId={item.id}
+            itemName={item.name}
+            warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}
+          />
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { generateInternalBarcode } from "@/lib/barcode";
 
 type ItemData = {
   id?: string;
@@ -21,6 +23,7 @@ function ItemDialog({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const barcodeRef = useRef<HTMLInputElement>(null);
   const isEdit = Boolean(item?.id);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -82,12 +85,28 @@ function ItemDialog({
           </div>
           <div>
             <label className="block text-sm font-medium">Barcode</label>
-            <input
-              name="barcode"
-              defaultValue={item?.barcode ?? ""}
-              placeholder="EAN / UPC für Scanner"
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono"
-            />
+            <div className="mt-1 flex gap-2">
+              <input
+                ref={barcodeRef}
+                name="barcode"
+                defaultValue={item?.barcode ?? ""}
+                placeholder="EAN / UPC für Scanner"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (barcodeRef.current) barcodeRef.current.value = generateInternalBarcode();
+                }}
+                className="shrink-0 rounded-lg border border-gray-300 px-3 py-2 text-xs whitespace-nowrap hover:bg-gray-50"
+              >
+                Generieren
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Für gebrauchte Geräte ohne Schachtel: Barcode generieren, speichern und anschließend
+              als Etikett ausdrucken.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium">Beschreibung</label>
@@ -139,6 +158,7 @@ export function ItemForm() {
 export function ItemRowActions({ item }: { item: ItemData & { id: string } }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   async function handleDelete() {
     if (!confirm(`Artikel „${item.name}" wirklich löschen? Bestand und Historie gehen verloren.`)) {
@@ -149,8 +169,36 @@ export function ItemRowActions({ item }: { item: ItemData & { id: string } }) {
     else alert("Löschen fehlgeschlagen");
   }
 
+  async function handleGenerateBarcode() {
+    setGenerating(true);
+    const res = await fetch(`/api/items/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barcode: generateInternalBarcode() }),
+    });
+    setGenerating(false);
+    if (res.ok) router.refresh();
+    else alert("Barcode konnte nicht generiert werden");
+  }
+
   return (
     <div className="inline-flex gap-1">
+      {item.barcode ? (
+        <Link
+          href={`/items/${item.id}/label`}
+          className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs hover:bg-gray-100"
+        >
+          Etikett
+        </Link>
+      ) : (
+        <button
+          onClick={handleGenerateBarcode}
+          disabled={generating}
+          className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs hover:bg-gray-100 disabled:opacity-50"
+        >
+          {generating ? "Generiere…" : "Barcode generieren"}
+        </button>
+      )}
       <button
         onClick={() => setEditing(true)}
         className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs hover:bg-gray-100"
