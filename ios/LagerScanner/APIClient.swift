@@ -15,7 +15,16 @@ final class APIClient: ObservableObject {
     }
 
     private var baseURL: URL? {
-        URL(string: baseURLString.trimmingCharacters(in: .whitespaces))
+        var trimmed = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if !trimmed.contains("://") {
+            trimmed = "https://" + trimmed
+        }
+        guard let url = URL(string: trimmed), let scheme = url.scheme,
+              (scheme == "http" || scheme == "https"), url.host != nil else {
+            return nil
+        }
+        return url
     }
 
     enum APIError: LocalizedError {
