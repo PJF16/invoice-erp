@@ -9,6 +9,18 @@ final class APIClient: ObservableObject {
 
     private let session = URLSession.shared
 
+    // Der Login-POST antwortet mit einem 302 (NextAuth) — dem Redirect nicht
+    // folgen, das Session-Cookie ist zu dem Zeitpunkt bereits gesetzt.
+    private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate {
+        func urlSession(_ session: URLSession, task: URLSessionTask,
+                        willPerformHTTPRedirection response: HTTPURLResponse,
+                        newRequest request: URLRequest,
+                        completionHandler: @escaping (URLRequest?) -> Void) {
+            completionHandler(nil)
+        }
+    }
+    private let noRedirectDelegate = NoRedirectDelegate()
+
     init() {
         baseURLString = UserDefaults.standard.string(forKey: "baseURL") ?? "http://192.168.0.10:3000"
         Task { await checkSession() }
@@ -48,25 +60,31 @@ final class APIClient: ObservableObject {
     func login(email: String, password: String) async throws {
         guard let base = baseURL else { throw APIError.invalidURL }
 
-        let (csrfData, _) = try await session.data(from: base.appending(path: "/api/auth/csrf"))
-        guard let csrf = try JSONSerialization.jsonObject(with: csrfData) as? [String: String],
-              let csrfToken = csrf["csrfToken"] else {
-            throw APIError.server("Server nicht erreichbar oder keine Lagerverwaltung.")
-        }
+        do {
+            let (csrfData, _) = try await session.data(from: base.appending(path: "/api/auth/csrf"))
+            guard let csrf = try JSONSerialization.jsonObject(with: csrfData) as? [String: String],
+                  let csrfToken = csrf["csrfToken"] else {
+                throw APIError.server("Server nicht erreichbar oder keine Lagerverwaltung.")
+            }
 
-        var request = URLRequest(url: base.appending(path: "/api/auth/callback/credentials"))
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        let form = [
-            "csrfToken": csrfToken,
-            "email": email,
-            "password": password,
-        ]
-        request.httpBody = form
-            .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "")" }
-            .joined(separator: "&")
-            .data(using: .utf8)
-        _ = try await session.data(for: request)
+            var request = URLRequest(url: base.appending(path: "/api/auth/callback/credentials"))
+            request.httpMethod = "POST"
+            request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+            let form = [
+                "csrfToken": csrfToken,
+                "email": email,
+                "password": password,
+            ]
+            request.httpBody = form
+                .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "")" }
+                .joined(separator: "&")
+                .data(using: .utf8)
+            _ = try await session.data(for: request, delegate: noRedirectDelegate)
+        } catch let error as APIError {
+            throw error
+        } catch let error as URLError {
+            throw APIError.server("Netzwerkfehler beim Verbinden mit \(base.absoluteString): \(error.localizedDescription) (\(error.code.rawValue))")
+        }
 
         await checkSession()
         if !isLoggedIn { throw APIError.loginFailed }

@@ -26,6 +26,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-erp}:${POSTGRES_PASSWORD:-erp_dev_password}@db:5432/${POSTGRES_DB:-invoice_erp}
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET muss in .env gesetzt sein}
       AUTH_TRUST_HOST: "true"
+      # Öffentliche URL (z.B. hinter Cloudflare Tunnel) — sonst baut Auth.js
+      # Redirects aus der internen Bind-Adresse (https://0.0.0.0:3000).
+      AUTH_URL: ${AUTH_URL:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
