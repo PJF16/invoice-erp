@@ -56,6 +56,15 @@ enum MovementType {
   ADJUST
 }
 
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CARD
+  DIRECT_DEBIT
+  PAYPAL
+  OTHER
+}
+
 model User {
   id           String     @id @default(cuid())
   email        String     @unique
@@ -65,6 +74,7 @@ model User {
   modules      Module[]   @default([STOCK, INVOICES])
   createdAt    DateTime   @default(now())
   movements    Movement[]
+  payments     Payment[]
 }
 
 model Warehouse {
@@ -124,6 +134,8 @@ model CompanySettings {
   maxReminders    Int     @default(3)
   reminderSubject String  @default("Zahlungserinnerung zu Rechnung {nummer}")
   reminderBody    String  @default("Sehr geehrte Damen und Herren,\n\ndürfen wir Sie freundlich daran erinnern, dass die Rechnung {nummer} vom {datum} über {betrag} seit {tage} Tagen überfällig ist?\n\nBitte überweisen Sie den offenen Betrag auf das angegebene Konto. Sollte sich Ihre Zahlung mit dieser Erinnerung überschnitten haben, betrachten Sie dieses Schreiben bitte als gegenstandslos.\n\nMit freundlichen Grüßen")
+  skontoPercent   Int     @default(0)
+  skontoDays      Int     @default(0)
 }
 
 model Customer {
@@ -180,14 +192,35 @@ model Invoice {
   netTotal           Decimal           @default(0) @db.Decimal(12, 2)
   taxTotal           Decimal           @default(0) @db.Decimal(12, 2)
   grossTotal         Decimal           @default(0) @db.Decimal(12, 2)
+  paidTotal          Decimal           @default(0) @db.Decimal(12, 2)
+  skontoGranted      Decimal           @default(0) @db.Decimal(12, 2)
+  skontoPercent      Int               @default(0)
+  skontoDays         Int               @default(0)
   recurringInvoice   RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
   recurringInvoiceId String?
   sentAt             DateTime?
   paidAt             DateTime?
   createdAt          DateTime          @default(now())
   lines              InvoiceLine[]
+  payments           Payment[]
 
   @@index([status, issueDate])
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  invoice   Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId String
+  amount    Decimal       @db.Decimal(12, 2)
+  date      DateTime
+  method    PaymentMethod @default(BANK_TRANSFER)
+  reference String?
+  note      String?
+  user      User          @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime      @default(now())
+
+  @@index([invoiceId])
 }
 
 model InvoiceLine {

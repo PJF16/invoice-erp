@@ -22,17 +22,16 @@ export default async function DashboardPage() {
     number: { not: null },
   };
 
-  const [monthAgg, openAgg, overdue, revenueInvoices, yearInvoices, latest, itemCount, movementsToday] =
+  const [monthAgg, openInvoices, overdue, revenueInvoices, yearInvoices, latest, itemCount, movementsToday] =
     await Promise.all([
       prisma.invoice.aggregate({
         where: { ...revenueWhere, issueDate: { gte: startOfMonth } },
         _sum: { netTotal: true },
         _count: { _all: true },
       }),
-      prisma.invoice.aggregate({
+      prisma.invoice.findMany({
         where: { type: "INVOICE", status: { in: ["OPEN", "SENT"] } },
-        _sum: { grossTotal: true },
-        _count: { _all: true },
+        select: { grossTotal: true, paidTotal: true, skontoGranted: true },
       }),
       prisma.invoice.findMany({
         where: overdueWhere(),
@@ -58,6 +57,10 @@ export default async function DashboardPage() {
     ]);
 
   const overdueSum = overdue.reduce((sum, i) => sum + Number(i.grossTotal), 0);
+  const openSum = openInvoices.reduce(
+    (sum, i) => sum + (Number(i.grossTotal) - Number(i.paidTotal) - Number(i.skontoGranted)),
+    0,
+  );
 
   // Umsatz je Monat (letzte 6 Monate)
   const months: { key: string; label: string; total: number }[] = [];
@@ -99,13 +102,11 @@ export default async function DashboardPage() {
           </p>
           <p className="text-xs text-gray-500">{monthAgg._count._all} Rechnungen</p>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <Link href="/offene-posten" className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:border-blue-300">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Offene Posten</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums">
-            {eur.format(Number(openAgg._sum.grossTotal ?? 0))}
-          </p>
-          <p className="text-xs text-gray-500">{openAgg._count._all} unbezahlte Rechnungen</p>
-        </div>
+          <p className="mt-1 text-2xl font-bold tabular-nums">{eur.format(openSum)}</p>
+          <p className="text-xs text-gray-500">{openInvoices.length} unbezahlte Rechnungen</p>
+        </Link>
         <Link href="/reminders" className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:border-red-300">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Überfällig</p>
           <p className={`mt-1 text-2xl font-bold tabular-nums ${overdue.length > 0 ? "text-red-600" : ""}`}>

@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError } from "@/lib/api-helpers";
 import { itemSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   try {
-    await requireSession();
+    await requireModule("STOCK");
     const q = req.nextUrl.searchParams.get("q")?.trim();
     const items = await prisma.item.findMany({
       where: q
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    await requireSession();
+    await requireModule("STOCK");
     const parsed = itemSchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

@@ -77,6 +77,15 @@ export const invoiceSchema = z.object({
   lines: z.array(invoiceLineSchema).min(1, "Mindestens eine Position ist erforderlich"),
 });
 
+export const paymentSchema = z.object({
+  amount: z.number().gt(0, "Betrag muss größer als 0 sein").max(99_999_999),
+  date: dateString,
+  method: z.enum(["BANK_TRANSFER", "CASH", "CARD", "DIRECT_DEBIT", "PAYPAL", "OTHER"]).default("BANK_TRANSFER"),
+  reference: optionalTrimmed,
+  note: optionalTrimmed,
+  grantSkonto: z.boolean().default(false),
+});
+
 export const recurringLineSchema = z
   .object({
     softwareItemId: optionalTrimmed,
@@ -123,6 +132,8 @@ export const settingsSchema = z.object({
   maxReminders: z.number().int().min(1).max(10).default(3),
   reminderSubject: z.string().trim().min(1).default("Zahlungserinnerung zu Rechnung {nummer}"),
   reminderBody: z.string().min(1),
+  skontoPercent: z.number().int().min(0).max(100).default(0),
+  skontoDays: z.number().int().min(0).max(365).default(0),
 });
 
 const invoiceTypeArray = z

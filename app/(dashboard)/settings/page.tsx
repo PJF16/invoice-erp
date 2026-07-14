@@ -32,6 +32,8 @@ export default async function SettingsPage() {
           phone: settings.phone,
           invoicePrefix: settings.invoicePrefix,
           paymentDays: settings.paymentDays,
+          skontoPercent: settings.skontoPercent,
+          skontoDays: settings.skontoDays,
           emailSubject: settings.emailSubject,
           emailBody: settings.emailBody,
           autoReminders: settings.autoReminders,

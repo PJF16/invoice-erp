@@ -15,7 +15,7 @@ export default async function DashboardLayout({
         <div className="px-5 py-5">
           <span className="text-lg font-semibold tracking-tight">📦 Lager</span>
         </div>
-        <NavLinks isAdmin={session.user.role === "ADMIN"} />
+        <NavLinks isAdmin={session.user.role === "ADMIN"} modules={session.user.modules} />
         <div className="mt-auto border-t border-gray-200 px-5 py-4">
           <p className="truncate text-sm font-medium">{session.user.name}</p>
           <p className="truncate text-xs text-gray-500">{session.user.email}</p>

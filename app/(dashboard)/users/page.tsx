@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserForm } from "@/components/user-form";
+import { UserEditForm } from "@/components/user-edit-form";
+import { MODULE_LABELS } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +12,7 @@ export default async function UsersPage() {
   if (session?.user.role !== "ADMIN") redirect("/");
 
   const users = await prisma.user.findMany({
-    select: { id: true, email: true, name: true, role: true, createdAt: true },
+    select: { id: true, email: true, name: true, role: true, modules: true, createdAt: true },
     orderBy: { name: "asc" },
   });
 
@@ -31,6 +33,8 @@ export default async function UsersPage() {
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">E-Mail</th>
               <th className="px-4 py-3">Rolle</th>
+              <th className="px-4 py-3">Zugriff</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -48,6 +52,16 @@ export default async function UsersPage() {
                   >
                     {u.role === "ADMIN" ? "Admin" : "Mitarbeiter"}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-gray-500">
+                  {u.role === "ADMIN"
+                    ? "Alle Bereiche"
+                    : u.modules.length > 0
+                      ? u.modules.map((m) => MODULE_LABELS[m]).join(", ")
+                      : "—"}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <UserEditForm user={u} />
                 </td>
               </tr>
             ))}

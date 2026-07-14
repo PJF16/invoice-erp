@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError } from "@/lib/api-helpers";
 import { exportScheduleSchema } from "@/lib/validation";
 
 export async function GET() {
   try {
-    await requireSession();
+    await requireModule("INVOICES");
     const schedules = await prisma.exportSchedule.findMany({ orderBy: { name: "asc" } });
     return NextResponse.json(schedules);
   } catch (error) {
@@ -15,7 +15,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    await requireSession();
+    await requireModule("INVOICES");
     const parsed = exportScheduleSchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

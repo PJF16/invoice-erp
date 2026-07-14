@@ -22,6 +22,8 @@ type Settings = {
   phone: string;
   invoicePrefix: string;
   paymentDays: number;
+  skontoPercent: number;
+  skontoDays: number;
   emailSubject: string;
   emailBody: string;
   lastInvoiceYear: number;
@@ -63,6 +65,8 @@ export function SettingsForm({
         phone: form.get("phone"),
         invoicePrefix: form.get("invoicePrefix"),
         paymentDays: Number(form.get("paymentDays")),
+        skontoPercent: Number(form.get("skontoPercent")),
+        skontoDays: Number(form.get("skontoDays")),
         emailSubject: form.get("emailSubject"),
         emailBody: form.get("emailBody"),
         autoReminders: form.get("autoReminders") === "on",
@@ -160,6 +164,16 @@ export function SettingsForm({
           <div>
             <label className={label}>Zahlungsziel (Tage)</label>
             <input name="paymentDays" type="number" min={0} max={365} defaultValue={settings.paymentDays} className={input} />
+          </div>
+          <div>
+            <label className={label}>Skonto (%)</label>
+            <input name="skontoPercent" type="number" min={0} max={100} step={1} defaultValue={settings.skontoPercent} className={input} />
+            <p className="mt-1 text-xs text-gray-500">0 = kein Skonto. Wird bei neuen Rechnungen eingefroren.</p>
+          </div>
+          <div>
+            <label className={label}>Skonto-Frist (Tage)</label>
+            <input name="skontoDays" type="number" min={0} max={365} defaultValue={settings.skontoDays} className={input} />
+            <p className="mt-1 text-xs text-gray-500">Zahlungsfrist ab Rechnungsdatum, innerhalb der Skonto gilt.</p>
           </div>
         </div>
       </section>

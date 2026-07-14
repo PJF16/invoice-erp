@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError } from "@/lib/api-helpers";
 import { getSettings } from "@/lib/settings";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireSession();
+    await requireModule("INVOICES");
     const { id } = await params;
     const invoice = await prisma.invoice.findUnique({
       where: { id },

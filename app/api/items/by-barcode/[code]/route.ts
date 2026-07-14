@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError } from "@/lib/api-helpers";
 
 // Für den Scanner-Workflow der iOS-App: Artikel per Barcode nachschlagen.
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   try {
-    await requireSession();
+    await requireModule("STOCK");
     const { code } = await params;
     const item = await prisma.item.findUnique({
       where: { barcode: code },

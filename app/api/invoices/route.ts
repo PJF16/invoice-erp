@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError } from "@/lib/api-helpers";
 import { invoiceSchema } from "@/lib/validation";
 import { createDraftInvoice } from "@/lib/invoices";
 import type { InvoiceStatus } from "@/lib/generated/prisma/enums";
 
 export async function GET(req: NextRequest) {
   try {
-    await requireSession();
+    await requireModule("INVOICES");
     const status = req.nextUrl.searchParams.get("status") as InvoiceStatus | null;
     const invoices = await prisma.invoice.findMany({
       where: status ? { status } : undefined,
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    await requireSession();
+    await requireModule("INVOICES");
     const parsed = invoiceSchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

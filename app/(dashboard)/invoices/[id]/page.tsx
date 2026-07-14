@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { eur, formatDate, INVOICE_STATUS_LABELS } from "@/lib/format";
 import { TAX_NOTES, TAX_TREATMENT_LABELS } from "@/lib/invoices";
+import { skontoDeadline } from "@/lib/payments";
 import { InvoiceActions } from "@/components/invoice-actions";
+import { InvoicePayments } from "@/components/invoice-payments";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +16,17 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     include: {
       lines: { orderBy: { position: "asc" } },
       customer: true,
+      payments: { orderBy: { date: "asc" } },
       recurringInvoice: { select: { id: true, name: true } },
       relatedInvoice: { select: { id: true, number: true } },
       stornoInvoices: { select: { id: true, number: true } },
     },
   });
   if (!invoice) notFound();
+
+  const showPayments =
+    invoice.type === "INVOICE" && invoice.status !== "DRAFT" && invoice.status !== "CANCELED";
+  const deadline = skontoDeadline(invoice);
 
   const badge = INVOICE_STATUS_LABELS[invoice.status];
   const customerName = invoice.customerName || invoice.customer.name;
@@ -153,6 +160,26 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           </tfoot>
         </table>
       </section>
+
+      {showPayments && (
+        <InvoicePayments
+          invoiceId={invoice.id}
+          grossTotal={Number(invoice.grossTotal)}
+          paidTotal={Number(invoice.paidTotal)}
+          skontoGranted={Number(invoice.skontoGranted)}
+          skontoPercent={invoice.skontoPercent}
+          skontoDeadline={deadline ? deadline.toISOString() : null}
+          status={invoice.status}
+          payments={invoice.payments.map((p) => ({
+            id: p.id,
+            amount: Number(p.amount),
+            date: p.date.toISOString(),
+            method: p.method,
+            reference: p.reference,
+            note: p.note,
+          }))}
+        />
+      )}
 
       {invoice.notes && (
         <section className="mt-6 rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-600 shadow-sm">

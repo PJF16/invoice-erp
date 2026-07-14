@@ -94,6 +94,16 @@ final class APIClient: ObservableObject {
         return try decode(data: data, response: response)
     }
 
+    private func post<T: Decodable, B: Encodable>(_ path: String, body: B) async throws -> T {
+        guard let base = baseURL else { throw APIError.invalidURL }
+        var request = URLRequest(url: base.appending(path: path))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(body)
+        let (data, response) = try await session.data(for: request)
+        return try decode(data: data, response: response)
+    }
+
     private func decode<T: Decodable>(data: Data, response: URLResponse) throws -> T {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         if status == 404 { throw APIError.notFound }
@@ -111,6 +121,10 @@ final class APIClient: ObservableObject {
     func itemByBarcode(_ code: String) async throws -> Item {
         let encoded = code.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? code
         return try await get("/api/items/by-barcode/\(encoded)")
+    }
+
+    func createItem(_ item: ItemCreateRequest) async throws -> Item {
+        try await post("/api/items", body: item)
     }
 
     func warehouses() async throws -> [Warehouse] {

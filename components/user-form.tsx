@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { MODULES, MODULE_LABELS } from "@/lib/permissions";
 
 export function UserForm() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export function UserForm() {
         email: form.get("email"),
         password: form.get("password"),
         role: form.get("role"),
+        modules: form.getAll("modules"),
       }),
     });
     setLoading(false);
@@ -91,6 +93,18 @@ export function UserForm() {
                   <option value="MEMBER">Mitarbeiter</option>
                   <option value="ADMIN">Admin</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Zugriff</label>
+                <p className="mt-1 text-xs text-gray-500">Admins haben immer Zugriff auf alle Bereiche.</p>
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {MODULES.map((m) => (
+                    <label key={m} className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" name="modules" value={m} defaultChecked />
+                      {MODULE_LABELS[m]}
+                    </label>
+                  ))}
+                </div>
               </div>
               {error && <p className="text-sm text-red-600">{error}</p>}
               <div className="flex justify-end gap-2">

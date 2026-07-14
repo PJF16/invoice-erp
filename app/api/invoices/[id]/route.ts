@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError } from "@/lib/api-helpers";
 import { invoiceSchema } from "@/lib/validation";
 import { computeTotals } from "@/lib/invoices";
 
@@ -8,7 +8,7 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
-    await requireSession();
+    await requireModule("INVOICES");
     const { id } = await params;
     const invoice = await prisma.invoice.findUnique({
       where: { id },
@@ -23,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
-    await requireSession();
+    await requireModule("INVOICES");
     const { id } = await params;
     const existing = await prisma.invoice.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: "Rechnung nicht gefunden" }, { status: 404 });
@@ -78,7 +78,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   try {
-    await requireSession();
+    await requireModule("INVOICES");
     const { id } = await params;
     const existing = await prisma.invoice.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: "Rechnung nicht gefunden" }, { status: 404 });

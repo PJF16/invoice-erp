@@ -40,7 +40,8 @@ struct LoginView: View {
                 }
                 .disabled(loading || email.isEmpty || password.isEmpty)
             }
-            .navigationTitle("Lager")
+            .navigationTitle("philipp.consulting Warehouse")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 

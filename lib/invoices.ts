@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
 import { bookMovementTx } from "@/lib/movements";
+import { getSettings } from "@/lib/settings";
 import type { TaxTreatment } from "@/lib/generated/prisma/enums";
 
 export const TAX_NOTES: Record<Exclude<TaxTreatment, "STANDARD">, string> = {
@@ -71,6 +72,12 @@ export async function createDraftInvoice(input: CreateInvoiceInput) {
   if (input.lines.length === 0) throw new ApiError(400, "Mindestens eine Position ist erforderlich");
   const { lines, netTotal, taxTotal, grossTotal } = computeTotals(input.lines, input.taxTreatment);
 
+  // Skonto aus den Firmeneinstellungen einfrieren — außer bei automatisch aus
+  // Vorlagen erzeugten (wiederkehrenden) Rechnungen.
+  const settings = input.recurringInvoiceId ? null : await getSettings();
+  const skontoPercent = settings?.skontoPercent ?? 0;
+  const skontoDays = settings?.skontoDays ?? 0;
+
   return prisma.invoice.create({
     data: {
       customerId: input.customerId,
@@ -84,6 +91,8 @@ export async function createDraftInvoice(input: CreateInvoiceInput) {
       netTotal,
       taxTotal,
       grossTotal,
+      skontoPercent,
+      skontoDays,
       lines: {
         create: lines.map((line, i) => ({
           position: i + 1,

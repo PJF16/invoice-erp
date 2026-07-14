@@ -181,6 +181,18 @@ export async function renderInvoicePdf(
       doc.y,
       { width: pageWidth },
     );
+    if (invoice.type === "INVOICE" && invoice.skontoPercent > 0 && invoice.skontoDays > 0) {
+      const skonto = Math.round(num(invoice.grossTotal) * invoice.skontoPercent) / 100;
+      const deadline = new Date(invoice.issueDate.getTime() + invoice.skontoDays * 86_400_000);
+      const payable = Math.round((num(invoice.grossTotal) - skonto) * 100) / 100;
+      doc.fontSize(9).fillColor("#444444").text(
+        `Bei Zahlung bis ${dateFmt.format(deadline)} gewähren wir ${invoice.skontoPercent}% Skonto (${eur.format(skonto)}) — Zahlbetrag ${eur.format(payable)}.`,
+        55,
+        doc.y,
+        { width: pageWidth },
+      );
+      doc.fillColor("#000000").fontSize(10);
+    }
     if (settings.iban) {
       const bank = [
         settings.bankName && `Bank: ${settings.bankName}`,

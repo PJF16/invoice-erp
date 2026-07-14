@@ -36,6 +36,12 @@ enum MovementType: String, Codable, CaseIterable {
     }
 }
 
+struct ItemCreateRequest: Codable {
+    let name: String
+    let sku: String?
+    let barcode: String?
+}
+
 struct MovementRequest: Codable {
     let itemId: String
     let warehouseId: String

@@ -40,3 +40,12 @@ export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   INVOICE: "Rechnungen",
   CREDIT_NOTE: "Gutschriften",
 };
+
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  BANK_TRANSFER: "Überweisung",
+  CASH: "Bar",
+  CARD: "Karte",
+  DIRECT_DEBIT: "Lastschrift",
+  PAYPAL: "PayPal",
+  OTHER: "Sonstiges",
+};

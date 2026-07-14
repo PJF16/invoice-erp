@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ModuleName } from "@/lib/permissions";
 
-const groups: { title: string; links: { href: string; label: string }[] }[] = [
+const groups: {
+  title: string;
+  module?: ModuleName;
+  links: { href: string; label: string }[];
+}[] = [
   {
     title: "Übersicht",
     links: [{ href: "/", label: "Dashboard" }],
   },
   {
     title: "Lager",
+    module: "STOCK",
     links: [
       { href: "/stock", label: "Bestand" },
       { href: "/items", label: "Artikel" },
@@ -19,8 +25,10 @@ const groups: { title: string; links: { href: string; label: string }[] }[] = [
   },
   {
     title: "Rechnungen",
+    module: "INVOICES",
     links: [
       { href: "/invoices", label: "Rechnungen" },
+      { href: "/offene-posten", label: "Offene Posten" },
       { href: "/reminders", label: "Mahnwesen" },
       { href: "/recurring", label: "Wiederkehrend" },
       { href: "/customers", label: "Kunden" },
@@ -30,8 +38,10 @@ const groups: { title: string; links: { href: string; label: string }[] }[] = [
   },
 ];
 
-export function NavLinks({ isAdmin }: { isAdmin: boolean }) {
+export function NavLinks({ isAdmin, modules }: { isAdmin: boolean; modules: ModuleName[] }) {
   const pathname = usePathname();
+
+  const visibleGroups = groups.filter((g) => !g.module || isAdmin || modules.includes(g.module));
 
   const adminGroup = isAdmin
     ? [
@@ -47,7 +57,7 @@ export function NavLinks({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <nav className="flex flex-col gap-4 px-3">
-      {[...groups, ...adminGroup].map((group) => (
+      {[...visibleGroups, ...adminGroup].map((group) => (
         <div key={group.title}>
           <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
             {group.title}

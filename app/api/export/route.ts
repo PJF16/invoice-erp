@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireSession, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError } from "@/lib/api-helpers";
 import { exportFilterSchema } from "@/lib/validation";
 import { queryExportInvoices, buildDocumentsZip } from "@/lib/export";
 import { getSettings } from "@/lib/settings";
@@ -9,7 +9,7 @@ const toFilenameDate = (d: Date) =>
 
 export async function POST(req: NextRequest) {
   try {
-    await requireSession();
+    await requireModule("INVOICES");
     const parsed = exportFilterSchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

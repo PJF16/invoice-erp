@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError } from "@/lib/api-helpers";
 
 // Bestand pro Artikel, optional gefiltert nach Lager (?warehouseId=) und Suche (?q=).
 export async function GET(req: NextRequest) {
   try {
-    await requireSession();
+    await requireModule("STOCK");
     const warehouseId = req.nextUrl.searchParams.get("warehouseId") ?? undefined;
     const q = req.nextUrl.searchParams.get("q")?.trim();
 

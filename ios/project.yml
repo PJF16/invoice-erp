@@ -1,6 +1,6 @@
 name: LagerScanner
 options:
-  bundleIdPrefix: com.pjf16
+  bundleIdPrefix: consulting.philipp
   deploymentTarget:
     iOS: "17.0"
 targets:
@@ -11,7 +11,7 @@ targets:
     info:
       path: LagerScanner/Info.plist
       properties:
-        CFBundleDisplayName: Lager
+        CFBundleDisplayName: pcon Warehouse
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSCameraUsageDescription: "Die Kamera wird zum Scannen von Barcodes benötigt."
@@ -20,7 +20,7 @@ targets:
           NSAllowsArbitraryLoads: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.pjf16.LagerScanner
+        PRODUCT_BUNDLE_IDENTIFIER: consulting.philipp.WarehouseScanner
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic

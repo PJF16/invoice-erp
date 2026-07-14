@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError } from "@/lib/api-helpers";
 import { warehouseSchema } from "@/lib/validation";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
-    await requireSession();
+    await requireModule("STOCK");
     const { id } = await params;
     const parsed = warehouseSchema.partial().safeParse(await req.json());
     if (!parsed.success) {
@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   try {
-    await requireSession();
+    await requireModule("STOCK");
     const { id } = await params;
     await prisma.warehouse.delete({ where: { id } });
     return NextResponse.json({ ok: true });

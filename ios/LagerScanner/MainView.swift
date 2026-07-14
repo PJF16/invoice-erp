@@ -1,11 +1,24 @@
 import SwiftUI
 
+enum ActiveSheet: Identifiable {
+    case booking(Item)
+    case createItem(String)
+
+    var id: String {
+        switch self {
+        case .booking(let item): return "booking-\(item.id)"
+        case .createItem(let barcode): return "create-\(barcode)"
+        }
+    }
+}
+
 struct MainView: View {
     @EnvironmentObject private var api: APIClient
-    @State private var scannedItem: Item?
+    @State private var activeSheet: ActiveSheet?
     @State private var manualBarcode = ""
     @State private var error: String?
     @State private var scannerActive = true
+    @State private var missingBarcode: String?
 
     var body: some View {
         NavigationStack {
@@ -58,23 +71,46 @@ struct MainView: View {
             } message: {
                 Text(error ?? "")
             }
-            .sheet(item: $scannedItem, onDismiss: { scannerActive = true }) { item in
-                BookingView(item: item)
+            .alert(
+                "Artikel nicht gefunden",
+                isPresented: .init(get: { missingBarcode != nil }, set: { if !$0 { missingBarcode = nil } })
+            ) {
+                Button("Abbrechen", role: .cancel) { missingBarcode = nil }
+                Button("Anlegen") {
+                    if let code = missingBarcode {
+                        scannerActive = false
+                        activeSheet = .createItem(code)
+                    }
+                    missingBarcode = nil
+                }
+            } message: {
+                Text("Kein Artikel mit Barcode „\(missingBarcode ?? "")“ gefunden. Jetzt anlegen?")
+            }
+            .sheet(item: $activeSheet, onDismiss: { scannerActive = true }) { sheet in
+                switch sheet {
+                case .booking(let item):
+                    BookingView(item: item)
+                        .environmentObject(api)
+                case .createItem(let barcode):
+                    ItemCreateView(barcode: barcode) { item in
+                        activeSheet = .booking(item)
+                    }
                     .environmentObject(api)
+                }
             }
         }
     }
 
     private func lookup(_ code: String) async {
         let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, scannedItem == nil else { return }
+        guard !trimmed.isEmpty, activeSheet == nil else { return }
         do {
             let item = try await api.itemByBarcode(trimmed)
             scannerActive = false
-            scannedItem = item
+            activeSheet = .booking(item)
             manualBarcode = ""
         } catch APIClient.APIError.notFound {
-            error = "Kein Artikel mit Barcode „\(trimmed)“ gefunden. Lege ihn zuerst in der Weboberfläche an."
+            missingBarcode = trimmed
         } catch {
             self.error = error.localizedDescription
         }

@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError } from "@/lib/api-helpers";
 import { movementSchema } from "@/lib/validation";
 import { bookMovement } from "@/lib/movements";
 import type { MovementType } from "@/lib/generated/prisma/enums";
 
 export async function GET(req: NextRequest) {
   try {
-    await requireSession();
+    await requireModule("STOCK");
     const sp = req.nextUrl.searchParams;
     const warehouseId = sp.get("warehouseId") ?? undefined;
     const itemId = sp.get("itemId") ?? undefined;
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireSession();
+    const session = await requireModule("STOCK");
     const parsed = movementSchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

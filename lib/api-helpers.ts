@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import type { Session } from "next-auth";
+import { hasModule, type ModuleName } from "@/lib/permissions";
 
 export class ApiError extends Error {
   constructor(
@@ -20,6 +21,12 @@ export async function requireSession(): Promise<Session> {
 export async function requireAdmin(): Promise<Session> {
   const session = await requireSession();
   if (session.user.role !== "ADMIN") throw new ApiError(403, "Keine Berechtigung");
+  return session;
+}
+
+export async function requireModule(module: ModuleName): Promise<Session> {
+  const session = await requireSession();
+  if (!hasModule(session.user, module)) throw new ApiError(403, "Keine Berechtigung");
   return session;
 }
 
