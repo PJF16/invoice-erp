@@ -26,7 +26,10 @@ COPY --from=builder /app/public ./public
 # Prisma CLI + Schema für Migrationen beim Container-Start
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-RUN npm install --no-save prisma@7 dotenv @prisma/adapter-pg
+# Next.js standalone-Tracing kopiert pg-Abhängigkeiten (z.B. postgres-array) oft
+# unvollständig; alte Reste entfernen, damit npm install sie sauber neu auflöst
+RUN rm -rf node_modules/pg node_modules/pg-* node_modules/postgres-* node_modules/@prisma/adapter-pg
+RUN npm install --no-save prisma@7 dotenv @prisma/adapter-pg pg
 
 COPY docker-entrypoint.sh ./
 EXPOSE 3000
