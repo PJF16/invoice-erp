@@ -135,10 +135,22 @@ export default async function ItemDetailPage({
           Letzte Bewegungen
         </h2>
         <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-500">
+              <th className="px-4 py-2">Datum</th>
+              <th className="px-4 py-2 text-right">Menge</th>
+              <th className="px-4 py-2">Lager</th>
+              <th className="px-4 py-2">Lieferant</th>
+              <th className="px-4 py-2">Notiz</th>
+              <th className="px-4 py-2">Benutzer</th>
+            </tr>
+          </thead>
           <tbody>
             {item.movements.length === 0 && (
               <tr>
-                <td className="px-4 py-6 text-center text-gray-500">Noch keine Bewegungen.</td>
+                <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
+                  Noch keine Bewegungen.
+                </td>
               </tr>
             )}
             {item.movements.map((m) => (
@@ -156,6 +168,7 @@ export default async function ItemDetailPage({
                 </td>
                 <td className="px-4 py-2.5 text-gray-500">{m.warehouse.name}</td>
                 <td className="px-4 py-2.5 text-gray-500">{m.supplier ?? ""}</td>
+                <td className="px-4 py-2.5 text-gray-700">{m.note ?? ""}</td>
                 <td className="px-4 py-2.5 text-gray-500">{m.user.name}</td>
               </tr>
             ))}

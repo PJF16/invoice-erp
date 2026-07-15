@@ -4,6 +4,11 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Selbst gehostet (Docker/Reverse-Proxy): eingehendem Host-Header vertrauen,
+  // sonst wirft Auth.js im Production-Build UntrustedHost (z.B. bei http://localhost:3000).
+  // Über AUTH_TRUST_HOST in der .env steuerbar; next-auth wertet die Variable in dieser
+  // Version nicht selbst aus, daher lesen wir sie hier explizit. Default: vertrauen.
+  trustHost: process.env.AUTH_TRUST_HOST !== "false",
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [
