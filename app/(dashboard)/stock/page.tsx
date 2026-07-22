@@ -12,7 +12,7 @@ export default async function StockPage({
   const { lager, q } = await searchParams;
   const warehouseFilter = lager || undefined;
 
-  const [warehouses, items] = await Promise.all([
+  const [warehouses, items, customers] = await Promise.all([
     prisma.warehouse.findMany({ orderBy: { name: "asc" } }),
     prisma.item.findMany({
       where: q
@@ -26,6 +26,10 @@ export default async function StockPage({
         : undefined,
       orderBy: { name: "asc" },
       include: { stocks: { include: { warehouse: true } } },
+    }),
+    prisma.customer.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, customerNumber: true },
     }),
   ]);
 
@@ -125,6 +129,7 @@ export default async function StockPage({
                     itemId={row.id}
                     itemName={row.name}
                     warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}
+                    customers={customers}
                     defaultWarehouseId={warehouseFilter}
                   />
                 </td>

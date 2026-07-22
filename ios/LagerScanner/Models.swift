@@ -25,6 +25,12 @@ struct Warehouse: Codable, Identifiable, Hashable {
     let name: String
 }
 
+struct CustomerSummary: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let customerNumber: String?
+}
+
 enum MovementType: String, Codable, CaseIterable {
     case IN, OUT
 
@@ -47,6 +53,7 @@ struct MovementRequest: Codable {
     let warehouseId: String
     let type: String
     let quantity: Int
+    let customerId: String?
     let supplier: String?
     let note: String?
 }

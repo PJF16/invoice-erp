@@ -47,7 +47,7 @@ export default async function ItemsPage() {
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-gray-500">{item.sku ?? "–"}</td>
-                <td className="px-4 py-3 font-mono text-xs text-gray-500">{item.barcode ?? "–"}</td>
+                <td className="px-4 py-3 font-mono text-xs break-all text-gray-500">{item.barcode ?? "–"}</td>
                 <td className="px-4 py-3 text-right font-semibold tabular-nums">
                   {item.stocks.reduce((sum, s) => sum + s.quantity, 0)}
                 </td>

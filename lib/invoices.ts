@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
-import { bookMovementTx } from "@/lib/movements";
+import { bookMovementTx, type Tx } from "@/lib/movements";
 import { getSettings } from "@/lib/settings";
 import type { TaxTreatment } from "@/lib/generated/prisma/enums";
 
@@ -27,6 +27,7 @@ export type LineInput = {
   softwareItemId?: string | null;
   itemId?: string | null;
   warehouseId?: string | null;
+  sourceMovementId?: string | null;
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -68,6 +69,56 @@ type CreateInvoiceInput = {
   recurringInvoiceId?: string | null;
 };
 
+async function validateSourceMovements(tx: Tx, input: CreateInvoiceInput) {
+  const sourceIds = input.lines
+    .map((line) => line.sourceMovementId)
+    .filter((id): id is string => Boolean(id));
+  if (new Set(sourceIds).size !== sourceIds.length) {
+    throw new ApiError(400, "Eine Kundenübergabe kann nur einmal verrechnet werden");
+  }
+  if (sourceIds.length === 0) return sourceIds;
+
+  const movements = await tx.movement.findMany({ where: { id: { in: sourceIds } } });
+  const byId = new Map(movements.map((movement) => [movement.id, movement]));
+  for (const line of input.lines) {
+    if (!line.sourceMovementId) continue;
+    const movement = byId.get(line.sourceMovementId);
+    if (!movement) throw new ApiError(404, "Kundenübergabe nicht gefunden");
+    if (
+      movement.type !== "OUT" ||
+      movement.customerId !== input.customerId ||
+      movement.billingStatus !== "PENDING"
+    ) {
+      throw new ApiError(400, "Die Kundenübergabe ist nicht mehr zur Verrechnung verfügbar");
+    }
+    if (
+      line.softwareItemId ||
+      line.itemId !== movement.itemId ||
+      line.warehouseId !== movement.warehouseId ||
+      line.quantity !== Math.abs(movement.quantity)
+    ) {
+      throw new ApiError(400, "Artikel und Menge einer Kundenübergabe dürfen nicht verändert werden");
+    }
+  }
+  return sourceIds;
+}
+
+function invoiceLinesData(lines: ReturnType<typeof computeTotals>["lines"]) {
+  return lines.map((line, i) => ({
+    position: i + 1,
+    description: line.description,
+    quantity: line.quantity,
+    unit: line.unit,
+    unitPrice: line.unitPrice,
+    taxRate: line.taxRate,
+    lineNet: line.lineNet,
+    softwareItemId: line.softwareItemId ?? null,
+    itemId: line.itemId ?? null,
+    warehouseId: line.warehouseId ?? null,
+    sourceMovementId: line.sourceMovementId ?? null,
+  }));
+}
+
 export async function createDraftInvoice(input: CreateInvoiceInput) {
   if (input.lines.length === 0) throw new ApiError(400, "Mindestens eine Position ist erforderlich");
   const { lines, netTotal, taxTotal, grossTotal } = computeTotals(input.lines, input.taxTreatment);
@@ -78,37 +129,106 @@ export async function createDraftInvoice(input: CreateInvoiceInput) {
   const skontoPercent = settings?.skontoPercent ?? 0;
   const skontoDays = settings?.skontoDays ?? 0;
 
-  return prisma.invoice.create({
-    data: {
-      customerId: input.customerId,
-      issueDate: input.issueDate,
-      dueDate: input.dueDate,
-      servicePeriodStart: input.servicePeriodStart ?? null,
-      servicePeriodEnd: input.servicePeriodEnd ?? null,
-      taxTreatment: input.taxTreatment,
-      notes: input.notes ?? null,
-      recurringInvoiceId: input.recurringInvoiceId ?? null,
-      netTotal,
-      taxTotal,
-      grossTotal,
-      skontoPercent,
-      skontoDays,
-      lines: {
-        create: lines.map((line, i) => ({
-          position: i + 1,
-          description: line.description,
-          quantity: line.quantity,
-          unit: line.unit,
-          unitPrice: line.unitPrice,
-          taxRate: line.taxRate,
-          lineNet: line.lineNet,
-          softwareItemId: line.softwareItemId ?? null,
-          itemId: line.itemId ?? null,
-          warehouseId: line.warehouseId ?? null,
-        })),
+  return prisma.$transaction(async (tx) => {
+    const sourceIds = await validateSourceMovements(tx, input);
+    const invoice = await tx.invoice.create({
+      data: {
+        customerId: input.customerId,
+        issueDate: input.issueDate,
+        dueDate: input.dueDate,
+        servicePeriodStart: input.servicePeriodStart ?? null,
+        servicePeriodEnd: input.servicePeriodEnd ?? null,
+        taxTreatment: input.taxTreatment,
+        notes: input.notes ?? null,
+        recurringInvoiceId: input.recurringInvoiceId ?? null,
+        netTotal,
+        taxTotal,
+        grossTotal,
+        skontoPercent,
+        skontoDays,
+        lines: { create: invoiceLinesData(lines) },
       },
-    },
-    include: { lines: true },
+      include: { lines: true },
+    });
+    if (sourceIds.length > 0) {
+      const updated = await tx.movement.updateMany({
+        where: { id: { in: sourceIds }, billingStatus: "PENDING" },
+        data: { billingStatus: "INVOICED" },
+      });
+      if (updated.count !== sourceIds.length) {
+        throw new ApiError(409, "Eine Kundenübergabe wurde zwischenzeitlich geändert");
+      }
+    }
+    return invoice;
+  });
+}
+
+export async function updateDraftInvoice(invoiceId: string, input: CreateInvoiceInput) {
+  if (input.lines.length === 0) throw new ApiError(400, "Mindestens eine Position ist erforderlich");
+  const { lines, netTotal, taxTotal, grossTotal } = computeTotals(input.lines, input.taxTreatment);
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.invoice.findUnique({
+      where: { id: invoiceId },
+      include: { lines: { select: { sourceMovementId: true } } },
+    });
+    if (!existing) throw new ApiError(404, "Rechnung nicht gefunden");
+    if (existing.status !== "DRAFT") throw new ApiError(400, "Nur Entwürfe können bearbeitet werden");
+
+    const oldSourceIds = existing.lines
+      .map((line) => line.sourceMovementId)
+      .filter((id): id is string => Boolean(id));
+    if (oldSourceIds.length > 0) {
+      await tx.movement.updateMany({ where: { id: { in: oldSourceIds } }, data: { billingStatus: "PENDING" } });
+    }
+    await tx.invoiceLine.deleteMany({ where: { invoiceId } });
+    const sourceIds = await validateSourceMovements(tx, input);
+    const invoice = await tx.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        customerId: input.customerId,
+        issueDate: input.issueDate,
+        dueDate: input.dueDate,
+        servicePeriodStart: input.servicePeriodStart ?? null,
+        servicePeriodEnd: input.servicePeriodEnd ?? null,
+        taxTreatment: input.taxTreatment,
+        notes: input.notes ?? null,
+        netTotal,
+        taxTotal,
+        grossTotal,
+        lines: { create: invoiceLinesData(lines) },
+      },
+      include: { lines: true },
+    });
+    if (sourceIds.length > 0) {
+      const updated = await tx.movement.updateMany({
+        where: { id: { in: sourceIds }, billingStatus: "PENDING" },
+        data: { billingStatus: "INVOICED" },
+      });
+      if (updated.count !== sourceIds.length) {
+        throw new ApiError(409, "Eine Kundenübergabe wurde zwischenzeitlich geändert");
+      }
+    }
+    return invoice;
+  });
+}
+
+export async function deleteDraftInvoice(invoiceId: string) {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.invoice.findUnique({
+      where: { id: invoiceId },
+      include: { lines: { select: { sourceMovementId: true } } },
+    });
+    if (!existing) throw new ApiError(404, "Rechnung nicht gefunden");
+    if (existing.status !== "DRAFT") {
+      throw new ApiError(400, "Nur Entwürfe können gelöscht werden — finalisierte Rechnungen stornieren");
+    }
+    const sourceIds = existing.lines
+      .map((line) => line.sourceMovementId)
+      .filter((id): id is string => Boolean(id));
+    if (sourceIds.length > 0) {
+      await tx.movement.updateMany({ where: { id: { in: sourceIds } }, data: { billingStatus: "PENDING" } });
+    }
+    await tx.invoice.delete({ where: { id: invoiceId } });
   });
 }
 
@@ -145,14 +265,20 @@ export async function finalizeInvoice(invoiceId: string, userId: string) {
     const number = await assignNumberTx(tx, invoice.issueDate);
 
     for (const line of invoice.lines) {
-      if (line.itemId && line.warehouseId) {
-        await bookMovementTx(tx, {
+      if (line.itemId && line.warehouseId && !line.sourceMovementId) {
+        const { movement } = await bookMovementTx(tx, {
           itemId: line.itemId,
           warehouseId: line.warehouseId,
           type: "OUT",
           quantity: Math.round(Number(line.quantity)),
           userId,
+          customerId: invoice.customerId,
+          billingStatus: "INVOICED",
           note: `Rechnung ${number}`,
+        });
+        await tx.invoiceLine.update({
+          where: { id: line.id },
+          data: { sourceMovementId: movement.id },
         });
       }
     }

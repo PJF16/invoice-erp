@@ -28,10 +28,11 @@ type Line = {
   softwareItemId: string;
   itemId: string;
   warehouseId: string;
+  sourceMovementId: string;
 };
 
 export type InvoiceInitial = {
-  id: string;
+  id?: string;
   customerId: string;
   issueDate: string;
   dueDate: string;
@@ -56,11 +57,13 @@ function newLine(): Line {
     softwareItemId: "",
     itemId: "",
     warehouseId: "",
+    sourceMovementId: "",
   };
 }
 
 export function InvoiceForm({ data, initial }: { data: InvoiceFormData; initial?: InvoiceInitial }) {
   const router = useRouter();
+  const isEditing = Boolean(initial?.id);
   const [customerId, setCustomerId] = useState(initial?.customerId ?? "");
   const [taxTreatment, setTaxTreatment] = useState(initial?.taxTreatment ?? "STANDARD");
   const [issueDate, setIssueDate] = useState(initial?.issueDate ?? toDateInput(new Date()));
@@ -83,6 +86,7 @@ export function InvoiceForm({ data, initial }: { data: InvoiceFormData; initial?
   const [loading, setLoading] = useState(false);
 
   const isStandard = taxTreatment === "STANDARD";
+  const hasSourceMovements = lines.some((line) => Boolean(line.sourceMovementId));
 
   const totals = useMemo(() => {
     const net = lines.reduce((sum, l) => sum + Math.round(l.quantity * l.unitPrice * 100) / 100, 0);
@@ -145,10 +149,11 @@ export function InvoiceForm({ data, initial }: { data: InvoiceFormData; initial?
         softwareItemId: l.type === "SOFTWARE" ? l.softwareItemId || null : null,
         itemId: l.type === "HARDWARE" ? l.itemId || null : null,
         warehouseId: l.type === "HARDWARE" ? l.warehouseId || null : null,
+        sourceMovementId: l.sourceMovementId || null,
       })),
     };
-    const res = await fetch(initial ? `/api/invoices/${initial.id}` : "/api/invoices", {
-      method: initial ? "PATCH" : "POST",
+    const res = await fetch(isEditing ? `/api/invoices/${initial!.id}` : "/api/invoices", {
+      method: isEditing ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
@@ -172,7 +177,7 @@ export function InvoiceForm({ data, initial }: { data: InvoiceFormData; initial?
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <label className={label}>Kunde *</label>
-            <select required value={customerId} onChange={(e) => selectCustomer(e.target.value)} className={`${input} mt-1`}>
+            <select required disabled={hasSourceMovements} value={customerId} onChange={(e) => selectCustomer(e.target.value)} className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-500`}>
               <option value="">– Kunde wählen –</option>
               {data.customers.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -180,6 +185,7 @@ export function InvoiceForm({ data, initial }: { data: InvoiceFormData; initial?
                 </option>
               ))}
             </select>
+            {hasSourceMovements && <p className="mt-1 text-xs text-blue-700">Kunde ist durch die ausgewählten Lagerübergaben vorgegeben.</p>}
           </div>
           <div>
             <label className={label}>Steuerbehandlung</label>
@@ -230,6 +236,7 @@ export function InvoiceForm({ data, initial }: { data: InvoiceFormData; initial?
                   <div className="flex items-center gap-2">
                     <select
                       value={line.type}
+                      disabled={Boolean(line.sourceMovementId)}
                       onChange={(e) =>
                         updateLine(line.key, {
                           type: e.target.value as LineType,
@@ -238,7 +245,7 @@ export function InvoiceForm({ data, initial }: { data: InvoiceFormData; initial?
                           warehouseId: "",
                         })
                       }
-                      className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
+                      className="rounded-lg border border-gray-300 px-2 py-1 text-xs disabled:bg-gray-100 disabled:text-gray-500"
                     >
                       <option value="FREE">Freitext</option>
                       <option value="SOFTWARE">Softwareartikel</option>
@@ -281,9 +288,10 @@ export function InvoiceForm({ data, initial }: { data: InvoiceFormData; initial?
                         <label className={label}>Hardware-Artikel</label>
                         <select
                           required
+                          disabled={Boolean(line.sourceMovementId)}
                           value={line.itemId}
                           onChange={(e) => selectHardware(line.key, e.target.value)}
-                          className={`${input} mt-1`}
+                          className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-500`}
                         >
                           <option value="">– wählen –</option>
                           {data.hardwareItems.map((i) => (
@@ -297,9 +305,10 @@ export function InvoiceForm({ data, initial }: { data: InvoiceFormData; initial?
                         <label className={label}>Lager (Ausbuchung)</label>
                         <select
                           required
+                          disabled={Boolean(line.sourceMovementId)}
                           value={line.warehouseId}
                           onChange={(e) => updateLine(line.key, { warehouseId: e.target.value })}
-                          className={`${input} mt-1`}
+                          className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-500`}
                         >
                           <option value="">– wählen –</option>
                           {data.warehouses.map((w) => (
@@ -333,9 +342,10 @@ export function InvoiceForm({ data, initial }: { data: InvoiceFormData; initial?
                       min={0.01}
                       step="0.01"
                       required
+                      disabled={Boolean(line.sourceMovementId)}
                       value={line.quantity}
                       onChange={(e) => updateLine(line.key, { quantity: Number(e.target.value) })}
-                      className={`${input} mt-1`}
+                      className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-500`}
                     />
                   </div>
                   <div className="lg:col-span-1">
@@ -373,6 +383,11 @@ export function InvoiceForm({ data, initial }: { data: InvoiceFormData; initial?
                     </select>
                   </div>
                 </div>
+                {line.sourceMovementId && (
+                  <p className="mt-2 text-xs text-blue-700">
+                    Bereits aus dem Lager gebucht – beim Finalisieren erfolgt keine zweite Ausbuchung.
+                  </p>
+                )}
                 <p className="mt-2 text-right text-sm text-gray-500">
                   Netto: <span className="font-semibold text-gray-900">{eur.format(Math.round(line.quantity * line.unitPrice * 100) / 100)}</span>
                 </p>

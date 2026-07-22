@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
         item: { select: { id: true, name: true, sku: true } },
         warehouse: { select: { id: true, name: true } },
         user: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true, customerNumber: true } },
       },
     });
     return NextResponse.json(movements);

@@ -13,7 +13,7 @@ export default async function ItemDetailPage({
 }) {
   const { id } = await params;
 
-  const [item, warehouses, supplierGroups] = await Promise.all([
+  const [item, warehouses, supplierGroups, customers] = await Promise.all([
     prisma.item.findUnique({
       where: { id },
       include: {
@@ -32,6 +32,10 @@ export default async function ItemDetailPage({
       _sum: { quantity: true },
       _count: { _all: true },
       _max: { createdAt: true },
+    }),
+    prisma.customer.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, customerNumber: true },
     }),
   ]);
 
@@ -64,6 +68,7 @@ export default async function ItemDetailPage({
             itemId={item.id}
             itemName={item.name}
             warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}
+            customers={customers}
           />
         </div>
       </div>

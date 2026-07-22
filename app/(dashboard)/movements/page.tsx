@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { MovementType } from "@/lib/generated/prisma/enums";
+import type { MovementBillingStatus, MovementType } from "@/lib/generated/prisma/enums";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +7,12 @@ const typeLabels: Record<MovementType, { label: string; className: string }> = {
   IN: { label: "Eingang", className: "bg-green-50 text-green-700 border-green-200" },
   OUT: { label: "Ausgang", className: "bg-red-50 text-red-700 border-red-200" },
   ADJUST: { label: "Korrektur", className: "bg-amber-50 text-amber-700 border-amber-200" },
+};
+
+const billingLabels: Record<MovementBillingStatus, string> = {
+  PENDING: "Ausstehend",
+  INVOICED: "Verrechnet",
+  GIFTED: "Verschenkt",
 };
 
 export default async function MovementsPage({
@@ -27,6 +33,7 @@ export default async function MovementsPage({
         item: { select: { name: true, sku: true } },
         warehouse: { select: { name: true } },
         user: { select: { name: true } },
+        customer: { select: { name: true } },
       },
     }),
   ]);
@@ -85,6 +92,8 @@ export default async function MovementsPage({
               <th className="px-4 py-3 text-right">Menge</th>
               <th className="px-4 py-3">Lager</th>
               <th className="px-4 py-3">Lieferant</th>
+              <th className="px-4 py-3">Kunde</th>
+              <th className="px-4 py-3">Verrechnung</th>
               <th className="px-4 py-3">Benutzer</th>
               <th className="px-4 py-3">Notiz</th>
             </tr>
@@ -92,7 +101,7 @@ export default async function MovementsPage({
           <tbody>
             {movements.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                   Noch keine Bewegungen.
                 </td>
               </tr>
@@ -116,6 +125,8 @@ export default async function MovementsPage({
                 </td>
                 <td className="px-4 py-3 text-gray-500">{m.warehouse.name}</td>
                 <td className="px-4 py-3 text-gray-500">{m.supplier ?? "–"}</td>
+                <td className="px-4 py-3 text-gray-500">{m.customer?.name ?? "–"}</td>
+                <td className="px-4 py-3 text-gray-500">{m.billingStatus ? billingLabels[m.billingStatus] : "–"}</td>
                 <td className="px-4 py-3 text-gray-500">{m.user.name}</td>
                 <td className="px-4 py-3 text-xs text-gray-500">{m.note ?? ""}</td>
               </tr>

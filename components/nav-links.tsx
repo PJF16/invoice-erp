@@ -20,6 +20,7 @@ const groups: {
       { href: "/stock", label: "Bestand" },
       { href: "/items", label: "Artikel" },
       { href: "/warehouses", label: "Lager" },
+      { href: "/customer-handovers", label: "Kundenübergaben" },
       { href: "/movements", label: "Historie" },
     ],
   },

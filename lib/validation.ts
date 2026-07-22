@@ -19,13 +19,28 @@ export const warehouseSchema = z.object({
   location: optionalTrimmed,
 });
 
-export const movementSchema = z.object({
-  itemId: z.string().min(1),
-  warehouseId: z.string().min(1),
-  type: z.enum(["IN", "OUT", "ADJUST"]),
-  quantity: z.number().int("Menge muss ganzzahlig sein").min(0),
-  supplier: optionalTrimmed,
-  note: optionalTrimmed,
+export const movementSchema = z
+  .object({
+    itemId: z.string().min(1),
+    warehouseId: z.string().min(1),
+    type: z.enum(["IN", "OUT", "ADJUST"]),
+    quantity: z.number().int("Menge muss ganzzahlig sein").min(0),
+    customerId: optionalTrimmed,
+    supplier: optionalTrimmed,
+    note: optionalTrimmed,
+  })
+  .superRefine((movement, ctx) => {
+    if (movement.customerId && movement.type !== "OUT") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["customerId"],
+        message: "Ein Kunde kann nur bei einem Lagerausgang angegeben werden",
+      });
+    }
+  });
+
+export const movementBillingStatusSchema = z.object({
+  billingStatus: z.enum(["PENDING", "INVOICED", "GIFTED"]),
 });
 
 const taxTreatment = z.enum(["STANDARD", "REVERSE_CHARGE", "INTRA_EU_SUPPLY", "EXPORT"]);
@@ -64,6 +79,7 @@ export const invoiceLineSchema = z.object({
   softwareItemId: optionalTrimmed,
   itemId: optionalTrimmed,
   warehouseId: optionalTrimmed,
+  sourceMovementId: optionalTrimmed,
 });
 
 export const invoiceSchema = z.object({

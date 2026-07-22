@@ -162,6 +162,10 @@ final class APIClient: ObservableObject {
         try await get("/api/suppliers")
     }
 
+    func movementCustomers() async throws -> [CustomerSummary] {
+        try await get("/api/movement-customers")
+    }
+
     @discardableResult
     func bookMovement(_ movement: MovementRequest) async throws -> Data {
         guard let base = baseURL else { throw APIError.invalidURL }

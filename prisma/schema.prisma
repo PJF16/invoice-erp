@@ -56,6 +56,12 @@ enum MovementType {
   ADJUST
 }
 
+enum MovementBillingStatus {
+  PENDING
+  INVOICED
+  GIFTED
+}
+
 enum PaymentMethod {
   BANK_TRANSFER
   CASH
@@ -111,24 +117,24 @@ model Stock {
 }
 
 model CompanySettings {
-  id              String @id @default("singleton")
-  name            String @default("")
-  street          String @default("")
-  zip             String @default("")
-  city            String @default("")
-  country         String @default("Österreich")
-  uid             String @default("")
-  iban            String @default("")
-  bic             String @default("")
-  bankName        String @default("")
-  email           String @default("")
-  phone           String @default("")
-  invoicePrefix   String @default("")
-  paymentDays     Int    @default(14)
-  emailSubject    String @default("Rechnung {nummer}")
-  emailBody       String @default("Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung {nummer}.\n\nMit freundlichen Grüßen")
-  lastInvoiceYear Int    @default(0)
-  lastInvoiceSeq  Int    @default(0)
+  id              String  @id @default("singleton")
+  name            String  @default("")
+  street          String  @default("")
+  zip             String  @default("")
+  city            String  @default("")
+  country         String  @default("Österreich")
+  uid             String  @default("")
+  iban            String  @default("")
+  bic             String  @default("")
+  bankName        String  @default("")
+  email           String  @default("")
+  phone           String  @default("")
+  invoicePrefix   String  @default("")
+  paymentDays     Int     @default(14)
+  emailSubject    String  @default("Rechnung {nummer}")
+  emailBody       String  @default("Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung {nummer}.\n\nMit freundlichen Grüßen")
+  lastInvoiceYear Int     @default(0)
+  lastInvoiceSeq  Int     @default(0)
   autoReminders   Boolean @default(false)
   reminderDays    Int     @default(7)
   maxReminders    Int     @default(3)
@@ -154,6 +160,7 @@ model Customer {
   createdAt           DateTime           @default(now())
   invoices            Invoice[]
   recurringInvoices   RecurringInvoice[]
+  movements           Movement[]
 }
 
 model SoftwareItem {
@@ -224,22 +231,24 @@ model Payment {
 }
 
 model InvoiceLine {
-  id             String        @id @default(cuid())
-  invoice        Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  invoiceId      String
-  position       Int
-  description    String
-  quantity       Decimal       @db.Decimal(10, 2)
-  unit           String        @default("Stk")
-  unitPrice      Decimal       @db.Decimal(10, 2)
-  taxRate        Int           @default(20)
-  lineNet        Decimal       @db.Decimal(12, 2)
-  softwareItem   SoftwareItem? @relation(fields: [softwareItemId], references: [id], onDelete: SetNull)
-  softwareItemId String?
-  item           Item?         @relation(fields: [itemId], references: [id], onDelete: SetNull)
-  itemId         String?
-  warehouse      Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
-  warehouseId    String?
+  id               String        @id @default(cuid())
+  invoice          Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId        String
+  position         Int
+  description      String
+  quantity         Decimal       @db.Decimal(10, 2)
+  unit             String        @default("Stk")
+  unitPrice        Decimal       @db.Decimal(10, 2)
+  taxRate          Int           @default(20)
+  lineNet          Decimal       @db.Decimal(12, 2)
+  softwareItem     SoftwareItem? @relation(fields: [softwareItemId], references: [id], onDelete: SetNull)
+  softwareItemId   String?
+  item             Item?         @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  itemId           String?
+  warehouse        Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  warehouseId      String?
+  sourceMovement   Movement?     @relation("MovementInvoiceLine", fields: [sourceMovementId], references: [id], onDelete: SetNull)
+  sourceMovementId String?       @unique
 }
 
 model RecurringInvoice {
@@ -290,19 +299,24 @@ model ExportSchedule {
 }
 
 model Movement {
-  id          String       @id @default(cuid())
-  type        MovementType
-  quantity    Int
-  item        Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  itemId      String
-  warehouse   Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  warehouseId String
-  user        User         @relation(fields: [userId], references: [id])
-  userId      String
-  supplier    String?
-  note        String?
-  createdAt   DateTime     @default(now())
+  id            String                 @id @default(cuid())
+  type          MovementType
+  quantity      Int
+  item          Item                   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId        String
+  warehouse     Warehouse              @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  warehouseId   String
+  user          User                   @relation(fields: [userId], references: [id])
+  userId        String
+  customer      Customer?              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  customerId    String?
+  billingStatus MovementBillingStatus?
+  invoiceLine   InvoiceLine?           @relation("MovementInvoiceLine")
+  supplier      String?
+  note          String?
+  createdAt     DateTime               @default(now())
 
   @@index([itemId, createdAt])
   @@index([warehouseId, createdAt])
+  @@index([customerId, billingStatus])
 }

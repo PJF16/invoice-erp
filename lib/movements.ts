@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
-import type { MovementType } from "@/lib/generated/prisma/enums";
+import type { MovementBillingStatus, MovementType } from "@/lib/generated/prisma/enums";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
 export type Tx = Prisma.TransactionClient;
@@ -11,6 +11,8 @@ type BookMovementInput = {
   type: MovementType;
   quantity: number;
   userId: string;
+  customerId?: string | null;
+  billingStatus?: MovementBillingStatus | null;
   supplier?: string | null;
   note?: string | null;
 };
@@ -25,7 +27,8 @@ export async function bookMovement(input: BookMovementInput) {
 
 /** Wie bookMovement, aber innerhalb einer bestehenden Transaktion (z.B. Rechnungs-Finalisierung). */
 export async function bookMovementTx(tx: Tx, input: BookMovementInput) {
-  const { itemId, warehouseId, type, quantity, userId, supplier, note } = input;
+  const { itemId, warehouseId, type, quantity, userId, customerId, billingStatus, supplier, note } =
+    input;
 
   if (type !== "ADJUST" && quantity <= 0) {
     throw new ApiError(400, "Menge muss größer als 0 sein");
@@ -36,6 +39,13 @@ export async function bookMovementTx(tx: Tx, input: BookMovementInput) {
     if (!item) throw new ApiError(404, "Artikel nicht gefunden");
     const warehouse = await tx.warehouse.findUnique({ where: { id: warehouseId } });
     if (!warehouse) throw new ApiError(404, "Lager nicht gefunden");
+    if (customerId) {
+      if (type !== "OUT") {
+        throw new ApiError(400, "Ein Kunde kann nur bei einem Lagerausgang angegeben werden");
+      }
+      const customer = await tx.customer.findUnique({ where: { id: customerId } });
+      if (!customer) throw new ApiError(404, "Kunde nicht gefunden");
+    }
 
     const stock = await tx.stock.upsert({
       where: { itemId_warehouseId: { itemId, warehouseId } },
@@ -71,8 +81,18 @@ export async function bookMovementTx(tx: Tx, input: BookMovementInput) {
     });
 
     const movement = await tx.movement.create({
-      data: { itemId, warehouseId, type, quantity: movementQuantity, userId, supplier, note },
-      include: { item: true, warehouse: true },
+      data: {
+        itemId,
+        warehouseId,
+        type,
+        quantity: movementQuantity,
+        userId,
+        customerId: type === "OUT" ? customerId : null,
+        billingStatus: type === "OUT" && customerId ? (billingStatus ?? "PENDING") : null,
+        supplier,
+        note,
+      },
+      include: { item: true, warehouse: true, customer: true },
     });
 
     return { movement, newQuantity };

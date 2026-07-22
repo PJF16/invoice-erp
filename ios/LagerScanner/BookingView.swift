@@ -10,6 +10,8 @@ struct BookingView: View {
     @State private var quantity = 1
     @State private var warehouses: [Warehouse] = []
     @State private var selectedWarehouse: Warehouse?
+    @State private var customers: [CustomerSummary] = []
+    @State private var selectedCustomer: CustomerSummary?
     @State private var supplier = ""
     @State private var supplierSuggestions: [String] = []
     @State private var note = ""
@@ -77,6 +79,21 @@ struct BookingView: View {
                     }
                 }
 
+                if type == .OUT {
+                    Section("Kunde (optional)") {
+                        Picker("Kunde", selection: $selectedCustomer) {
+                            Text("Kein Kunde").tag(nil as CustomerSummary?)
+                            ForEach(customers) { customer in
+                                Text(customer.customerNumber.map { "\($0) · \(customer.name)" } ?? customer.name)
+                                    .tag(Optional(customer))
+                            }
+                        }
+                        Text("Mit Kunde wird die Ausgabe als ausstehende Übergabe vorgemerkt.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Section("Notiz (optional)") {
                     TextField("Notiz", text: $note)
                 }
@@ -117,6 +134,7 @@ struct BookingView: View {
             warehouses = try await api.warehouses()
             selectedWarehouse = warehouses.first
             supplierSuggestions = (try? await api.suppliers()) ?? []
+            customers = (try? await api.movementCustomers()) ?? []
         } catch {
             self.error = error.localizedDescription
         }
@@ -133,6 +151,7 @@ struct BookingView: View {
                 warehouseId: selectedWarehouse.id,
                 type: type.rawValue,
                 quantity: quantity,
+                customerId: type == .OUT ? selectedCustomer?.id : nil,
                 supplier: type == .IN && !supplier.isEmpty ? supplier : nil,
                 note: note.isEmpty ? nil : note
             ))
