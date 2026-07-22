@@ -14,6 +14,7 @@ Modernes Lagerverwaltungs- und Rechnungsprogramm für ein österreichisches Unte
 
 ### Rechnungen
 
+- **Angebote** mit eigenem Nummernkreis und PDF: Entwurf → offen → angenommen/abgelehnt; angenommene Angebote lassen sich ohne Doppelerfassung in einen verknüpften Rechnungsentwurf umwandeln
 - **Rechnungserstellung** mit Positionen aus Softwareartikeln, Hardware (bucht beim Finalisieren automatisch aus dem Lager aus) und Freitext
 - **USt pro Position** (20/13/10/0%) und **Steuerbehandlung pro Rechnung**: Standard, Reverse Charge (EU-B2B, z.B. deutsches Unternehmen), innergemeinschaftliche Lieferung, Ausfuhr — jeweils mit gesetzlichem Hinweis auf dem PDF
 - **Fortlaufende Rechnungsnummern** pro Jahr, Präfix in den Einstellungen konfigurierbar (z.B. `RE-2026-001`)
@@ -23,7 +24,7 @@ Modernes Lagerverwaltungs- und Rechnungsprogramm für ein österreichisches Unte
 - **Mahnwesen**: Überfällige Rechnungen mit Mahnstufen; Zahlungserinnerungen manuell per Klick oder automatisch (Einstellungen: erste Erinnerung nach X Tagen, Wiederholung im selben Abstand, Maximalanzahl; Vorlagen mit Platzhaltern)
 - **Export**: Rechnungen und Gutschriften gefiltert nach Zeitraum, Status und Kunde als ZIP herunterladen; zusätzlich **geplante Exporte**, die zu einem festen Zeitpunkt automatisch erzeugt und per E-Mail versendet werden (z.B. „alle Rechnungen des Vormonats" monatlich am 1. an die Steuerberatung)
 - **Wiederkehrende Rechnungen** (monatlich/quartalsweise/jährlich): werden vom eingebauten Scheduler automatisch erzeugt und versendet; **Softwareartikel-Preise werden bei jeder Erzeugung neu gelesen** — Preisänderungen wirken automatisch auf alle künftigen Rechnungen
-- **Kundenverwaltung** mit UID und Standard-Steuerbehandlung pro Kunde
+- **Kundenverwaltung** mit UID und Standard-Steuerbehandlung pro Kunde; Kundenauswahlfelder sind nach Name und Kundennummer durchsuchbar
 - **Einstellungen**: Firmendaten, UID, Bankverbindung (erscheint auf dem PDF), Zahlungsziel, E-Mail-Vorlagen
 
 ### E-Mail-Versand (SMTP)
@@ -87,6 +88,11 @@ Falls das Image kein Seed-Tooling enthält, alternativ lokal mit `DATABASE_URL` 
 | `/api/users` | GET, POST | Benutzer (nur Admin) |
 | `/api/customers`, `/api/customers/{id}` | GET, POST, PATCH, DELETE | Kunden |
 | `/api/software-items`, `/api/software-items/{id}` | GET, POST, PATCH, DELETE | Softwareartikel |
+| `/api/offers`, `/api/offers/{id}` | GET, POST, PATCH, DELETE | Angebote (Bearbeiten/Löschen nur Entwurf) |
+| `/api/offers/{id}/finalize` | POST | Angebotsnummer vergeben und Kundendaten einfrieren |
+| `/api/offers/{id}/status` | POST | Angebot offen/angenommen/abgelehnt setzen |
+| `/api/offers/{id}/convert` | POST | Angenommenes Angebot in Rechnungsentwurf umwandeln |
+| `/api/offers/{id}/pdf` | GET | Angebots-PDF abrufen |
 | `/api/invoices` | GET, POST | Rechnungen (POST erzeugt Entwurf) |
 | `/api/invoices/{id}` | GET, PATCH, DELETE | Rechnung (Bearbeiten/Löschen nur Entwurf) |
 | `/api/invoices/{id}/finalize` | POST | Nummer vergeben + Hardware ausbuchen |

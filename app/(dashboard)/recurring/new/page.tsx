@@ -21,6 +21,7 @@ export default async function NewRecurringPage() {
           customers: customers.map((c) => ({
             id: c.id,
             name: c.name,
+            customerNumber: c.customerNumber,
             defaultTaxTreatment: c.defaultTaxTreatment,
             email: c.email,
           })),

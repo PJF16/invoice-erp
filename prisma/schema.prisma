@@ -37,6 +37,14 @@ enum InvoiceType {
   CREDIT_NOTE
 }
 
+enum OfferStatus {
+  DRAFT
+  OPEN
+  ACCEPTED
+  REJECTED
+  CONVERTED
+}
+
 enum RecurringInterval {
   MONTHLY
   QUARTERLY
@@ -91,6 +99,7 @@ model Warehouse {
   stocks       Stock[]
   movements    Movement[]
   invoiceLines InvoiceLine[]
+  offerLines   OfferLine[]
 }
 
 model Item {
@@ -103,6 +112,7 @@ model Item {
   stocks       Stock[]
   movements    Movement[]
   invoiceLines InvoiceLine[]
+  offerLines   OfferLine[]
 }
 
 model Stock {
@@ -130,11 +140,14 @@ model CompanySettings {
   email           String  @default("")
   phone           String  @default("")
   invoicePrefix   String  @default("")
+  offerPrefix     String  @default("ANG-")
   paymentDays     Int     @default(14)
   emailSubject    String  @default("Rechnung {nummer}")
   emailBody       String  @default("Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung {nummer}.\n\nMit freundlichen Grüßen")
   lastInvoiceYear Int     @default(0)
   lastInvoiceSeq  Int     @default(0)
+  lastOfferYear   Int     @default(0)
+  lastOfferSeq    Int     @default(0)
   autoReminders   Boolean @default(false)
   reminderDays    Int     @default(7)
   maxReminders    Int     @default(3)
@@ -159,6 +172,7 @@ model Customer {
   notes               String?
   createdAt           DateTime           @default(now())
   invoices            Invoice[]
+  offers              Offer[]
   recurringInvoices   RecurringInvoice[]
   movements           Movement[]
 }
@@ -172,6 +186,7 @@ model SoftwareItem {
   active         Boolean                @default(true)
   createdAt      DateTime               @default(now())
   invoiceLines   InvoiceLine[]
+  offerLines     OfferLine[]
   recurringLines RecurringInvoiceLine[]
 }
 
@@ -205,6 +220,8 @@ model Invoice {
   skontoDays         Int               @default(0)
   recurringInvoice   RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
   recurringInvoiceId String?
+  sourceOffer        Offer?            @relation("OfferInvoice", fields: [sourceOfferId], references: [id], onDelete: SetNull)
+  sourceOfferId      String?           @unique
   sentAt             DateTime?
   paidAt             DateTime?
   createdAt          DateTime          @default(now())
@@ -212,6 +229,51 @@ model Invoice {
   payments           Payment[]
 
   @@index([status, issueDate])
+}
+
+model Offer {
+  id               String       @id @default(cuid())
+  number           String?      @unique
+  status           OfferStatus  @default(DRAFT)
+  customer         Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  customerId       String
+  customerName     String       @default("")
+  customerAddress  String       @default("")
+  customerUid      String?
+  issueDate        DateTime
+  validUntil       DateTime
+  taxTreatment     TaxTreatment @default(STANDARD)
+  notes            String?
+  netTotal         Decimal      @default(0) @db.Decimal(12, 2)
+  taxTotal         Decimal      @default(0) @db.Decimal(12, 2)
+  grossTotal       Decimal      @default(0) @db.Decimal(12, 2)
+  finalizedAt      DateTime?
+  acceptedAt       DateTime?
+  convertedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  lines            OfferLine[]
+  convertedInvoice Invoice?     @relation("OfferInvoice")
+
+  @@index([status, issueDate])
+}
+
+model OfferLine {
+  id             String        @id @default(cuid())
+  offer          Offer         @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offerId        String
+  position       Int
+  description    String
+  quantity       Decimal       @db.Decimal(10, 2)
+  unit           String        @default("Stk")
+  unitPrice      Decimal       @db.Decimal(10, 2)
+  taxRate        Int           @default(20)
+  lineNet        Decimal       @db.Decimal(12, 2)
+  softwareItem   SoftwareItem? @relation(fields: [softwareItemId], references: [id], onDelete: SetNull)
+  softwareItemId String?
+  item           Item?         @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  itemId         String?
+  warehouse      Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  warehouseId    String?
 }
 
 model Payment {

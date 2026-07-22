@@ -16,6 +16,14 @@ export const INVOICE_STATUS_LABELS: Record<string, { label: string; className: s
   CANCELED: { label: "Storniert", className: "border-red-200 bg-red-50 text-red-700" },
 };
 
+export const OFFER_STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  DRAFT: { label: "Entwurf", className: "border-gray-200 bg-gray-50 text-gray-600" },
+  OPEN: { label: "Offen", className: "border-blue-200 bg-blue-50 text-blue-700" },
+  ACCEPTED: { label: "Angenommen", className: "border-green-200 bg-green-50 text-green-700" },
+  REJECTED: { label: "Abgelehnt", className: "border-red-200 bg-red-50 text-red-700" },
+  CONVERTED: { label: "In Rechnung", className: "border-violet-200 bg-violet-50 text-violet-700" },
+};
+
 export const TAX_TREATMENT_OPTIONS = [
   { value: "STANDARD", label: "Standard (österreichische USt)" },
   { value: "REVERSE_CHARGE", label: "Reverse Charge — EU-B2B, 0% (z.B. deutsches Unternehmen)" },

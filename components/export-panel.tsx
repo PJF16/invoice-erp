@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { CustomerSelect } from "@/components/customer-select";
 
-type Customer = { id: string; name: string };
+type Customer = { id: string; name: string; customerNumber: string | null };
 
 export function ExportPanel({ customers }: { customers: Customer[] }) {
   const [dateFrom, setDateFrom] = useState("");
@@ -76,14 +77,13 @@ export function ExportPanel({ customers }: { customers: Customer[] }) {
       </div>
       <div>
         <label className={label}>Kunde</label>
-        <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className={input}>
-          <option value="">Alle Kunden</option>
-          {customers.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <CustomerSelect
+          customers={customers}
+          value={customerId}
+          onValueChange={setCustomerId}
+          emptyLabel="Alle Kunden"
+          className="mt-1"
+        />
       </div>
 
       <div className="sm:col-span-2 lg:col-span-2">

@@ -70,7 +70,7 @@ export const softwareItemSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const invoiceLineSchema = z.object({
+const documentLineSchema = z.object({
   description: z.string().trim().min(1, "Bezeichnung ist erforderlich"),
   quantity: z.number().positive("Menge muss größer als 0 sein"),
   unit: z.string().trim().min(1).default("Stk"),
@@ -82,6 +82,35 @@ export const invoiceLineSchema = z.object({
   sourceMovementId: optionalTrimmed,
 });
 
+function validateDocumentLine(
+  line: z.infer<typeof documentLineSchema>,
+  ctx: z.RefinementCtx,
+) {
+  if (Boolean(line.itemId) !== Boolean(line.warehouseId)) {
+    ctx.addIssue({
+      code: "custom",
+      path: [line.itemId ? "warehouseId" : "itemId"],
+      message: "Hardware-Artikel und Lager müssen gemeinsam angegeben werden",
+    });
+  }
+  if (line.itemId && !Number.isInteger(line.quantity)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["quantity"],
+      message: "Hardware-Mengen müssen ganzzahlig sein",
+    });
+  }
+  if (line.itemId && line.softwareItemId) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["softwareItemId"],
+      message: "Eine Position kann nicht gleichzeitig Software- und Hardwareartikel sein",
+    });
+  }
+}
+
+export const invoiceLineSchema = documentLineSchema.superRefine(validateDocumentLine);
+
 export const invoiceSchema = z.object({
   customerId: z.string().min(1, "Kunde ist erforderlich"),
   issueDate: dateString,
@@ -91,6 +120,28 @@ export const invoiceSchema = z.object({
   taxTreatment: taxTreatment.default("STANDARD"),
   notes: optionalTrimmed,
   lines: z.array(invoiceLineSchema).min(1, "Mindestens eine Position ist erforderlich"),
+});
+
+export const offerLineSchema = documentLineSchema
+  .omit({ sourceMovementId: true })
+  .superRefine(validateDocumentLine);
+
+export const offerSchema = z
+  .object({
+    customerId: z.string().min(1, "Kunde ist erforderlich"),
+    issueDate: dateString,
+    validUntil: dateString,
+    taxTreatment: taxTreatment.default("STANDARD"),
+    notes: optionalTrimmed,
+    lines: z.array(offerLineSchema).min(1, "Mindestens eine Position ist erforderlich"),
+  })
+  .refine((offer) => offer.validUntil >= offer.issueDate, {
+    path: ["validUntil"],
+    message: "Gültig-bis-Datum darf nicht vor dem Angebotsdatum liegen",
+  });
+
+export const offerStatusSchema = z.object({
+  status: z.enum(["OPEN", "ACCEPTED", "REJECTED"]),
 });
 
 export const paymentSchema = z.object({
@@ -140,6 +191,7 @@ export const settingsSchema = z.object({
   email: z.string().trim().default(""),
   phone: z.string().trim().default(""),
   invoicePrefix: z.string().trim().max(20).default(""),
+  offerPrefix: z.string().trim().max(20).default("ANG-"),
   paymentDays: z.number().int().min(0).max(365).default(14),
   emailSubject: z.string().trim().min(1).default("Rechnung {nummer}"),
   emailBody: z.string().min(1),

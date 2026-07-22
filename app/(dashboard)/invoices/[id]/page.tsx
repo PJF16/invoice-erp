@@ -18,6 +18,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       customer: true,
       payments: { orderBy: { date: "asc" } },
       recurringInvoice: { select: { id: true, name: true } },
+      sourceOffer: { select: { id: true, number: true } },
       relatedInvoice: { select: { id: true, number: true } },
       stornoInvoices: { select: { id: true, number: true } },
     },
@@ -54,6 +55,11 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           {invoice.recurringInvoice && (
             <p className="mt-1 text-xs text-gray-400">
               Automatisch erzeugt aus Vorlage „{invoice.recurringInvoice.name}“
+            </p>
+          )}
+          {invoice.sourceOffer && (
+            <p className="mt-1 text-xs text-violet-700">
+              Erstellt aus <Link href={`/offers/${invoice.sourceOffer.id}`} className="hover:underline">Angebot {invoice.sourceOffer.number}</Link>
             </p>
           )}
           {invoice.relatedInvoice && (

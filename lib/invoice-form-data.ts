@@ -13,6 +13,7 @@ export async function loadInvoiceFormData(): Promise<InvoiceFormData> {
     customers: customers.map((c) => ({
       id: c.id,
       name: c.name,
+      customerNumber: c.customerNumber,
       defaultTaxTreatment: c.defaultTaxTreatment,
     })),
     softwareItems: softwareItems.map((s) => ({

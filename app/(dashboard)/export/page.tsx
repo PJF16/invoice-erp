@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ExportPage() {
   const [customers, schedules] = await Promise.all([
-    prisma.customer.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.customer.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, customerNumber: true } }),
     prisma.exportSchedule.findMany({ orderBy: { name: "asc" } }),
   ]);
 

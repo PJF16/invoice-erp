@@ -28,6 +28,7 @@ const groups: {
     title: "Rechnungen",
     module: "INVOICES",
     links: [
+      { href: "/offers", label: "Angebote" },
       { href: "/invoices", label: "Rechnungen" },
       { href: "/offene-posten", label: "Offene Posten" },
       { href: "/reminders", label: "Mahnwesen" },

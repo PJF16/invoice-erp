@@ -29,6 +29,7 @@ export default async function EditRecurringPage({ params }: { params: Promise<{ 
           customers: customers.map((c) => ({
             id: c.id,
             name: c.name,
+            customerNumber: c.customerNumber,
             defaultTaxTreatment: c.defaultTaxTreatment,
             email: c.email,
           })),

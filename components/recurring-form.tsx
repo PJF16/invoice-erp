@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { eur, toDateInput, TAX_TREATMENT_OPTIONS } from "@/lib/format";
+import { CustomerSelect } from "@/components/customer-select";
 
 type FormData = {
-  customers: { id: string; name: string; defaultTaxTreatment: string; email: string | null }[];
+  customers: { id: string; name: string; customerNumber: string | null; defaultTaxTreatment: string; email: string | null }[];
   softwareItems: { id: string; name: string; unitPrice: number; unit: string }[];
 };
 
@@ -120,23 +121,17 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
           </div>
           <div>
             <label className={label}>Kunde *</label>
-            <select
+            <CustomerSelect
+              customers={data.customers}
               required
               value={customerId}
-              onChange={(e) => {
-                setCustomerId(e.target.value);
-                const c = data.customers.find((x) => x.id === e.target.value);
+              onValueChange={(id) => {
+                setCustomerId(id);
+                const c = data.customers.find((x) => x.id === id);
                 if (c) setTaxTreatment(c.defaultTaxTreatment);
               }}
-              className={`${input} mt-1`}
-            >
-              <option value="">– Kunde wählen –</option>
-              {data.customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              className="mt-1"
+            />
           </div>
           <div>
             <label className={label}>Steuerbehandlung</label>

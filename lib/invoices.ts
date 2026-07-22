@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
 import { bookMovementTx, type Tx } from "@/lib/movements";
 import { getSettings } from "@/lib/settings";
+import { assignInvoiceNumberTx } from "@/lib/document-numbers";
 import type { TaxTreatment } from "@/lib/generated/prisma/enums";
 
 export const TAX_NOTES: Record<Exclude<TaxTreatment, "STANDARD">, string> = {
@@ -68,6 +69,12 @@ type CreateInvoiceInput = {
   lines: LineInput[];
   recurringInvoiceId?: string | null;
 };
+
+async function lockInvoice(tx: Tx, invoiceId: string) {
+  await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "Invoice" WHERE "id" = ${invoiceId} FOR UPDATE
+  `;
+}
 
 async function validateSourceMovements(tx: Tx, input: CreateInvoiceInput) {
   const sourceIds = input.lines
@@ -172,6 +179,7 @@ export async function updateDraftInvoice(invoiceId: string, input: CreateInvoice
   if (input.lines.length === 0) throw new ApiError(400, "Mindestens eine Position ist erforderlich");
   const { lines, netTotal, taxTotal, grossTotal } = computeTotals(input.lines, input.taxTreatment);
   return prisma.$transaction(async (tx) => {
+    await lockInvoice(tx, invoiceId);
     const existing = await tx.invoice.findUnique({
       where: { id: invoiceId },
       include: { lines: { select: { sourceMovementId: true } } },
@@ -211,6 +219,7 @@ export async function updateDraftInvoice(invoiceId: string, input: CreateInvoice
 
 export async function deleteDraftInvoice(invoiceId: string) {
   return prisma.$transaction(async (tx) => {
+    await lockInvoice(tx, invoiceId);
     const existing = await tx.invoice.findUnique({
       where: { id: invoiceId },
       include: { lines: { select: { sourceMovementId: true } } },
@@ -225,24 +234,14 @@ export async function deleteDraftInvoice(invoiceId: string) {
     if (sourceIds.length > 0) {
       await tx.movement.updateMany({ where: { id: { in: sourceIds } }, data: { billingStatus: "PENDING" } });
     }
+    if (existing.sourceOfferId) {
+      await tx.offer.update({
+        where: { id: existing.sourceOfferId },
+        data: { status: "ACCEPTED", convertedAt: null },
+      });
+    }
     await tx.invoice.delete({ where: { id: invoiceId } });
   });
-}
-
-/** Vergibt atomar die nächste fortlaufende Nummer ({Präfix}{Jahr}-{lfd. Nr}). */
-async function assignNumberTx(tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0], issueDate: Date) {
-  const settings = await tx.companySettings.upsert({
-    where: { id: "singleton" },
-    update: {},
-    create: { id: "singleton" },
-  });
-  const year = issueDate.getFullYear();
-  const seq = settings.lastInvoiceYear === year ? settings.lastInvoiceSeq + 1 : 1;
-  await tx.companySettings.update({
-    where: { id: "singleton" },
-    data: { lastInvoiceYear: year, lastInvoiceSeq: seq },
-  });
-  return `${settings.invoicePrefix}${year}-${String(seq).padStart(3, "0")}`;
 }
 
 /**
@@ -252,6 +251,7 @@ async function assignNumberTx(tx: Parameters<Parameters<typeof prisma.$transacti
  */
 export async function finalizeInvoice(invoiceId: string, userId: string) {
   return prisma.$transaction(async (tx) => {
+    await lockInvoice(tx, invoiceId);
     const invoice = await tx.invoice.findUnique({
       where: { id: invoiceId },
       include: { lines: true, customer: true },
@@ -259,7 +259,7 @@ export async function finalizeInvoice(invoiceId: string, userId: string) {
     if (!invoice) throw new ApiError(404, "Rechnung nicht gefunden");
     if (invoice.status !== "DRAFT") throw new ApiError(400, "Nur Entwürfe können finalisiert werden");
 
-    const number = await assignNumberTx(tx, invoice.issueDate);
+    const number = await assignInvoiceNumberTx(tx, invoice.issueDate);
 
     for (const line of invoice.lines) {
       if (line.itemId && line.warehouseId && !line.sourceMovementId) {
@@ -304,6 +304,7 @@ export async function finalizeInvoice(invoiceId: string, userId: string) {
  */
 export async function createStornoInvoice(invoiceId: string, userId: string) {
   return prisma.$transaction(async (tx) => {
+    await lockInvoice(tx, invoiceId);
     const invoice = await tx.invoice.findUnique({
       where: { id: invoiceId },
       include: { lines: true, stornoInvoices: true },
@@ -316,7 +317,7 @@ export async function createStornoInvoice(invoiceId: string, userId: string) {
     }
 
     const now = new Date();
-    const number = await assignNumberTx(tx, now);
+    const number = await assignInvoiceNumberTx(tx, now);
 
     for (const line of invoice.lines) {
       if (line.itemId && line.warehouseId) {

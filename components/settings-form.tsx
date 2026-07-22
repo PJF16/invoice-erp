@@ -21,6 +21,7 @@ type Settings = {
   email: string;
   phone: string;
   invoicePrefix: string;
+  offerPrefix: string;
   paymentDays: number;
   skontoPercent: number;
   skontoDays: number;
@@ -28,6 +29,8 @@ type Settings = {
   emailBody: string;
   lastInvoiceYear: number;
   lastInvoiceSeq: number;
+  lastOfferYear: number;
+  lastOfferSeq: number;
 };
 
 export function SettingsForm({
@@ -64,6 +67,7 @@ export function SettingsForm({
         email: form.get("email"),
         phone: form.get("phone"),
         invoicePrefix: form.get("invoicePrefix"),
+        offerPrefix: form.get("offerPrefix"),
         paymentDays: Number(form.get("paymentDays")),
         skontoPercent: Number(form.get("skontoPercent")),
         skontoDays: Number(form.get("skontoDays")),
@@ -91,6 +95,9 @@ export function SettingsForm({
 
   const nextNumber = `${settings.invoicePrefix}${new Date().getFullYear()}-${String(
     settings.lastInvoiceYear === new Date().getFullYear() ? settings.lastInvoiceSeq + 1 : 1,
+  ).padStart(3, "0")}`;
+  const nextOfferNumber = `${settings.offerPrefix}${new Date().getFullYear()}-${String(
+    settings.lastOfferYear === new Date().getFullYear() ? settings.lastOfferSeq + 1 : 1,
   ).padStart(3, "0")}`;
 
   return (
@@ -159,6 +166,13 @@ export function SettingsForm({
             <input name="invoicePrefix" defaultValue={settings.invoicePrefix} placeholder='z.B. "RE-"' className={`${input} font-mono`} />
             <p className="mt-1 text-xs text-gray-500">
               Nächste Nummer: <span className="font-mono font-semibold">{nextNumber}</span> (fortlaufend pro Jahr)
+            </p>
+          </div>
+          <div>
+            <label className={label}>Angebotsnummern-Präfix</label>
+            <input name="offerPrefix" defaultValue={settings.offerPrefix} placeholder='z.B. "ANG-"' className={`${input} font-mono`} />
+            <p className="mt-1 text-xs text-gray-500">
+              Nächste Nummer: <span className="font-mono font-semibold">{nextOfferNumber}</span> (fortlaufend pro Jahr)
             </p>
           </div>
           <div>

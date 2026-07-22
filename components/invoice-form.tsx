@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { eur, toDateInput, TAX_TREATMENT_OPTIONS } from "@/lib/format";
+import { CustomerSelect } from "@/components/customer-select";
 
 export type InvoiceFormData = {
-  customers: { id: string; name: string; defaultTaxTreatment: string }[];
+  customers: { id: string; name: string; customerNumber: string | null; defaultTaxTreatment: string }[];
   softwareItems: { id: string; name: string; unitPrice: number; unit: string }[];
   hardwareItems: {
     id: string;
@@ -189,14 +190,14 @@ export function InvoiceForm({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <label className={label}>Kunde *</label>
-            <select required disabled={hasSourceMovements} value={customerId} onChange={(e) => selectCustomer(e.target.value)} className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-500`}>
-              <option value="">– Kunde wählen –</option>
-              {data.customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <CustomerSelect
+              customers={data.customers}
+              value={customerId}
+              onValueChange={selectCustomer}
+              required
+              disabled={hasSourceMovements}
+              className="mt-1"
+            />
             {hasSourceMovements && <p className="mt-1 text-xs text-blue-700">Kunde ist durch die ausgewählten Lagerübergaben vorgegeben.</p>}
           </div>
           <div>
@@ -351,8 +352,8 @@ export function InvoiceForm({
                     <label className={label}>Menge *</label>
                     <input
                       type="number"
-                      min={0.01}
-                      step="0.01"
+                      min={line.type === "HARDWARE" ? 1 : 0.01}
+                      step={line.type === "HARDWARE" ? 1 : 0.01}
                       required
                       disabled={Boolean(line.sourceMovementId)}
                       value={line.quantity}

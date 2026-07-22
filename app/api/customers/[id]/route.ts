@@ -24,13 +24,14 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   try {
     await requireModule("INVOICES");
     const { id } = await params;
-    const [invoiceCount, movementCount] = await Promise.all([
+    const [invoiceCount, offerCount, movementCount] = await Promise.all([
       prisma.invoice.count({ where: { customerId: id } }),
+      prisma.offer.count({ where: { customerId: id } }),
       prisma.movement.count({ where: { customerId: id } }),
     ]);
-    if (invoiceCount > 0 || movementCount > 0) {
+    if (invoiceCount > 0 || offerCount > 0 || movementCount > 0) {
       return NextResponse.json(
-        { error: "Kunde hat Rechnungen oder Lagerübergaben und kann nicht gelöscht werden" },
+        { error: "Kunde hat Angebote, Rechnungen oder Lagerübergaben und kann nicht gelöscht werden" },
         { status: 400 },
       );
     }
