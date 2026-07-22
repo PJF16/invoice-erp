@@ -103,6 +103,17 @@ async function validateSourceMovements(tx: Tx, input: CreateInvoiceInput) {
   return sourceIds;
 }
 
+async function reserveSourceMovements(tx: Tx, sourceIds: string[]) {
+  if (sourceIds.length === 0) return;
+  const updated = await tx.movement.updateMany({
+    where: { id: { in: sourceIds }, billingStatus: "PENDING" },
+    data: { billingStatus: "INVOICED" },
+  });
+  if (updated.count !== sourceIds.length) {
+    throw new ApiError(409, "Eine Kundenübergabe wurde zwischenzeitlich geändert");
+  }
+}
+
 function invoiceLinesData(lines: ReturnType<typeof computeTotals>["lines"]) {
   return lines.map((line, i) => ({
     position: i + 1,
@@ -131,6 +142,9 @@ export async function createDraftInvoice(input: CreateInvoiceInput) {
 
   return prisma.$transaction(async (tx) => {
     const sourceIds = await validateSourceMovements(tx, input);
+    // Vor dem Anlegen der Positionen atomar reservieren. So endet ein
+    // paralleler Entwurf kontrolliert mit 409 statt an der Unique-Constraint.
+    await reserveSourceMovements(tx, sourceIds);
     const invoice = await tx.invoice.create({
       data: {
         customerId: input.customerId,
@@ -150,15 +164,6 @@ export async function createDraftInvoice(input: CreateInvoiceInput) {
       },
       include: { lines: true },
     });
-    if (sourceIds.length > 0) {
-      const updated = await tx.movement.updateMany({
-        where: { id: { in: sourceIds }, billingStatus: "PENDING" },
-        data: { billingStatus: "INVOICED" },
-      });
-      if (updated.count !== sourceIds.length) {
-        throw new ApiError(409, "Eine Kundenübergabe wurde zwischenzeitlich geändert");
-      }
-    }
     return invoice;
   });
 }
@@ -182,6 +187,7 @@ export async function updateDraftInvoice(invoiceId: string, input: CreateInvoice
     }
     await tx.invoiceLine.deleteMany({ where: { invoiceId } });
     const sourceIds = await validateSourceMovements(tx, input);
+    await reserveSourceMovements(tx, sourceIds);
     const invoice = await tx.invoice.update({
       where: { id: invoiceId },
       data: {
@@ -199,15 +205,6 @@ export async function updateDraftInvoice(invoiceId: string, input: CreateInvoice
       },
       include: { lines: true },
     });
-    if (sourceIds.length > 0) {
-      const updated = await tx.movement.updateMany({
-        where: { id: { in: sourceIds }, billingStatus: "PENDING" },
-        data: { billingStatus: "INVOICED" },
-      });
-      if (updated.count !== sourceIds.length) {
-        throw new ApiError(409, "Eine Kundenübergabe wurde zwischenzeitlich geändert");
-      }
-    }
     return invoice;
   });
 }

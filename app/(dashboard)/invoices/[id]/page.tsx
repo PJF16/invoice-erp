@@ -53,7 +53,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           </p>
           {invoice.recurringInvoice && (
             <p className="mt-1 text-xs text-gray-400">
-              Automatisch erzeugt aus Vorlage „{invoice.recurringInvoice.name}"
+              Automatisch erzeugt aus Vorlage „{invoice.recurringInvoice.name}“
             </p>
           )}
           {invoice.relatedInvoice && (

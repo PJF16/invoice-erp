@@ -104,7 +104,7 @@ export default async function StockPage({
             {rows.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                  Keine Artikel gefunden. Lege unter „Artikel" welche an.
+                  Keine Artikel gefunden. Lege unter „Artikel“ welche an.
                 </td>
               </tr>
             )}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { eur, formatDate, INVOICE_STATUS_LABELS } from "@/lib/format";
+import { eur, INVOICE_STATUS_LABELS } from "@/lib/format";
 import { overdueWhere, daysOverdue } from "@/lib/reminders";
 
 export const dynamic = "force-dynamic";

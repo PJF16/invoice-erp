@@ -4,8 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toDateInput } from "@/lib/format";
 
-type Customer = { id: string; name: string };
-
 type ScheduleData = {
   id?: string;
   name: string;
@@ -164,7 +162,7 @@ function ScheduleDialog({ schedule, onClose }: { schedule: ScheduleData | null; 
             <label className={label}>Text-Vorlage</label>
             <textarea rows={4} value={emailBody} onChange={(e) => setEmailBody(e.target.value)} className={input} />
             <p className="mt-1 text-xs text-gray-500">
-              Platzhalter: <code className="font-mono">{"{zeitraum}"}</code> (z.B. „Juni 2026")
+              Platzhalter: <code className="font-mono">{"{zeitraum}"}</code> (z.B. „Juni 2026“)
             </p>
           </div>
 
@@ -192,7 +190,7 @@ function ScheduleDialog({ schedule, onClose }: { schedule: ScheduleData | null; 
   );
 }
 
-export function ExportScheduleForm({ customers }: { customers: Customer[] }) {
+export function ExportScheduleForm() {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -211,7 +209,6 @@ export function ExportScheduleRowActions({
   schedule,
 }: {
   schedule: ScheduleData & { id: string };
-  customers: Customer[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);

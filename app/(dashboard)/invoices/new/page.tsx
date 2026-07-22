@@ -75,7 +75,7 @@ export default async function NewInvoicePage({
           Die ausgewählten Übergaben sind nicht mehr offen oder gehören nicht zum selben Kunden.
         </p>
       )}
-      <InvoiceForm data={data} initial={initial} />
+      <InvoiceForm data={data} initial={initial} defaultDueDate={toDateInput(dueDate)} />
     </div>
   );
 }

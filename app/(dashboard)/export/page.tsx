@@ -31,10 +31,10 @@ export default async function ExportPage() {
           <div>
             <h2 className="text-sm font-semibold">Geplante Exporte</h2>
             <p className="text-xs text-gray-500">
-              Werden automatisch erzeugt und per E-Mail versendet, z.B. „alle Rechnungen des Vormonats" am 1. jeden Monats.
+              Werden automatisch erzeugt und per E-Mail versendet, z.B. „alle Rechnungen des Vormonats“ am 1. jeden Monats.
             </p>
           </div>
-          <ExportScheduleForm customers={customers} />
+          <ExportScheduleForm />
         </div>
         <table className="w-full text-sm">
           <thead>
@@ -78,7 +78,6 @@ export default async function ExportPage() {
                 </td>
                 <td className="px-5 py-3 text-right">
                   <ExportScheduleRowActions
-                    customers={customers}
                     schedule={{
                       id: s.id,
                       name: s.name,

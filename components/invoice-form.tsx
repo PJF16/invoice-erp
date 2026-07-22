@@ -61,15 +61,27 @@ function newLine(): Line {
   };
 }
 
-export function InvoiceForm({ data, initial }: { data: InvoiceFormData; initial?: InvoiceInitial }) {
+export function InvoiceForm({
+  data,
+  initial,
+  defaultDueDate,
+}: {
+  data: InvoiceFormData;
+  initial?: InvoiceInitial;
+  defaultDueDate?: string;
+}) {
   const router = useRouter();
   const isEditing = Boolean(initial?.id);
   const [customerId, setCustomerId] = useState(initial?.customerId ?? "");
   const [taxTreatment, setTaxTreatment] = useState(initial?.taxTreatment ?? "STANDARD");
-  const [issueDate, setIssueDate] = useState(initial?.issueDate ?? toDateInput(new Date()));
-  const [dueDate, setDueDate] = useState(
-    initial?.dueDate ?? toDateInput(new Date(Date.now() + 14 * 86_400_000)),
-  );
+  const [issueDate, setIssueDate] = useState(() => initial?.issueDate ?? toDateInput(new Date()));
+  const [dueDate, setDueDate] = useState(() => {
+    if (initial?.dueDate) return initial.dueDate;
+    if (defaultDueDate) return defaultDueDate;
+    const date = new Date();
+    date.setDate(date.getDate() + 14);
+    return toDateInput(date);
+  });
   const [periodStart, setPeriodStart] = useState(initial?.servicePeriodStart ?? "");
   const [periodEnd, setPeriodEnd] = useState(initial?.servicePeriodEnd ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
