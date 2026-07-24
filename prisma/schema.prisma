@@ -175,6 +175,7 @@ model Customer {
   country             String             @default("Österreich")
   uid                 String?
   defaultTaxTreatment TaxTreatment       @default(STANDARD)
+  paymentDays         Int?
   notes               String?
   createdAt           DateTime           @default(now())
   invoices            Invoice[]

@@ -168,7 +168,11 @@ export async function convertOfferToInvoice(offerId: string) {
     await lockOffer(tx, offerId);
     const offer = await tx.offer.findUnique({
       where: { id: offerId },
-      include: { lines: { orderBy: { position: "asc" } }, convertedInvoice: true },
+      include: {
+        lines: { orderBy: { position: "asc" } },
+        convertedInvoice: true,
+        customer: { select: { paymentDays: true } },
+      },
     });
     if (!offer) throw new ApiError(404, "Angebot nicht gefunden");
     if (offer.convertedInvoice) return offer.convertedInvoice;
@@ -182,7 +186,7 @@ export async function convertOfferToInvoice(offerId: string) {
     });
     const issueDate = new Date();
     const dueDate = new Date(issueDate);
-    dueDate.setDate(dueDate.getDate() + settings.paymentDays);
+    dueDate.setDate(dueDate.getDate() + (offer.customer.paymentDays ?? settings.paymentDays));
     const invoice = await tx.invoice.create({
       data: {
         sourceOfferId: offer.id,

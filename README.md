@@ -11,7 +11,7 @@ Modernes Lagerverwaltungs- und Rechnungsprogramm für ein österreichisches Unte
 - **Historie**: jede Bewegung mit Zeitpunkt, Typ (Eingang/Ausgang/Korrektur), Menge, Lager und Benutzer
 - **Benutzer**: Admin kann Mitarbeiter-Konten anlegen (Rollen: Admin / Mitarbeiter)
 - **REST-API** unter `/api/…` — dieselben Endpunkte nutzt die iOS-App (inkl. `GET /api/items/by-barcode/{code}`)
-- **Lieferscheine** mit eigenem Nummernkreis und PDF; beim Erstellen werden alle Positionen atomar aus dem jeweiligen Lager ausgebucht und dauerhaft mit dem Lieferschein verknüpft
+- **Lieferscheine** mit eigenem Nummernkreis und PDF; beim Erstellen werden alle Positionen atomar aus dem jeweiligen Lager ausgebucht, dauerhaft mit dem Lieferschein verknüpft und können ohne erneute Lagerbuchung in eine Rechnung übernommen werden
 - **Paketmodus in der iOS-App**: Kunde und Lager wählen, mehrere Artikel nacheinander scannen, Mengen korrigieren und daraus direkt einen Lieferschein samt Lagerausbuchungen erstellen
 
 ### Rechnungen
@@ -26,7 +26,7 @@ Modernes Lagerverwaltungs- und Rechnungsprogramm für ein österreichisches Unte
 - **Mahnwesen**: Überfällige Rechnungen mit Mahnstufen; Zahlungserinnerungen manuell per Klick oder automatisch (Einstellungen: erste Erinnerung nach X Tagen, Wiederholung im selben Abstand, Maximalanzahl; Vorlagen mit Platzhaltern)
 - **Export**: Rechnungen und Gutschriften gefiltert nach Zeitraum, Status und Kunde als ZIP herunterladen; zusätzlich **geplante Exporte**, die zu einem festen Zeitpunkt automatisch erzeugt und per E-Mail versendet werden (z.B. „alle Rechnungen des Vormonats" monatlich am 1. an die Steuerberatung)
 - **Wiederkehrende Rechnungen** (monatlich/quartalsweise/jährlich): werden vom eingebauten Scheduler automatisch erzeugt und versendet; **Softwareartikel-Preise werden bei jeder Erzeugung neu gelesen** — Preisänderungen wirken automatisch auf alle künftigen Rechnungen
-- **Kundenverwaltung** mit UID und Standard-Steuerbehandlung pro Kunde; Kundenauswahlfelder sind nach Name und Kundennummer durchsuchbar
+- **Kundenverwaltung** mit UID, Standard-Steuerbehandlung und optionalem kundenspezifischem Zahlungsziel; Kundenauswahlfelder sind nach Name und Kundennummer durchsuchbar
 - **Einstellungen**: Firmendaten, UID, Bankverbindung (erscheint auf dem PDF), Zahlungsziel, E-Mail-Vorlagen
 
 ### E-Mail-Versand (SMTP)

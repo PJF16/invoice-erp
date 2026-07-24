@@ -15,6 +15,7 @@ export async function loadInvoiceFormData(): Promise<InvoiceFormData> {
       name: c.name,
       customerNumber: c.customerNumber,
       defaultTaxTreatment: c.defaultTaxTreatment,
+      paymentDays: c.paymentDays,
     })),
     softwareItems: softwareItems.map((s) => ({
       id: s.id,

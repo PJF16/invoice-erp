@@ -4,17 +4,19 @@ import { prisma } from "@/lib/prisma";
 import { toDateInput } from "@/lib/format";
 import { loadInvoiceFormData } from "@/lib/invoice-form-data";
 import { InvoiceForm } from "@/components/invoice-form";
+import { getSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [invoice, data] = await Promise.all([
+  const [invoice, data, settings] = await Promise.all([
     prisma.invoice.findUnique({
       where: { id },
       include: { lines: { orderBy: { position: "asc" } } },
     }),
     loadInvoiceFormData(),
+    getSettings(),
   ]);
   if (!invoice) notFound();
   if (invoice.status !== "DRAFT") redirect(`/invoices/${id}`);
@@ -27,6 +29,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
       <h1 className="mt-2 mb-6 text-2xl font-semibold">Entwurf bearbeiten</h1>
       <InvoiceForm
         data={data}
+        defaultPaymentDays={settings.paymentDays}
         initial={{
           id: invoice.id,
           customerId: invoice.customerId,

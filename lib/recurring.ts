@@ -49,7 +49,8 @@ export async function generateInvoiceFromTemplate(templateId: string, userId: st
     };
   });
 
-  const dueDate = new Date(now.getTime() + settings.paymentDays * 86_400_000);
+  const dueDate = new Date(now);
+  dueDate.setDate(dueDate.getDate() + (template.customer.paymentDays ?? settings.paymentDays));
   const draft = await createDraftInvoice({
     customerId: template.customerId,
     issueDate: now,

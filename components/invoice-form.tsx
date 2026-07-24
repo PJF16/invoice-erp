@@ -6,7 +6,13 @@ import { eur, toDateInput, TAX_TREATMENT_OPTIONS } from "@/lib/format";
 import { CustomerSelect } from "@/components/customer-select";
 
 export type InvoiceFormData = {
-  customers: { id: string; name: string; customerNumber: string | null; defaultTaxTreatment: string }[];
+  customers: {
+    id: string;
+    name: string;
+    customerNumber: string | null;
+    defaultTaxTreatment: string;
+    paymentDays: number | null;
+  }[];
   softwareItems: { id: string; name: string; unitPrice: number; unit: string }[];
   hardwareItems: {
     id: string;
@@ -62,14 +68,23 @@ function newLine(): Line {
   };
 }
 
+function addDaysToDateInput(value: string, days: number) {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  return toDateInput(date);
+}
+
 export function InvoiceForm({
   data,
   initial,
   defaultDueDate,
+  defaultPaymentDays = 14,
 }: {
   data: InvoiceFormData;
   initial?: InvoiceInitial;
   defaultDueDate?: string;
+  defaultPaymentDays?: number;
 }) {
   const router = useRouter();
   const isEditing = Boolean(initial?.id);
@@ -119,7 +134,17 @@ export function InvoiceForm({
   function selectCustomer(id: string) {
     setCustomerId(id);
     const customer = data.customers.find((c) => c.id === id);
-    if (customer) setTaxTreatment(customer.defaultTaxTreatment);
+    if (customer) {
+      setTaxTreatment(customer.defaultTaxTreatment);
+      setDueDate(addDaysToDateInput(issueDate, customer.paymentDays ?? defaultPaymentDays));
+    }
+  }
+
+  function changeIssueDate(value: string) {
+    setIssueDate(value);
+    if (!value) return;
+    const customer = data.customers.find((entry) => entry.id === customerId);
+    setDueDate(addDaysToDateInput(value, customer?.paymentDays ?? defaultPaymentDays));
   }
 
   function selectSoftware(key: number, softwareItemId: string) {
@@ -217,11 +242,17 @@ export function InvoiceForm({
           </div>
           <div>
             <label className={label}>Rechnungsdatum *</label>
-            <input type="date" required value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className={`${input} mt-1`} />
+            <input type="date" required value={issueDate} onChange={(e) => changeIssueDate(e.target.value)} className={`${input} mt-1`} />
           </div>
           <div>
             <label className={label}>Fällig am *</label>
             <input type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={`${input} mt-1`} />
+            {customerId && (
+              <p className="mt-1 text-xs text-gray-500">
+                Zahlungsziel: {data.customers.find((entry) => entry.id === customerId)?.paymentDays ?? defaultPaymentDays} Tage
+                {data.customers.find((entry) => entry.id === customerId)?.paymentDays == null ? " (Firmenstandard)" : " (kundenspezifisch)"}
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>

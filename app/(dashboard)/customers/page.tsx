@@ -29,6 +29,7 @@ export default async function CustomersPage() {
               <th className="px-4 py-3">Ort</th>
               <th className="px-4 py-3">UID</th>
               <th className="px-4 py-3">Steuer</th>
+              <th className="px-4 py-3">Zahlungsziel</th>
               <th className="px-4 py-3">E-Mail</th>
               <th className="px-4 py-3 text-right">Rechnungen</th>
               <th className="px-4 py-3 text-right">Aktionen</th>
@@ -37,7 +38,7 @@ export default async function CustomersPage() {
           <tbody>
             {customers.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
                   Noch keine Kunden angelegt.
                 </td>
               </tr>
@@ -53,6 +54,9 @@ export default async function CustomersPage() {
                 <td className="px-4 py-3 font-mono text-xs text-gray-500">{c.uid ?? "–"}</td>
                 <td className="px-4 py-3 text-xs text-gray-500">
                   {TAX_TREATMENT_LABELS[c.defaultTaxTreatment]}
+                </td>
+                <td className="px-4 py-3 text-gray-500">
+                  {c.paymentDays == null ? "Standard" : `${c.paymentDays} Tage`}
                 </td>
                 <td className="px-4 py-3 text-gray-500">{c.email ?? "–"}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{c._count.invoices}</td>
@@ -70,6 +74,7 @@ export default async function CustomersPage() {
                       country: c.country,
                       uid: c.uid,
                       defaultTaxTreatment: c.defaultTaxTreatment,
+                      paymentDays: c.paymentDays,
                       notes: c.notes,
                     }}
                   />

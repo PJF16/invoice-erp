@@ -16,6 +16,7 @@ type CustomerData = {
   country: string;
   uid: string | null;
   defaultTaxTreatment: string;
+  paymentDays: number | null;
   notes: string | null;
 };
 
@@ -30,6 +31,7 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
     setError(null);
     setLoading(true);
     const form = new FormData(e.currentTarget);
+    const paymentDays = String(form.get("paymentDays") ?? "").trim();
     const res = await fetch(isEdit ? `/api/customers/${customer!.id}` : "/api/customers", {
       method: isEdit ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -44,6 +46,7 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
         country: form.get("country"),
         uid: (form.get("uid") as string) || null,
         defaultTaxTreatment: form.get("defaultTaxTreatment"),
+        paymentDays: paymentDays === "" ? null : Number(paymentDays),
         notes: (form.get("notes") as string) || null,
       }),
     });
@@ -129,6 +132,21 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
               </select>
               <p className="mt-1 text-xs text-gray-500">
                 Wird bei neuen Rechnungen vorausgewählt, z.B. Reverse Charge für deutsche Firmenkunden mit UID.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Zahlungsziel in Tagen</label>
+              <input
+                name="paymentDays"
+                type="number"
+                min={0}
+                max={365}
+                defaultValue={customer?.paymentDays ?? ""}
+                placeholder="Firmenstandard"
+                className={input}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Leer lassen, um den Standard aus den Einstellungen zu verwenden.
               </p>
             </div>
             <div className="sm:col-span-2">

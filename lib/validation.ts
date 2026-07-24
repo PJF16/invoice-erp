@@ -59,6 +59,7 @@ export const customerSchema = z.object({
   country: z.string().trim().default("Österreich"),
   uid: optionalTrimmed,
   defaultTaxTreatment: taxTreatment.default("STANDARD"),
+  paymentDays: z.number().int().min(0).max(365).nullable().optional(),
   notes: optionalTrimmed,
 });
 
