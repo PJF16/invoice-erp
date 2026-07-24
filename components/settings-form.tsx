@@ -22,6 +22,7 @@ type Settings = {
   phone: string;
   invoicePrefix: string;
   offerPrefix: string;
+  deliveryNotePrefix: string;
   paymentDays: number;
   skontoPercent: number;
   skontoDays: number;
@@ -31,6 +32,8 @@ type Settings = {
   lastInvoiceSeq: number;
   lastOfferYear: number;
   lastOfferSeq: number;
+  lastDeliveryNoteYear: number;
+  lastDeliveryNoteSeq: number;
 };
 
 export function SettingsForm({
@@ -68,6 +71,7 @@ export function SettingsForm({
         phone: form.get("phone"),
         invoicePrefix: form.get("invoicePrefix"),
         offerPrefix: form.get("offerPrefix"),
+        deliveryNotePrefix: form.get("deliveryNotePrefix"),
         paymentDays: Number(form.get("paymentDays")),
         skontoPercent: Number(form.get("skontoPercent")),
         skontoDays: Number(form.get("skontoDays")),
@@ -98,6 +102,9 @@ export function SettingsForm({
   ).padStart(3, "0")}`;
   const nextOfferNumber = `${settings.offerPrefix}${new Date().getFullYear()}-${String(
     settings.lastOfferYear === new Date().getFullYear() ? settings.lastOfferSeq + 1 : 1,
+  ).padStart(3, "0")}`;
+  const nextDeliveryNoteNumber = `${settings.deliveryNotePrefix}${new Date().getFullYear()}-${String(
+    settings.lastDeliveryNoteYear === new Date().getFullYear() ? settings.lastDeliveryNoteSeq + 1 : 1,
   ).padStart(3, "0")}`;
 
   return (
@@ -159,7 +166,7 @@ export function SettingsForm({
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 text-sm font-semibold">Rechnungen</h2>
+        <h2 className="mb-4 text-sm font-semibold">Belegnummern &amp; Rechnungen</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={label}>Rechnungsnummern-Präfix</label>
@@ -173,6 +180,13 @@ export function SettingsForm({
             <input name="offerPrefix" defaultValue={settings.offerPrefix} placeholder='z.B. "ANG-"' className={`${input} font-mono`} />
             <p className="mt-1 text-xs text-gray-500">
               Nächste Nummer: <span className="font-mono font-semibold">{nextOfferNumber}</span> (fortlaufend pro Jahr)
+            </p>
+          </div>
+          <div>
+            <label className={label}>Lieferscheinnummern-Präfix</label>
+            <input name="deliveryNotePrefix" defaultValue={settings.deliveryNotePrefix} placeholder='z.B. "LS-"' className={`${input} font-mono`} />
+            <p className="mt-1 text-xs text-gray-500">
+              Nächste Nummer: <span className="font-mono font-semibold">{nextDeliveryNoteNumber}</span> (fortlaufend pro Jahr)
             </p>
           </div>
           <div>

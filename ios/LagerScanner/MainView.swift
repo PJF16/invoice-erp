@@ -13,6 +13,21 @@ enum ActiveSheet: Identifiable {
 }
 
 struct MainView: View {
+    var body: some View {
+        TabView {
+            SingleScanView()
+                .tabItem {
+                    Label("Scannen", systemImage: "barcode.viewfinder")
+                }
+            PackageView()
+                .tabItem {
+                    Label("Paket", systemImage: "shippingbox")
+                }
+        }
+    }
+}
+
+private struct SingleScanView: View {
     @EnvironmentObject private var api: APIClient
     @State private var activeSheet: ActiveSheet?
     @State private var manualBarcode = ""

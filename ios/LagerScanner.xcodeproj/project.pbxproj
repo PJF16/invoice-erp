@@ -8,7 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		06FF3D3A6A1375C8AC7E3FF9 /* BarcodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E2E7B2E7C0A83D6025A3E5 /* BarcodeScannerView.swift */; };
+		19F688ED4A610B02C648D7AD /* PackageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2338DACD593E49A6ACC598A /* PackageView.swift */; };
 		1E07C4CF2E193ACA40F0BB5C /* BookingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A26E6FD4E76DFCB07227AC6 /* BookingView.swift */; };
+		3EB3EB5156301A17D729F8D3 /* CustomerSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31FAADE9AAECFEBAA16BF5A2 /* CustomerSelectionView.swift */; };
 		4F4A839FDBE0A569676CBE26 /* ItemCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FA24392A1222927F717AD5 /* ItemCreateView.swift */; };
 		619354CBC1DD503A131639D6 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B726984050510B9898B6159C /* APIClient.swift */; };
 		69AFF870F7BE9E6002B40D7E /* LagerScannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E02A4632053D5283817BE89 /* LagerScannerApp.swift */; };
@@ -20,12 +22,14 @@
 
 /* Begin PBXFileReference section */
 		2A26E6FD4E76DFCB07227AC6 /* BookingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingView.swift; sourceTree = "<group>"; };
+		31FAADE9AAECFEBAA16BF5A2 /* CustomerSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomerSelectionView.swift; sourceTree = "<group>"; };
 		3E02A4632053D5283817BE89 /* LagerScannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LagerScannerApp.swift; sourceTree = "<group>"; };
 		52016EB8325E24EFEF8BEFED /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8A108B77B13AB8715B5DF43B /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		8F80DC682A30E11E9DE8AD96 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		998B062713885977FF8F3D53 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		A6E2E7B2E7C0A83D6025A3E5 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerView.swift; sourceTree = "<group>"; };
+		B2338DACD593E49A6ACC598A /* PackageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackageView.swift; sourceTree = "<group>"; };
 		B726984050510B9898B6159C /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		D93A5AD252E2160C29D22345 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		E9FA24392A1222927F717AD5 /* ItemCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemCreateView.swift; sourceTree = "<group>"; };
@@ -48,12 +52,14 @@
 				8F80DC682A30E11E9DE8AD96 /* Assets.xcassets */,
 				A6E2E7B2E7C0A83D6025A3E5 /* BarcodeScannerView.swift */,
 				2A26E6FD4E76DFCB07227AC6 /* BookingView.swift */,
+				31FAADE9AAECFEBAA16BF5A2 /* CustomerSelectionView.swift */,
 				52016EB8325E24EFEF8BEFED /* Info.plist */,
 				E9FA24392A1222927F717AD5 /* ItemCreateView.swift */,
 				3E02A4632053D5283817BE89 /* LagerScannerApp.swift */,
 				D93A5AD252E2160C29D22345 /* LoginView.swift */,
 				8A108B77B13AB8715B5DF43B /* MainView.swift */,
 				998B062713885977FF8F3D53 /* Models.swift */,
+				B2338DACD593E49A6ACC598A /* PackageView.swift */,
 			);
 			path = LagerScanner;
 			sourceTree = "<group>";
@@ -139,11 +145,13 @@
 				619354CBC1DD503A131639D6 /* APIClient.swift in Sources */,
 				06FF3D3A6A1375C8AC7E3FF9 /* BarcodeScannerView.swift in Sources */,
 				1E07C4CF2E193ACA40F0BB5C /* BookingView.swift in Sources */,
+				3EB3EB5156301A17D729F8D3 /* CustomerSelectionView.swift in Sources */,
 				4F4A839FDBE0A569676CBE26 /* ItemCreateView.swift in Sources */,
 				69AFF870F7BE9E6002B40D7E /* LagerScannerApp.swift in Sources */,
 				995270B00BB4AF7E2554E6F0 /* LoginView.swift in Sources */,
 				FEB6C6A2638AAC7ACC182485 /* MainView.swift in Sources */,
 				760D4D2879E9EF381D59C1A8 /* Models.swift in Sources */,
+				19F688ED4A610B02C648D7AD /* PackageView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -80,39 +80,42 @@ enum PaymentMethod {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  name         String
-  passwordHash String
-  role         Role       @default(MEMBER)
-  modules      Module[]   @default([STOCK, INVOICES])
-  createdAt    DateTime   @default(now())
-  movements    Movement[]
-  payments     Payment[]
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String
+  passwordHash  String
+  role          Role           @default(MEMBER)
+  modules       Module[]       @default([STOCK, INVOICES])
+  createdAt     DateTime       @default(now())
+  movements     Movement[]
+  payments      Payment[]
+  deliveryNotes DeliveryNote[]
 }
 
 model Warehouse {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  location     String?
-  createdAt    DateTime      @default(now())
-  stocks       Stock[]
-  movements    Movement[]
-  invoiceLines InvoiceLine[]
-  offerLines   OfferLine[]
+  id                String             @id @default(cuid())
+  name              String             @unique
+  location          String?
+  createdAt         DateTime           @default(now())
+  stocks            Stock[]
+  movements         Movement[]
+  invoiceLines      InvoiceLine[]
+  offerLines        OfferLine[]
+  deliveryNoteLines DeliveryNoteLine[]
 }
 
 model Item {
-  id           String        @id @default(cuid())
-  name         String
-  sku          String?       @unique
-  barcode      String?       @unique
-  description  String?
-  createdAt    DateTime      @default(now())
-  stocks       Stock[]
-  movements    Movement[]
-  invoiceLines InvoiceLine[]
-  offerLines   OfferLine[]
+  id                String             @id @default(cuid())
+  name              String
+  sku               String?            @unique
+  barcode           String?            @unique
+  description       String?
+  createdAt         DateTime           @default(now())
+  stocks            Stock[]
+  movements         Movement[]
+  invoiceLines      InvoiceLine[]
+  offerLines        OfferLine[]
+  deliveryNoteLines DeliveryNoteLine[]
 }
 
 model Stock {
@@ -127,34 +130,37 @@ model Stock {
 }
 
 model CompanySettings {
-  id              String  @id @default("singleton")
-  name            String  @default("")
-  street          String  @default("")
-  zip             String  @default("")
-  city            String  @default("")
-  country         String  @default("Österreich")
-  uid             String  @default("")
-  iban            String  @default("")
-  bic             String  @default("")
-  bankName        String  @default("")
-  email           String  @default("")
-  phone           String  @default("")
-  invoicePrefix   String  @default("")
-  offerPrefix     String  @default("ANG-")
-  paymentDays     Int     @default(14)
-  emailSubject    String  @default("Rechnung {nummer}")
-  emailBody       String  @default("Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung {nummer}.\n\nMit freundlichen Grüßen")
-  lastInvoiceYear Int     @default(0)
-  lastInvoiceSeq  Int     @default(0)
-  lastOfferYear   Int     @default(0)
-  lastOfferSeq    Int     @default(0)
-  autoReminders   Boolean @default(false)
-  reminderDays    Int     @default(7)
-  maxReminders    Int     @default(3)
-  reminderSubject String  @default("Zahlungserinnerung zu Rechnung {nummer}")
-  reminderBody    String  @default("Sehr geehrte Damen und Herren,\n\ndürfen wir Sie freundlich daran erinnern, dass die Rechnung {nummer} vom {datum} über {betrag} seit {tage} Tagen überfällig ist?\n\nBitte überweisen Sie den offenen Betrag auf das angegebene Konto. Sollte sich Ihre Zahlung mit dieser Erinnerung überschnitten haben, betrachten Sie dieses Schreiben bitte als gegenstandslos.\n\nMit freundlichen Grüßen")
-  skontoPercent   Int     @default(0)
-  skontoDays      Int     @default(0)
+  id                   String  @id @default("singleton")
+  name                 String  @default("")
+  street               String  @default("")
+  zip                  String  @default("")
+  city                 String  @default("")
+  country              String  @default("Österreich")
+  uid                  String  @default("")
+  iban                 String  @default("")
+  bic                  String  @default("")
+  bankName             String  @default("")
+  email                String  @default("")
+  phone                String  @default("")
+  invoicePrefix        String  @default("")
+  offerPrefix          String  @default("ANG-")
+  deliveryNotePrefix   String  @default("LS-")
+  paymentDays          Int     @default(14)
+  emailSubject         String  @default("Rechnung {nummer}")
+  emailBody            String  @default("Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung {nummer}.\n\nMit freundlichen Grüßen")
+  lastInvoiceYear      Int     @default(0)
+  lastInvoiceSeq       Int     @default(0)
+  lastOfferYear        Int     @default(0)
+  lastOfferSeq         Int     @default(0)
+  lastDeliveryNoteYear Int     @default(0)
+  lastDeliveryNoteSeq  Int     @default(0)
+  autoReminders        Boolean @default(false)
+  reminderDays         Int     @default(7)
+  maxReminders         Int     @default(3)
+  reminderSubject      String  @default("Zahlungserinnerung zu Rechnung {nummer}")
+  reminderBody         String  @default("Sehr geehrte Damen und Herren,\n\ndürfen wir Sie freundlich daran erinnern, dass die Rechnung {nummer} vom {datum} über {betrag} seit {tage} Tagen überfällig ist?\n\nBitte überweisen Sie den offenen Betrag auf das angegebene Konto. Sollte sich Ihre Zahlung mit dieser Erinnerung überschnitten haben, betrachten Sie dieses Schreiben bitte als gegenstandslos.\n\nMit freundlichen Grüßen")
+  skontoPercent        Int     @default(0)
+  skontoDays           Int     @default(0)
 }
 
 model Customer {
@@ -173,6 +179,7 @@ model Customer {
   createdAt           DateTime           @default(now())
   invoices            Invoice[]
   offers              Offer[]
+  deliveryNotes       DeliveryNote[]
   recurringInvoices   RecurringInvoice[]
   movements           Movement[]
 }
@@ -276,6 +283,41 @@ model OfferLine {
   warehouseId    String?
 }
 
+model DeliveryNote {
+  id              String             @id @default(cuid())
+  number          String             @unique
+  customer        Customer           @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  customerId      String
+  customerName    String
+  customerAddress String
+  customerUid     String?
+  issueDate       DateTime
+  notes           String?
+  createdAt       DateTime           @default(now())
+  createdBy       User               @relation(fields: [createdById], references: [id])
+  createdById     String
+  lines           DeliveryNoteLine[]
+
+  @@index([customerId, issueDate])
+}
+
+model DeliveryNoteLine {
+  id             String       @id @default(cuid())
+  deliveryNote   DeliveryNote @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
+  deliveryNoteId String
+  position       Int
+  item           Item         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  itemId         String
+  itemName       String
+  itemSku        String?
+  warehouse      Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  warehouseId    String
+  warehouseName  String
+  quantity       Int
+  movement       Movement     @relation(fields: [movementId], references: [id], onDelete: Restrict)
+  movementId     String       @unique
+}
+
 model Payment {
   id        String        @id @default(cuid())
   invoice   Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -361,22 +403,23 @@ model ExportSchedule {
 }
 
 model Movement {
-  id            String                 @id @default(cuid())
-  type          MovementType
-  quantity      Int
-  item          Item                   @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  itemId        String
-  warehouse     Warehouse              @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  warehouseId   String
-  user          User                   @relation(fields: [userId], references: [id])
-  userId        String
-  customer      Customer?              @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  customerId    String?
-  billingStatus MovementBillingStatus?
-  invoiceLine   InvoiceLine?           @relation("MovementInvoiceLine")
-  supplier      String?
-  note          String?
-  createdAt     DateTime               @default(now())
+  id               String                 @id @default(cuid())
+  type             MovementType
+  quantity         Int
+  item             Item                   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId           String
+  warehouse        Warehouse              @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  warehouseId      String
+  user             User                   @relation(fields: [userId], references: [id])
+  userId           String
+  customer         Customer?              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  customerId       String?
+  billingStatus    MovementBillingStatus?
+  invoiceLine      InvoiceLine?           @relation("MovementInvoiceLine")
+  deliveryNoteLine DeliveryNoteLine?
+  supplier         String?
+  note             String?
+  createdAt        DateTime               @default(now())
 
   @@index([itemId, createdAt])
   @@index([warehouseId, createdAt])

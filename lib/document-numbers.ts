@@ -7,6 +7,9 @@ type NumberSettings = {
   offerPrefix: string;
   lastOfferYear: number;
   lastOfferSeq: number;
+  deliveryNotePrefix: string;
+  lastDeliveryNoteYear: number;
+  lastDeliveryNoteSeq: number;
 };
 
 async function lockNumberSettings(tx: Tx): Promise<NumberSettings> {
@@ -18,7 +21,8 @@ async function lockNumberSettings(tx: Tx): Promise<NumberSettings> {
   const [settings] = await tx.$queryRaw<NumberSettings[]>`
     SELECT
       "invoicePrefix", "lastInvoiceYear", "lastInvoiceSeq",
-      "offerPrefix", "lastOfferYear", "lastOfferSeq"
+      "offerPrefix", "lastOfferYear", "lastOfferSeq",
+      "deliveryNotePrefix", "lastDeliveryNoteYear", "lastDeliveryNoteSeq"
     FROM "CompanySettings"
     WHERE "id" = 'singleton'
     FOR UPDATE
@@ -46,4 +50,15 @@ export async function assignOfferNumberTx(tx: Tx, issueDate: Date) {
     data: { lastOfferYear: year, lastOfferSeq: seq },
   });
   return `${settings.offerPrefix}${year}-${String(seq).padStart(3, "0")}`;
+}
+
+export async function assignDeliveryNoteNumberTx(tx: Tx, issueDate: Date) {
+  const settings = await lockNumberSettings(tx);
+  const year = issueDate.getFullYear();
+  const seq = settings.lastDeliveryNoteYear === year ? settings.lastDeliveryNoteSeq + 1 : 1;
+  await tx.companySettings.update({
+    where: { id: "singleton" },
+    data: { lastDeliveryNoteYear: year, lastDeliveryNoteSeq: seq },
+  });
+  return `${settings.deliveryNotePrefix}${year}-${String(seq).padStart(3, "0")}`;
 }

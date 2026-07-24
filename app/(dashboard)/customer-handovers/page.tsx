@@ -23,6 +23,7 @@ export default async function CustomerHandoversPage({ searchParams }: { searchPa
       include: {
         customer: { select: { id: true, name: true, customerNumber: true } }, item: { select: { name: true, sku: true } },
         warehouse: { select: { name: true } }, invoiceLine: { select: { invoice: { select: { id: true, number: true, status: true } } } },
+        deliveryNoteLine: { select: { deliveryNote: { select: { id: true, number: true } } } },
       },
     }),
     prisma.customer.findMany({ where: { movements: { some: { billingStatus: { not: null } } } }, orderBy: { name: "asc" }, select: { id: true, name: true, customerNumber: true } }),
@@ -33,6 +34,7 @@ export default async function CustomerHandoversPage({ searchParams }: { searchPa
     id: movement.id, createdAt: movement.createdAt.toISOString(), quantity: movement.quantity,
     billingStatus: movement.billingStatus, note: movement.note, customer: movement.customer,
     item: movement.item, warehouse: movement.warehouse, invoice: movement.invoiceLine?.invoice ?? null,
+    deliveryNote: movement.deliveryNoteLine?.deliveryNote ?? null,
   }] : []);
   return <div className="mx-auto max-w-7xl">
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">

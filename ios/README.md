@@ -1,12 +1,15 @@
 # LagerScanner (iOS-App)
 
-SwiftUI-App zum Ein- und Ausbuchen per Barcode-Scan gegen die Lagerverwaltungs-API.
+SwiftUI-App zum Ein- und Ausbuchen per Barcode-Scan sowie zum Zusammenstellen und Versenden von Paketen gegen die Lagerverwaltungs-API.
 
 ## Funktionen
 
 - Login mit denselben Zugangsdaten wie die Weboberfläche (Server-URL einstellbar)
 - Barcode-Scanner (VisionKit) + manuelle Barcode-Eingabe als Fallback
 - Nach dem Scan: Artikel mit Bestand, Lager wählen, Menge, **Einbuchen/Ausbuchen**
+- Im Tab **Paket** einen Kunden und ein Lager wählen, mehrere Artikel fortlaufend scannen und Mengen vor dem Abschluss korrigieren
+- Aus dem Paket direkt einen nummerierten Lieferschein erstellen; alle Positionen werden dabei gemeinsam ausgebucht und mit dem Lieferschein verknüpft
+- Kundenauswahl über eine Suche nach Name oder Kundennummer
 - Beim Einbuchen optional **Lieferant** (mit Vorschlägen aus bisherigen Buchungen) und Notiz
 
 ## Öffnen & Starten

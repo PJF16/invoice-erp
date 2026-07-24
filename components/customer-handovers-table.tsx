@@ -15,6 +15,7 @@ export type CustomerHandoverRow = {
   item: { name: string; sku: string | null };
   warehouse: { name: string };
   invoice: { id: string; number: string | null; status: string } | null;
+  deliveryNote: { id: string; number: string } | null;
 };
 
 const options: { value: BillingStatus; label: string }[] = [
@@ -90,10 +91,10 @@ export function CustomerHandoversTable({ rows, canCreateInvoice }: { rows: Custo
             <th className="px-4 py-3">Zeitpunkt</th><th className="px-4 py-3">Kunde</th>
             <th className="px-4 py-3">Artikel</th><th className="px-4 py-3 text-right">Menge</th>
             <th className="px-4 py-3">Lager</th><th className="px-4 py-3">Notiz</th>
-            <th className="px-4 py-3">Status</th><th className="px-4 py-3">Rechnung</th>
+            <th className="px-4 py-3">Status</th><th className="px-4 py-3">Lieferschein</th><th className="px-4 py-3">Rechnung</th>
           </tr></thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={canCreateInvoice ? 9 : 8} className="px-4 py-10 text-center text-gray-500">Keine Kundenübergaben für diesen Filter.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={canCreateInvoice ? 10 : 9} className="px-4 py-10 text-center text-gray-500">Keine Kundenübergaben für diesen Filter.</td></tr>}
             {rows.map((row) => {
               const selectable = canCreateInvoice && row.billingStatus === "PENDING";
               const blocked = Boolean(selectedCustomerId && selectedCustomerId !== row.customer.id);
@@ -106,6 +107,7 @@ export function CustomerHandoversTable({ rows, canCreateInvoice }: { rows: Custo
                 <td className="px-4 py-3 text-gray-500">{row.warehouse.name}</td>
                 <td className="max-w-48 truncate px-4 py-3 text-xs text-gray-500">{row.note ?? "–"}</td>
                 <td className="px-4 py-3">{row.invoice ? <span className={`inline-block rounded-full border px-2 py-1 text-xs font-medium ${colors.INVOICED}`}>Verrechnet</span> : <select value={row.billingStatus} disabled={updating === row.id} onChange={(event) => setStatus(row.id, event.target.value as BillingStatus)} className={`rounded-lg border px-2 py-1 text-xs font-medium ${colors[row.billingStatus]}`}>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>}</td>
+                <td className="px-4 py-3">{row.deliveryNote ? <Link href={`/delivery-notes/${row.deliveryNote.id}`} className="text-blue-600 hover:underline">{row.deliveryNote.number}</Link> : <span className="text-gray-400">–</span>}</td>
                 <td className="px-4 py-3">{row.invoice ? <Link href={`/invoices/${row.invoice.id}`} className="text-blue-600 hover:underline">{row.invoice.number ?? "Entwurf"}</Link> : <span className="text-gray-400">–</span>}</td>
               </tr>;
             })}

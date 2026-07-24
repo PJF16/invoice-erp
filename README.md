@@ -1,6 +1,6 @@
 # Lagerverwaltung (invoice-erp)
 
-Modernes Lagerverwaltungs- und Rechnungsprogramm für ein österreichisches Unternehmen: Mehrbenutzer-Login, mehrere Lager, Lieferanten-Erfassung, vollständige Bewegungshistorie, Rechnungserstellung mit korrekter USt (inkl. Reverse Charge) und automatische wiederkehrende Rechnungen. Dazu eine iOS-App mit Barcode-Scanner ([ios/](ios/README.md)).
+Modernes Lagerverwaltungs- und Rechnungsprogramm für ein österreichisches Unternehmen: Mehrbenutzer-Login, mehrere Lager, Lieferanten-Erfassung, vollständige Bewegungshistorie, Lieferscheine, Angebote, Rechnungserstellung mit korrekter USt (inkl. Reverse Charge) und automatische wiederkehrende Rechnungen. Dazu eine iOS-App mit Barcode-Scanner und Paketmodus ([ios/](ios/README.md)).
 
 ## Funktionen
 
@@ -11,6 +11,8 @@ Modernes Lagerverwaltungs- und Rechnungsprogramm für ein österreichisches Unte
 - **Historie**: jede Bewegung mit Zeitpunkt, Typ (Eingang/Ausgang/Korrektur), Menge, Lager und Benutzer
 - **Benutzer**: Admin kann Mitarbeiter-Konten anlegen (Rollen: Admin / Mitarbeiter)
 - **REST-API** unter `/api/…` — dieselben Endpunkte nutzt die iOS-App (inkl. `GET /api/items/by-barcode/{code}`)
+- **Lieferscheine** mit eigenem Nummernkreis und PDF; beim Erstellen werden alle Positionen atomar aus dem jeweiligen Lager ausgebucht und dauerhaft mit dem Lieferschein verknüpft
+- **Paketmodus in der iOS-App**: Kunde und Lager wählen, mehrere Artikel nacheinander scannen, Mengen korrigieren und daraus direkt einen Lieferschein samt Lagerausbuchungen erstellen
 
 ### Rechnungen
 
@@ -85,6 +87,9 @@ Falls das Image kein Seed-Tooling enthält, alternativ lokal mit `DATABASE_URL` 
 | `/api/stock` | GET | Bestand, Filter: `?warehouseId=`, `?q=` |
 | `/api/suppliers` | GET | Alle bisher verwendeten Lieferanten |
 | `/api/movements` | GET, POST | Historie / Buchung (`type`: `IN`, `OUT`, `ADJUST`) |
+| `/api/delivery-notes` | GET, POST | Lieferscheine suchen bzw. mit atomaren Lagerausbuchungen erstellen |
+| `/api/delivery-notes/{id}` | GET | Lieferschein mit Positionen und Buchungsverweisen abrufen |
+| `/api/delivery-notes/{id}/pdf` | GET | Lieferschein-PDF abrufen |
 | `/api/users` | GET, POST | Benutzer (nur Admin) |
 | `/api/customers`, `/api/customers/{id}` | GET, POST, PATCH, DELETE | Kunden |
 | `/api/software-items`, `/api/software-items/{id}` | GET, POST, PATCH, DELETE | Softwareartikel |

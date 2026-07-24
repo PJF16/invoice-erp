@@ -58,6 +58,23 @@ struct MovementRequest: Codable {
     let note: String?
 }
 
+struct DeliveryNoteLineRequest: Codable {
+    let itemId: String
+    let warehouseId: String
+    let quantity: Int
+}
+
+struct DeliveryNoteRequest: Codable {
+    let customerId: String
+    let notes: String?
+    let lines: [DeliveryNoteLineRequest]
+}
+
+struct DeliveryNoteResponse: Codable, Identifiable {
+    let id: String
+    let number: String
+}
+
 struct APIErrorResponse: Codable {
     let error: String
 }

@@ -21,6 +21,7 @@ const groups: {
       { href: "/items", label: "Artikel" },
       { href: "/warehouses", label: "Lager" },
       { href: "/customer-handovers", label: "Kundenübergaben" },
+      { href: "/delivery-notes", label: "Lieferscheine" },
       { href: "/movements", label: "Historie" },
     ],
   },

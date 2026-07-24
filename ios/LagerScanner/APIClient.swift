@@ -166,6 +166,10 @@ final class APIClient: ObservableObject {
         try await get("/api/movement-customers")
     }
 
+    func createDeliveryNote(_ request: DeliveryNoteRequest) async throws -> DeliveryNoteResponse {
+        try await post("/api/delivery-notes", body: request)
+    }
+
     @discardableResult
     func bookMovement(_ movement: MovementRequest) async throws -> Data {
         guard let base = baseURL else { throw APIError.invalidURL }

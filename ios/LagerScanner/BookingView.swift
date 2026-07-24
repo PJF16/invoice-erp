@@ -12,6 +12,7 @@ struct BookingView: View {
     @State private var selectedWarehouse: Warehouse?
     @State private var customers: [CustomerSummary] = []
     @State private var selectedCustomer: CustomerSummary?
+    @State private var showCustomerPicker = false
     @State private var supplier = ""
     @State private var supplierSuggestions: [String] = []
     @State private var note = ""
@@ -81,13 +82,19 @@ struct BookingView: View {
 
                 if type == .OUT {
                     Section("Kunde (optional)") {
-                        Picker("Kunde", selection: $selectedCustomer) {
-                            Text("Kein Kunde").tag(nil as CustomerSummary?)
-                            ForEach(customers) { customer in
-                                Text(customer.customerNumber.map { "\($0) · \(customer.name)" } ?? customer.name)
-                                    .tag(Optional(customer))
+                        Button {
+                            showCustomerPicker = true
+                        } label: {
+                            HStack {
+                                Text("Kunde")
+                                Spacer()
+                                Text(selectedCustomer.map { customer in
+                                    customer.customerNumber.map { "\($0) · \(customer.name)" } ?? customer.name
+                                } ?? "Kein Kunde")
+                                .foregroundStyle(.secondary)
                             }
                         }
+                        .foregroundStyle(.primary)
                         Text("Mit Kunde wird die Ausgabe als ausstehende Übergabe vorgemerkt.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
@@ -125,6 +132,21 @@ struct BookingView: View {
                 }
             }
             .task { await load() }
+            .sheet(isPresented: $showCustomerPicker) {
+                CustomerSelectionView(
+                    customers: customers,
+                    selectedId: selectedCustomer?.id ?? "",
+                    allowsNone: true,
+                    onSelect: { customer in
+                        selectedCustomer = customer
+                        showCustomerPicker = false
+                    },
+                    onClear: {
+                        selectedCustomer = nil
+                        showCustomerPicker = false
+                    }
+                )
+            }
             .sensoryFeedback(.success, trigger: success)
         }
     }

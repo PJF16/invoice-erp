@@ -144,6 +144,17 @@ export const offerStatusSchema = z.object({
   status: z.enum(["OPEN", "ACCEPTED", "REJECTED"]),
 });
 
+export const deliveryNoteSchema = z.object({
+  customerId: z.string().min(1, "Kunde ist erforderlich"),
+  issueDate: dateString.optional(),
+  notes: optionalTrimmed,
+  lines: z.array(z.object({
+    itemId: z.string().min(1, "Artikel ist erforderlich"),
+    warehouseId: z.string().min(1, "Lager ist erforderlich"),
+    quantity: z.number().int("Menge muss ganzzahlig sein").positive("Menge muss größer als 0 sein"),
+  })).min(1, "Mindestens eine Position ist erforderlich").max(200, "Maximal 200 Positionen pro Lieferschein"),
+});
+
 export const paymentSchema = z.object({
   amount: z.number().gt(0, "Betrag muss größer als 0 sein").max(99_999_999),
   date: dateString,
@@ -192,6 +203,7 @@ export const settingsSchema = z.object({
   phone: z.string().trim().default(""),
   invoicePrefix: z.string().trim().max(20).default(""),
   offerPrefix: z.string().trim().max(20).default("ANG-"),
+  deliveryNotePrefix: z.string().trim().max(20).default("LS-"),
   paymentDays: z.number().int().min(0).max(365).default(14),
   emailSubject: z.string().trim().min(1).default("Rechnung {nummer}"),
   emailBody: z.string().min(1),

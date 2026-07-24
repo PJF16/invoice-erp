@@ -32,6 +32,7 @@ export default async function SettingsPage() {
           phone: settings.phone,
           invoicePrefix: settings.invoicePrefix,
           offerPrefix: settings.offerPrefix,
+          deliveryNotePrefix: settings.deliveryNotePrefix,
           paymentDays: settings.paymentDays,
           skontoPercent: settings.skontoPercent,
           skontoDays: settings.skontoDays,
@@ -46,6 +47,8 @@ export default async function SettingsPage() {
           lastInvoiceSeq: settings.lastInvoiceSeq,
           lastOfferYear: settings.lastOfferYear,
           lastOfferSeq: settings.lastOfferSeq,
+          lastDeliveryNoteYear: settings.lastDeliveryNoteYear,
+          lastDeliveryNoteSeq: settings.lastDeliveryNoteSeq,
         }}
         smtpConfigured={isSmtpConfigured()}
       />

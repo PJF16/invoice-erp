@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import type { MovementBillingStatus, MovementType } from "@/lib/generated/prisma/enums";
 
@@ -34,6 +35,7 @@ export default async function MovementsPage({
         warehouse: { select: { name: true } },
         user: { select: { name: true } },
         customer: { select: { name: true } },
+        deliveryNoteLine: { select: { deliveryNote: { select: { id: true, number: true } } } },
       },
     }),
   ]);
@@ -94,6 +96,7 @@ export default async function MovementsPage({
               <th className="px-4 py-3">Lieferant</th>
               <th className="px-4 py-3">Kunde</th>
               <th className="px-4 py-3">Verrechnung</th>
+              <th className="px-4 py-3">Lieferschein</th>
               <th className="px-4 py-3">Benutzer</th>
               <th className="px-4 py-3">Notiz</th>
             </tr>
@@ -101,7 +104,7 @@ export default async function MovementsPage({
           <tbody>
             {movements.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
                   Noch keine Bewegungen.
                 </td>
               </tr>
@@ -127,6 +130,7 @@ export default async function MovementsPage({
                 <td className="px-4 py-3 text-gray-500">{m.supplier ?? "–"}</td>
                 <td className="px-4 py-3 text-gray-500">{m.customer?.name ?? "–"}</td>
                 <td className="px-4 py-3 text-gray-500">{m.billingStatus ? billingLabels[m.billingStatus] : "–"}</td>
+                <td className="px-4 py-3">{m.deliveryNoteLine ? <Link href={`/delivery-notes/${m.deliveryNoteLine.deliveryNote.id}`} className="text-blue-700 hover:underline">{m.deliveryNoteLine.deliveryNote.number}</Link> : <span className="text-gray-400">–</span>}</td>
                 <td className="px-4 py-3 text-gray-500">{m.user.name}</td>
                 <td className="px-4 py-3 text-xs text-gray-500">{m.note ?? ""}</td>
               </tr>
