@@ -28,6 +28,7 @@ Modernes Lagerverwaltungs- und Rechnungsprogramm für ein österreichisches Unte
 - **Wiederkehrende Rechnungen** (monatlich/quartalsweise/jährlich): werden vom eingebauten Scheduler automatisch erzeugt und versendet; **Softwareartikel-Preise werden bei jeder Erzeugung neu gelesen** — Preisänderungen wirken automatisch auf alle künftigen Rechnungen
 - **Kundenverwaltung** mit UID, Standard-Steuerbehandlung und optionalem kundenspezifischem Zahlungsziel; Kundenauswahlfelder sind nach Name und Kundennummer durchsuchbar
 - **Einstellungen**: Firmendaten, UID, Bankverbindung (erscheint auf dem PDF), Zahlungsziel, E-Mail-Vorlagen
+- **Automatische Backups**: komprimierte PostgreSQL-Dumps täglich, wöchentlich oder monatlich auf eine SMB2/3-Freigabe oder in einen lokalen, persistenten Ordner; SMB-Zugangsdaten werden verschlüsselt gespeichert
 
 ### E-Mail-Versand (SMTP)
 
@@ -41,7 +42,19 @@ SMTP_PASS="…"
 SMTP_FROM="Firma GmbH <rechnung@firma.at>"
 ```
 
-Der Scheduler prüft stündlich auf fällige wiederkehrende Rechnungen (deaktivierbar mit `DISABLE_RECURRING_SCHEDULER=1`). Ohne SMTP-Konfiguration werden Rechnungen trotzdem erzeugt, nur nicht versendet.
+Der Scheduler prüft stündlich auf fällige wiederkehrende Rechnungen, Mahnungen, Exporte und Backups (deaktivierbar mit `DISABLE_RECURRING_SCHEDULER=1`). Ohne SMTP-Konfiguration werden Rechnungen trotzdem erzeugt, nur nicht versendet.
+
+### Backups
+
+Admins konfigurieren Ziel, Intervall und nächsten Lauf unter **Einstellungen → Automatische Backups**. Ein Backup kann dort auch sofort gestartet werden. Das Docker-Image enthält `pg_dump` und `smbclient`; für lokale Entwicklung müssen diese Programme auf dem Host installiert sein.
+
+Für lokale Backups ist `/backups` als Docker-Volume eingebunden. SMB-Passwörter werden mit `BACKUP_ENCRYPTION_KEY` verschlüsselt; ist er leer, dient `AUTH_SECRET` als Schlüssel. Ein Schlüsselwechsel macht eine erneute Eingabe des SMB-Passworts erforderlich.
+
+Die erzeugten Dateien verwenden das PostgreSQL-Custom-Format. Wiederherstellung in eine leere Datenbank:
+
+```bash
+pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" invoice-erp_2026-07-24T12-00-00-000Z.dump
+```
 
 ## Entwicklung
 
@@ -108,6 +121,8 @@ Falls das Image kein Seed-Tooling enthält, alternativ lokal mit `DATABASE_URL` 
 | `/api/recurring-invoices`, `…/{id}` | GET, POST, PATCH, DELETE | Wiederkehrende Rechnungen |
 | `/api/recurring-invoices/{id}/run` | POST | Sofort eine Rechnung erzeugen |
 | `/api/settings` | GET, PUT | Firmeneinstellungen (PUT nur Admin) |
+| `/api/backup-settings` | GET, PUT | Backup-Ziel und Zeitplan (nur Admin) |
+| `/api/backups/run` | POST | Datenbank-Backup sofort ausführen (nur Admin) |
 | `/api/export` | POST | Belege gefiltert als ZIP herunterladen |
 | `/api/export-schedules`, `…/{id}` | GET, POST, PATCH, DELETE | Geplante Exporte |
 | `/api/export-schedules/{id}/run` | POST | Sofort ausführen und versenden |

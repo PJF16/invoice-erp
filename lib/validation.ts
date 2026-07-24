@@ -203,6 +203,7 @@ export const settingsSchema = z.object({
   email: z.string().trim().default(""),
   phone: z.string().trim().default(""),
   invoicePrefix: z.string().trim().max(20).default(""),
+  invoiceNumberCycle: z.enum(["YEARLY", "DAILY"]).default("YEARLY"),
   offerPrefix: z.string().trim().max(20).default("ANG-"),
   deliveryNotePrefix: z.string().trim().max(20).default("LS-"),
   paymentDays: z.number().int().min(0).max(365).default(14),
@@ -255,6 +256,75 @@ export const exportScheduleSchema = z.object({
   emailBody: z.string().min(1),
 });
 
+const singleLine = z.string().trim().max(255).refine((value) => !/[\r\n]/.test(value), {
+  message: "Der Wert darf keinen Zeilenumbruch enthalten",
+});
+
+export const backupSettingsSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    target: z.enum(["LOCAL", "SMB"]).default("SMB"),
+    interval: z.enum(["DAILY", "WEEKLY", "MONTHLY"]).default("DAILY"),
+    nextRun: dateString.nullable(),
+    localPath: singleLine.default("/backups"),
+    smbHost: singleLine.default(""),
+    smbPort: z.number().int().min(1).max(65535).default(445),
+    smbShare: singleLine.default(""),
+    smbPath: singleLine.default("invoice-erp"),
+    smbDomain: singleLine.default(""),
+    smbUsername: singleLine.default(""),
+    smbPassword: z.string().max(1024).refine((value) => !/[\r\n]/.test(value), {
+      message: "Das SMB-Passwort darf keinen Zeilenumbruch enthalten",
+    }).default(""),
+  })
+  .superRefine((settings, ctx) => {
+    if (settings.enabled && !settings.nextRun) {
+      ctx.addIssue({ code: "custom", path: ["nextRun"], message: "Nächste Ausführung ist erforderlich" });
+    }
+    if (settings.target === "LOCAL" && !settings.localPath.startsWith("/")) {
+      ctx.addIssue({ code: "custom", path: ["localPath"], message: "Der lokale Pfad muss absolut sein" });
+    }
+    if (settings.target === "SMB" && settings.enabled) {
+      for (const [field, label] of [
+        ["smbHost", "SMB-Server"],
+        ["smbShare", "SMB-Freigabe"],
+        ["smbUsername", "SMB-Benutzername"],
+      ] as const) {
+        if (!settings[field]) {
+          ctx.addIssue({ code: "custom", path: [field], message: `${label} ist erforderlich` });
+        }
+      }
+      if (/[/\\]/.test(settings.smbShare)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["smbShare"],
+          message: "Die SMB-Freigabe darf keinen Pfad enthalten",
+        });
+      }
+      if (/[/\\]/.test(settings.smbHost)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["smbHost"],
+          message: "Beim SMB-Server nur Hostname oder IP-Adresse eingeben",
+        });
+      }
+      if (/[";]/.test(settings.smbPath)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["smbPath"],
+          message: "Der SMB-Unterordner enthält ungültige Zeichen",
+        });
+      }
+      if (settings.smbPath.split(/[/\\]+/).some((segment) => segment === "." || segment === "..")) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["smbPath"],
+          message: "Der SMB-Unterordner darf keine relativen Pfadsegmente enthalten",
+        });
+      }
+    }
+  });
+
 const moduleArray = z.array(z.enum(["STOCK", "INVOICES"])).default(["STOCK", "INVOICES"]);
 
 export const userSchema = z.object({
@@ -266,6 +336,7 @@ export const userSchema = z.object({
 });
 
 export const updateUserSchema = z.object({
+  email: z.email("Ungültige E-Mail-Adresse").optional(),
   name: z.string().trim().min(1, "Name ist erforderlich"),
   role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
   modules: moduleArray,

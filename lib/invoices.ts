@@ -245,8 +245,8 @@ export async function deleteDraftInvoice(invoiceId: string) {
 }
 
 /**
- * Finalisiert einen Entwurf: vergibt die fortlaufende Rechnungsnummer
- * ({Präfix}{Jahr}-{lfd. Nr}), friert die Kundendaten ein und bucht
+ * Finalisiert einen Entwurf: vergibt die konfigurierte fortlaufende
+ * Rechnungsnummer, friert die Kundendaten ein und bucht
  * Hardware-Positionen aus dem Lager aus. Alles in einer Transaktion.
  */
 export async function finalizeInvoice(invoiceId: string, userId: string) {

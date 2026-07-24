@@ -6,6 +6,7 @@ import { MODULES, MODULE_LABELS, type ModuleName } from "@/lib/permissions";
 
 type EditableUser = {
   id: string;
+  email: string;
   name: string;
   role: "ADMIN" | "MEMBER";
   modules: ModuleName[];
@@ -28,6 +29,7 @@ export function UserEditForm({ user }: { user: EditableUser }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: form.get("name"),
+        email: form.get("email"),
         role: form.get("role"),
         modules: form.getAll("modules"),
         ...(password ? { password } : {}),
@@ -69,6 +71,16 @@ export function UserEditForm({ user }: { user: EditableUser }) {
                   required
                   autoFocus
                   defaultValue={user.name}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">E-Mail *</label>
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  defaultValue={user.email}
                   className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>

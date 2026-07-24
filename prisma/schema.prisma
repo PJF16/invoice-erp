@@ -37,6 +37,11 @@ enum InvoiceType {
   CREDIT_NOTE
 }
 
+enum InvoiceNumberCycle {
+  YEARLY
+  DAILY
+}
+
 enum OfferStatus {
   DRAFT
   OPEN
@@ -56,6 +61,17 @@ enum ExportPeriod {
   PREVIOUS_QUARTER
   PREVIOUS_YEAR
   ALL_TIME
+}
+
+enum BackupTarget {
+  LOCAL
+  SMB
+}
+
+enum BackupInterval {
+  DAILY
+  WEEKLY
+  MONTHLY
 }
 
 enum MovementType {
@@ -130,37 +146,43 @@ model Stock {
 }
 
 model CompanySettings {
-  id                   String  @id @default("singleton")
-  name                 String  @default("")
-  street               String  @default("")
-  zip                  String  @default("")
-  city                 String  @default("")
-  country              String  @default("Österreich")
-  uid                  String  @default("")
-  iban                 String  @default("")
-  bic                  String  @default("")
-  bankName             String  @default("")
-  email                String  @default("")
-  phone                String  @default("")
-  invoicePrefix        String  @default("")
-  offerPrefix          String  @default("ANG-")
-  deliveryNotePrefix   String  @default("LS-")
-  paymentDays          Int     @default(14)
-  emailSubject         String  @default("Rechnung {nummer}")
-  emailBody            String  @default("Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung {nummer}.\n\nMit freundlichen Grüßen")
-  lastInvoiceYear      Int     @default(0)
-  lastInvoiceSeq       Int     @default(0)
-  lastOfferYear        Int     @default(0)
-  lastOfferSeq         Int     @default(0)
-  lastDeliveryNoteYear Int     @default(0)
-  lastDeliveryNoteSeq  Int     @default(0)
-  autoReminders        Boolean @default(false)
-  reminderDays         Int     @default(7)
-  maxReminders         Int     @default(3)
-  reminderSubject      String  @default("Zahlungserinnerung zu Rechnung {nummer}")
-  reminderBody         String  @default("Sehr geehrte Damen und Herren,\n\ndürfen wir Sie freundlich daran erinnern, dass die Rechnung {nummer} vom {datum} über {betrag} seit {tage} Tagen überfällig ist?\n\nBitte überweisen Sie den offenen Betrag auf das angegebene Konto. Sollte sich Ihre Zahlung mit dieser Erinnerung überschnitten haben, betrachten Sie dieses Schreiben bitte als gegenstandslos.\n\nMit freundlichen Grüßen")
-  skontoPercent        Int     @default(0)
-  skontoDays           Int     @default(0)
+  id                   String             @id @default("singleton")
+  name                 String             @default("")
+  street               String             @default("")
+  zip                  String             @default("")
+  city                 String             @default("")
+  country              String             @default("Österreich")
+  uid                  String             @default("")
+  iban                 String             @default("")
+  bic                  String             @default("")
+  bankName             String             @default("")
+  email                String             @default("")
+  phone                String             @default("")
+  invoicePrefix        String             @default("")
+  invoiceNumberCycle   InvoiceNumberCycle @default(YEARLY)
+  offerPrefix          String             @default("ANG-")
+  deliveryNotePrefix   String             @default("LS-")
+  paymentDays          Int                @default(14)
+  emailSubject         String             @default("Rechnung {nummer}")
+  emailBody            String             @default("Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung {nummer}.\n\nMit freundlichen Grüßen")
+  lastInvoiceYear      Int                @default(0)
+  lastInvoiceSeq       Int                @default(0)
+  lastOfferYear        Int                @default(0)
+  lastOfferSeq         Int                @default(0)
+  lastDeliveryNoteYear Int                @default(0)
+  lastDeliveryNoteSeq  Int                @default(0)
+  autoReminders        Boolean            @default(false)
+  reminderDays         Int                @default(7)
+  maxReminders         Int                @default(3)
+  reminderSubject      String             @default("Zahlungserinnerung zu Rechnung {nummer}")
+  reminderBody         String             @default("Sehr geehrte Damen und Herren,\n\ndürfen wir Sie freundlich daran erinnern, dass die Rechnung {nummer} vom {datum} über {betrag} seit {tage} Tagen überfällig ist?\n\nBitte überweisen Sie den offenen Betrag auf das angegebene Konto. Sollte sich Ihre Zahlung mit dieser Erinnerung überschnitten haben, betrachten Sie dieses Schreiben bitte als gegenstandslos.\n\nMit freundlichen Grüßen")
+  skontoPercent        Int                @default(0)
+  skontoDays           Int                @default(0)
+}
+
+model InvoiceDailySequence {
+  day     Int @id
+  lastSeq Int @default(0)
 }
 
 model Customer {
@@ -401,6 +423,28 @@ model ExportSchedule {
   emailBody      String            @default("Sehr geehrte Damen und Herren,\n\nanbei der Belegexport für {zeitraum}.\n\nMit freundlichen Grüßen")
   lastRunAt      DateTime?
   createdAt      DateTime          @default(now())
+}
+
+model BackupSettings {
+  id                   String         @id @default("singleton")
+  enabled              Boolean        @default(false)
+  target               BackupTarget   @default(SMB)
+  interval             BackupInterval @default(DAILY)
+  nextRun              DateTime?
+  localPath            String         @default("/backups")
+  smbHost              String         @default("")
+  smbPort              Int            @default(445)
+  smbShare             String         @default("")
+  smbPath              String         @default("invoice-erp")
+  smbDomain            String         @default("")
+  smbUsername          String         @default("")
+  smbPasswordEncrypted String         @default("")
+  lastRunAt            DateTime?
+  lastSuccessAt        DateTime?
+  lastError            String?
+  runningSince         DateTime?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 }
 
 model Movement {

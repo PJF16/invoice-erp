@@ -34,8 +34,12 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
     ports:
       - "${APP_PORT:-3000}:3000"
+    volumes:
+      - backup_data:/backups
 
 volumes:
   db_data:
+  backup_data:

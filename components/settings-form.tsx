@@ -21,6 +21,8 @@ type Settings = {
   email: string;
   phone: string;
   invoicePrefix: string;
+  invoiceNumberCycle: "YEARLY" | "DAILY";
+  currentDailyInvoiceSeq: number;
   offerPrefix: string;
   deliveryNotePrefix: string;
   paymentDays: number;
@@ -47,6 +49,8 @@ export function SettingsForm({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [invoicePrefix, setInvoicePrefix] = useState(settings.invoicePrefix);
+  const [invoiceNumberCycle, setInvoiceNumberCycle] = useState(settings.invoiceNumberCycle);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -70,6 +74,7 @@ export function SettingsForm({
         email: form.get("email"),
         phone: form.get("phone"),
         invoicePrefix: form.get("invoicePrefix"),
+        invoiceNumberCycle: form.get("invoiceNumberCycle"),
         offerPrefix: form.get("offerPrefix"),
         deliveryNotePrefix: form.get("deliveryNotePrefix"),
         paymentDays: Number(form.get("paymentDays")),
@@ -97,9 +102,16 @@ export function SettingsForm({
   const input = "mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm";
   const label = "block text-sm font-medium";
 
-  const nextNumber = `${settings.invoicePrefix}${new Date().getFullYear()}-${String(
-    settings.lastInvoiceYear === new Date().getFullYear() ? settings.lastInvoiceSeq + 1 : 1,
-  ).padStart(3, "0")}`;
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(
+    today.getDate(),
+  ).padStart(2, "0")}`;
+  const nextNumber =
+    invoiceNumberCycle === "DAILY"
+      ? `${invoicePrefix}${todayKey}-${String(settings.currentDailyInvoiceSeq + 1).padStart(3, "0")}`
+      : `${invoicePrefix}${today.getFullYear()}-${String(
+          settings.lastInvoiceYear === today.getFullYear() ? settings.lastInvoiceSeq + 1 : 1,
+        ).padStart(3, "0")}`;
   const nextOfferNumber = `${settings.offerPrefix}${new Date().getFullYear()}-${String(
     settings.lastOfferYear === new Date().getFullYear() ? settings.lastOfferSeq + 1 : 1,
   ).padStart(3, "0")}`;
@@ -170,9 +182,30 @@ export function SettingsForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={label}>Rechnungsnummern-Präfix</label>
-            <input name="invoicePrefix" defaultValue={settings.invoicePrefix} placeholder='z.B. "RE-"' className={`${input} font-mono`} />
+            <input
+              name="invoicePrefix"
+              value={invoicePrefix}
+              onChange={(event) => setInvoicePrefix(event.target.value)}
+              placeholder='z.B. "RE-"'
+              className={`${input} font-mono`}
+            />
             <p className="mt-1 text-xs text-gray-500">
-              Nächste Nummer: <span className="font-mono font-semibold">{nextNumber}</span> (fortlaufend pro Jahr)
+              Nächste Nummer: <span className="font-mono font-semibold">{nextNumber}</span>
+            </p>
+          </div>
+          <div>
+            <label className={label}>Rechnungszähler</label>
+            <select
+              name="invoiceNumberCycle"
+              value={invoiceNumberCycle}
+              onChange={(event) => setInvoiceNumberCycle(event.target.value as "YEARLY" | "DAILY")}
+              className={input}
+            >
+              <option value="YEARLY">Jährlich – Format JJJJ-NNN</option>
+              <option value="DAILY">Täglich – Format JJJJMMTT-NNN</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Bei täglicher Zählung beginnt jeder Kalendertag mit 001.
             </p>
           </div>
           <div>

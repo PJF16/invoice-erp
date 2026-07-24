@@ -14,10 +14,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
-    const { name, role, modules, password } = parsed.data;
+    const { email, name, role, modules, password } = parsed.data;
+    if (email) {
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing && existing.id !== id) {
+        return NextResponse.json({ error: "E-Mail-Adresse wird bereits verwendet" }, { status: 400 });
+      }
+    }
     const user = await prisma.user.update({
       where: { id },
       data: {
+        ...(email ? { email } : {}),
         name,
         role,
         modules,
