@@ -20,12 +20,14 @@ export async function loadInvoiceFormData(): Promise<InvoiceFormData> {
     softwareItems: softwareItems.map((s) => ({
       id: s.id,
       name: s.name,
+      description: s.description,
       unitPrice: Number(s.unitPrice),
       unit: s.unit,
     })),
     hardwareItems: hardwareItems.map((i) => ({
       id: i.id,
       name: i.name,
+      description: i.description,
       stocks: i.stocks.map((s) => ({
         warehouseId: s.warehouseId,
         warehouseName: s.warehouse.name,

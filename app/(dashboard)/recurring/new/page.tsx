@@ -11,7 +11,7 @@ export default async function NewRecurringPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-5xl">
       <Link href="/recurring" className="text-sm text-gray-500 hover:text-gray-900">
         ← Zurück zu den Vorlagen
       </Link>

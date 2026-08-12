@@ -13,10 +13,11 @@ export type InvoiceFormData = {
     defaultTaxTreatment: string;
     paymentDays: number | null;
   }[];
-  softwareItems: { id: string; name: string; unitPrice: number; unit: string }[];
+  softwareItems: { id: string; name: string; description: string | null; unitPrice: number; unit: string }[];
   hardwareItems: {
     id: string;
     name: string;
+    description: string | null;
     stocks: { warehouseId: string; warehouseName: string; quantity: number }[];
   }[];
   warehouses: { id: string; name: string }[];
@@ -28,6 +29,7 @@ type Line = {
   key: number;
   type: LineType;
   description: string;
+  additionalDescription: string;
   quantity: number;
   unit: string;
   unitPrice: number;
@@ -47,7 +49,7 @@ export type InvoiceInitial = {
   servicePeriodEnd: string | null;
   taxTreatment: string;
   notes: string | null;
-  lines: Omit<Line, "key" | "type">[];
+  lines: Omit<Line, "key" | "type" | "additionalDescription">[];
 };
 
 let keyCounter = 1;
@@ -57,6 +59,7 @@ function newLine(): Line {
     key: keyCounter++,
     type: "FREE",
     description: "",
+    additionalDescription: "",
     quantity: 1,
     unit: "Stk",
     unitPrice: 0,
@@ -103,11 +106,16 @@ export function InvoiceForm({
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [lines, setLines] = useState<Line[]>(
     initial
-      ? initial.lines.map((l) => ({
-          ...l,
-          key: keyCounter++,
-          type: l.itemId ? "HARDWARE" : l.softwareItemId ? "SOFTWARE" : ("FREE" as LineType),
-        }))
+      ? initial.lines.map((l) => {
+          const [description, ...additionalLines] = l.description.split("\n");
+          return {
+            ...l,
+            description,
+            additionalDescription: additionalLines.join("\n"),
+            key: keyCounter++,
+            type: l.itemId ? "HARDWARE" : l.softwareItemId ? "SOFTWARE" : ("FREE" as LineType),
+          };
+        })
       : [newLine()],
   );
   const [error, setError] = useState<string | null>(null);
@@ -152,6 +160,7 @@ export function InvoiceForm({
     updateLine(key, {
       softwareItemId,
       description: item?.name ?? "",
+      additionalDescription: item?.description ?? "",
       unitPrice: item?.unitPrice ?? 0,
       unit: item?.unit ?? "Stk",
     });
@@ -162,6 +171,7 @@ export function InvoiceForm({
     updateLine(key, {
       itemId,
       description: item?.name ?? "",
+      additionalDescription: item?.description ?? "",
       warehouseId: item?.stocks.find((s) => s.quantity > 0)?.warehouseId ?? data.warehouses[0]?.id ?? "",
     });
   }
@@ -179,7 +189,7 @@ export function InvoiceForm({
       taxTreatment,
       notes: notes || null,
       lines: lines.map((l) => ({
-        description: l.description,
+        description: [l.description.trim(), l.additionalDescription.trim()].filter(Boolean).join("\n"),
         quantity: l.quantity,
         unit: l.unit,
         unitPrice: l.unitPrice,
@@ -307,9 +317,9 @@ export function InvoiceForm({
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   {line.type === "SOFTWARE" && (
-                    <div className="lg:col-span-4">
+                    <div className="xl:col-span-2">
                       <label className={label}>Softwareartikel</label>
                       <select
                         required
@@ -328,7 +338,7 @@ export function InvoiceForm({
                   )}
                   {line.type === "HARDWARE" && (
                     <>
-                      <div className="lg:col-span-4">
+                      <div className="xl:col-span-2">
                         <label className={label}>Hardware-Artikel</label>
                         <select
                           required
@@ -345,7 +355,7 @@ export function InvoiceForm({
                           ))}
                         </select>
                       </div>
-                      <div className="lg:col-span-3">
+                      <div className="xl:col-span-2">
                         <label className={label}>Lager (Ausbuchung)</label>
                         <select
                           required
@@ -370,7 +380,7 @@ export function InvoiceForm({
                     </>
                   )}
 
-                  <div className={line.type === "FREE" ? "lg:col-span-5" : line.type === "SOFTWARE" ? "lg:col-span-3" : "lg:col-span-5 lg:row-start-2"}>
+                  <div className="xl:col-span-2">
                     <label className={label}>Bezeichnung *</label>
                     <input
                       required
@@ -379,7 +389,17 @@ export function InvoiceForm({
                       className={`${input} mt-1`}
                     />
                   </div>
-                  <div className="lg:col-span-2">
+                  <div className="xl:col-span-2">
+                    <label className={label}>Zusätzliche Beschreibung (optional)</label>
+                    <textarea
+                      rows={2}
+                      value={line.additionalDescription}
+                      onChange={(e) => updateLine(line.key, { additionalDescription: e.target.value })}
+                      placeholder="Erscheint unterhalb der Artikelbezeichnung"
+                      className={`${input} mt-1 resize-y`}
+                    />
+                  </div>
+                  <div>
                     <label className={label}>Menge *</label>
                     <input
                       type="number"
@@ -392,7 +412,7 @@ export function InvoiceForm({
                       className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-500`}
                     />
                   </div>
-                  <div className="lg:col-span-1">
+                  <div>
                     <label className={label}>Einheit</label>
                     <input
                       value={line.unit}
@@ -400,7 +420,7 @@ export function InvoiceForm({
                       className={`${input} mt-1`}
                     />
                   </div>
-                  <div className="lg:col-span-2">
+                  <div>
                     <label className={label}>Einzelpreis € *</label>
                     <input
                       type="number"
@@ -412,7 +432,7 @@ export function InvoiceForm({
                       className={`${input} mt-1`}
                     />
                   </div>
-                  <div className="lg:col-span-2">
+                  <div>
                     <label className={label}>USt</label>
                     <select
                       value={line.taxRate}

@@ -135,7 +135,7 @@ export default async function NewInvoicePage({
   const skippedDeliveryLines = orderedDeliveryNotes.reduce((sum, note) => sum + note.lines.length, 0) - pendingDeliveryLines.length;
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-5xl">
       <Link href={backHref} className="text-sm text-gray-500 hover:text-gray-900">
         ← Zurück {hasDeliveryNoteRequest ? "zu den Lieferscheinen" : initial ? "zu den Kundenübergaben" : "zu den Rechnungen"}
       </Link>

@@ -56,6 +56,11 @@ enum RecurringInterval {
   YEARLY
 }
 
+enum PriceAdjustmentType {
+  ABSOLUTE
+  PERCENTAGE
+}
+
 enum ExportPeriod {
   PREVIOUS_MONTH
   PREVIOUS_QUARTER
@@ -405,6 +410,9 @@ model RecurringInvoiceLine {
   softwareItemId     String?
   description        String?
   unitPrice          Decimal?         @db.Decimal(10, 2)
+  priceAdjustmentType PriceAdjustmentType @default(ABSOLUTE)
+  priceAdjustmentValue Decimal        @default(0) @db.Decimal(10, 2)
+  priceAdjustmentIsDiscount Boolean   @default(false)
   quantity           Decimal          @db.Decimal(10, 2)
   unit               String           @default("Stk")
   taxRate            Int              @default(20)

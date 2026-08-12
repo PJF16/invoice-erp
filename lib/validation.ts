@@ -170,12 +170,19 @@ export const recurringLineSchema = z
     softwareItemId: optionalTrimmed,
     description: optionalTrimmed,
     unitPrice: money.nullable().optional(),
+    priceAdjustmentType: z.enum(["ABSOLUTE", "PERCENTAGE"]).default("ABSOLUTE"),
+    priceAdjustmentValue: z.number().min(0, "Aufschlag oder Rabatt darf nicht negativ sein").max(99_999_999).default(0),
+    priceAdjustmentIsDiscount: z.boolean().default(false),
     quantity: z.number().positive("Menge muss größer als 0 sein"),
     unit: z.string().trim().default("Stk"),
     taxRate: taxRate.default(20),
   })
   .refine((l) => l.softwareItemId || (l.description && l.unitPrice != null), {
     message: "Position braucht entweder einen Softwareartikel oder Bezeichnung + Preis",
+  })
+  .refine((l) => l.softwareItemId || l.priceAdjustmentValue === 0, {
+    message: "Aufschläge und Rabatte sind nur bei Softwareartikeln möglich",
+    path: ["priceAdjustmentValue"],
   });
 
 export const recurringInvoiceSchema = z.object({

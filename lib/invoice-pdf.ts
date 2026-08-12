@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import { computeTotals, TAX_NOTES } from "@/lib/invoices";
+import { renderPdfLineDescription } from "@/lib/pdf-line-description";
 import type { Prisma, CompanySettings } from "@/lib/generated/prisma/client";
 
 type InvoiceWithLines = Prisma.InvoiceGetPayload<{ include: { lines: true; customer: true } }>;
@@ -128,8 +129,7 @@ export async function renderInvoicePdf(
       const rowY = doc.y;
       const qty = num(line.quantity);
       doc.text(String(line.position), cols.pos, rowY);
-      doc.text(line.description, cols.desc, rowY, { width: 230 });
-      const rowBottom = doc.y;
+      const rowBottom = renderPdfLineDescription(doc, line.description, cols.desc, rowY, 230);
       doc.text(`${qty % 1 === 0 ? qty : qty.toFixed(2)} ${line.unit}`, cols.qty, rowY, { width: 60, align: "right" });
       doc.text(eur.format(num(line.unitPrice)), cols.price, rowY, { width: 65, align: "right" });
       doc.text(`${line.taxRate}%`, cols.tax, rowY, { width: 30, align: "right" });

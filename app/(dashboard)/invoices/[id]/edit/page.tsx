@@ -22,7 +22,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
   if (invoice.status !== "DRAFT") redirect(`/invoices/${id}`);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-5xl">
       <Link href={`/invoices/${id}`} className="text-sm text-gray-500 hover:text-gray-900">
         ← Zurück zur Rechnung
       </Link>

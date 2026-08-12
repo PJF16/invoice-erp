@@ -19,7 +19,7 @@ export default async function EditRecurringPage({ params }: { params: Promise<{ 
   if (!template) notFound();
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-5xl">
       <Link href="/recurring" className="text-sm text-gray-500 hover:text-gray-900">
         ← Zurück zu den Vorlagen
       </Link>
@@ -54,6 +54,9 @@ export default async function EditRecurringPage({ params }: { params: Promise<{ 
             softwareItemId: l.softwareItemId ?? "",
             description: l.description ?? "",
             unitPrice: Number(l.unitPrice ?? 0),
+            priceAdjustmentType: l.priceAdjustmentType,
+            priceAdjustmentValue: Number(l.priceAdjustmentValue),
+            priceAdjustmentIsDiscount: l.priceAdjustmentIsDiscount,
             quantity: Number(l.quantity),
             unit: l.unit,
             taxRate: l.taxRate,

@@ -27,15 +27,19 @@ export async function generateInvoiceFromTemplate(templateId: string, userId: st
 
   const lines: LineInput[] = template.lines.map((line) => {
     if (line.softwareItem) {
+      const basePrice = Number(line.softwareItem.unitPrice);
+      const adjustment = line.priceAdjustmentType === "PERCENTAGE"
+        ? basePrice * (Number(line.priceAdjustmentValue) / 100)
+        : Number(line.priceAdjustmentValue);
       return {
-        description: line.description?.trim()
-          ? line.description
-          : line.softwareItem.description
-            ? `${line.softwareItem.name} — ${line.softwareItem.description}`
-            : line.softwareItem.name,
+        description: [
+          line.softwareItem.name,
+          line.softwareItem.description?.trim(),
+          line.description?.trim(),
+        ].filter(Boolean).join("\n"),
         quantity: Number(line.quantity),
         unit: line.unit || line.softwareItem.unit,
-        unitPrice: Number(line.softwareItem.unitPrice),
+        unitPrice: Math.max(0, basePrice + (line.priceAdjustmentIsDiscount ? -adjustment : adjustment)),
         taxRate: line.taxRate,
         softwareItemId: line.softwareItemId,
       };

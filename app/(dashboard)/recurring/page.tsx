@@ -56,7 +56,11 @@ export default async function RecurringPage() {
             )}
             {templates.map((t) => {
               const net = t.lines.reduce((sum, l) => {
-                const price = l.softwareItem ? Number(l.softwareItem.unitPrice) : Number(l.unitPrice ?? 0);
+                const basePrice = l.softwareItem ? Number(l.softwareItem.unitPrice) : Number(l.unitPrice ?? 0);
+                const adjustment = l.priceAdjustmentType === "PERCENTAGE"
+                  ? basePrice * (Number(l.priceAdjustmentValue) / 100)
+                  : Number(l.priceAdjustmentValue);
+                const price = Math.max(0, basePrice + (l.priceAdjustmentIsDiscount ? -adjustment : adjustment));
                 return sum + Number(l.quantity) * price;
               }, 0);
               return (

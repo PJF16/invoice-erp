@@ -15,6 +15,9 @@ type Line = {
   softwareItemId: string;
   description: string;
   unitPrice: number;
+  priceAdjustmentType: "ABSOLUTE" | "PERCENTAGE";
+  priceAdjustmentValue: number;
+  priceAdjustmentIsDiscount: boolean;
   quantity: number;
   unit: string;
   taxRate: number;
@@ -40,6 +43,9 @@ const newLine = (): Line => ({
   softwareItemId: "",
   description: "",
   unitPrice: 0,
+  priceAdjustmentType: "ABSOLUTE",
+  priceAdjustmentValue: 0,
+  priceAdjustmentIsDiscount: false,
   quantity: 1,
   unit: "Stk",
   taxRate: 20,
@@ -85,6 +91,9 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
         softwareItemId: l.softwareItemId || null,
         description: l.softwareItemId ? l.description || null : l.description,
         unitPrice: l.softwareItemId ? null : l.unitPrice,
+        priceAdjustmentType: l.priceAdjustmentType,
+        priceAdjustmentValue: l.softwareItemId ? l.priceAdjustmentValue : 0,
+        priceAdjustmentIsDiscount: l.priceAdjustmentIsDiscount,
         quantity: l.quantity,
         unit: l.unit,
         taxRate: l.taxRate,
@@ -175,11 +184,19 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
         <h2 className="mb-1 text-sm font-semibold">Positionen</h2>
         <p className="mb-4 text-xs text-gray-500">
           Softwareartikel-Positionen übernehmen Preis und Bezeichnung bei jeder Erzeugung automatisch vom
-          Artikel — Preisänderungen wirken so auf alle künftigen Rechnungen.
+          Artikel. Ein Aufschlag oder Rabatt wird dann auf den jeweils aktuellen Artikelpreis angewendet.
         </p>
         <div className="space-y-4">
           {lines.map((line, idx) => {
             const software = data.softwareItems.find((s) => s.id === line.softwareItemId);
+            const adjustment = software
+              ? line.priceAdjustmentType === "PERCENTAGE"
+                ? software.unitPrice * (line.priceAdjustmentValue / 100)
+                : line.priceAdjustmentValue
+              : 0;
+            const adjustedUnitPrice = software
+              ? Math.max(0, software.unitPrice + (line.priceAdjustmentIsDiscount ? -adjustment : adjustment))
+              : 0;
             return (
               <div key={line.key} className="rounded-lg border border-gray-200 p-4">
                 <div className="mb-3 flex items-center justify-between">
@@ -194,8 +211,8 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
                     </button>
                   )}
                 </div>
-                <div className="grid gap-3 lg:grid-cols-12">
-                  <div className="lg:col-span-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
                     <label className={label}>Softwareartikel (optional)</label>
                     <select
                       value={line.softwareItemId}
@@ -204,6 +221,7 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
                         updateLine(line.key, {
                           softwareItemId: e.target.value,
                           unit: s?.unit ?? line.unit,
+                          priceAdjustmentValue: e.target.value ? line.priceAdjustmentValue : 0,
                         });
                       }}
                       className={`${input} mt-1`}
@@ -216,18 +234,21 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
                       ))}
                     </select>
                   </div>
-                  <div className="lg:col-span-4">
+                  <div>
                     <label className={label}>
-                      Bezeichnung {line.softwareItemId ? "(leer = Artikelname)" : "*"}
+                      {line.softwareItemId ? "Zusätzliche Beschreibung (optional)" : "Bezeichnung *"}
                     </label>
-                    <input
+                    <textarea
                       required={!line.softwareItemId}
+                      rows={2}
                       value={line.description}
                       onChange={(e) => updateLine(line.key, { description: e.target.value })}
                       className={`${input} mt-1`}
                     />
                   </div>
-                  <div className="lg:col-span-1">
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+                  <div className="lg:col-span-2">
                     <label className={label}>Menge *</label>
                     <input
                       type="number"
@@ -239,7 +260,7 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
                       className={`${input} mt-1`}
                     />
                   </div>
-                  <div className="lg:col-span-2">
+                  <div className="lg:col-span-3">
                     <label className={label}>Preis € {line.softwareItemId ? "" : "*"}</label>
                     {line.softwareItemId ? (
                       <p className="mt-2.5 text-sm text-gray-500">
@@ -257,7 +278,49 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
                       />
                     )}
                   </div>
-                  <div className="lg:col-span-1">
+                  {line.softwareItemId && (
+                    <>
+                      <div className="lg:col-span-2">
+                        <label className={label}>Anpassung</label>
+                        <select
+                          value={line.priceAdjustmentIsDiscount ? "DISCOUNT" : "SURCHARGE"}
+                          onChange={(e) => updateLine(line.key, { priceAdjustmentIsDiscount: e.target.value === "DISCOUNT" })}
+                          className={`${input} mt-1`}
+                        >
+                          <option value="SURCHARGE">Aufschlag</option>
+                          <option value="DISCOUNT">Rabatt</option>
+                        </select>
+                      </div>
+                      <div className="lg:col-span-3">
+                        <label className={label}>Wert</label>
+                        <div className="mt-1 flex gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={line.priceAdjustmentValue}
+                            onChange={(e) => updateLine(line.key, { priceAdjustmentValue: Number(e.target.value) })}
+                            className={input}
+                          />
+                          <select
+                            aria-label="Art der Anpassung"
+                            value={line.priceAdjustmentType}
+                            onChange={(e) => updateLine(line.key, { priceAdjustmentType: e.target.value as Line["priceAdjustmentType"] })}
+                            className="rounded-lg border border-gray-300 px-2 py-2 text-sm"
+                          >
+                            <option value="ABSOLUTE">€</option>
+                            <option value="PERCENTAGE">%</option>
+                          </select>
+                        </div>
+                        {software && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            Aktuell: {eur.format(adjustedUnitPrice)}/{software.unit}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  <div className="lg:col-span-2">
                     <label className={label}>USt</label>
                     <select
                       value={line.taxRate}

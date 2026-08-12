@@ -98,7 +98,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
     const item = data.softwareItems.find((entry) => entry.id === id);
     updateLine(key, {
       softwareItemId: id,
-      description: item?.name ?? "",
+      description: [item?.name, item?.description].filter(Boolean).join("\n"),
       unitPrice: item?.unitPrice ?? 0,
       unit: item?.unit ?? "Stk",
       itemId: "",
@@ -110,7 +110,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
     const item = data.hardwareItems.find((entry) => entry.id === id);
     updateLine(key, {
       itemId: id,
-      description: item?.name ?? "",
+      description: [item?.name, item?.description].filter(Boolean).join("\n"),
       softwareItemId: "",
       warehouseId: item?.stocks.find((stock) => stock.quantity > 0)?.warehouseId ?? "",
       unit: "Stk",
@@ -253,7 +253,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
                   )}
                   <div className={line.type === "FREE" ? "lg:col-span-5" : line.type === "SOFTWARE" ? "lg:col-span-3" : "lg:col-span-5 lg:row-start-2"}>
                     <label className={label}>Bezeichnung *</label>
-                    <input required value={line.description} onChange={(event) => updateLine(line.key, { description: event.target.value })} className={`${input} mt-1`} />
+                    <textarea required rows={2} value={line.description} onChange={(event) => updateLine(line.key, { description: event.target.value })} className={`${input} mt-1`} />
                   </div>
                   <div className="lg:col-span-2">
                     <label className={label}>Menge *</label>

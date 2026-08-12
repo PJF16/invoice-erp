@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import { computeTotals, TAX_NOTES } from "@/lib/invoices";
+import { renderPdfLineDescription } from "@/lib/pdf-line-description";
 import type { Prisma, CompanySettings } from "@/lib/generated/prisma/client";
 
 type OfferWithLines = Prisma.OfferGetPayload<{ include: { lines: true; customer: true } }>;
@@ -78,8 +79,7 @@ export async function renderOfferPdf(offer: OfferWithLines, settings: CompanySet
       const rowY = doc.y;
       const quantity = num(line.quantity);
       doc.text(String(line.position), columns.position, rowY);
-      doc.text(line.description, columns.description, rowY, { width: 230 });
-      const rowBottom = doc.y;
+      const rowBottom = renderPdfLineDescription(doc, line.description, columns.description, rowY, 230);
       doc.text(`${quantity % 1 === 0 ? quantity : quantity.toFixed(2)} ${line.unit}`, columns.quantity, rowY, { width: 60, align: "right" });
       doc.text(eur.format(num(line.unitPrice)), columns.price, rowY, { width: 65, align: "right" });
       doc.text(`${line.taxRate}%`, columns.tax, rowY, { width: 30, align: "right" });
