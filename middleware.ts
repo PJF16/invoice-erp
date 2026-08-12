@@ -7,12 +7,13 @@ export function middleware(req: NextRequest) {
     req.cookies.has("authjs.session-token") ||
     req.cookies.has("__Secure-authjs.session-token");
   const isLogin = req.nextUrl.pathname.startsWith("/login");
+  const isPortal = req.nextUrl.pathname === "/portal" || req.nextUrl.pathname.startsWith("/portal/");
 
   // Die Middleware kann nur erkennen, ob ein Cookie vorhanden ist, nicht ob es
   // noch mit dem aktuellen AUTH_SECRET entschlüsselt werden kann. Deshalb die
   // Login-Seite immer zulassen. Die frühere Weiterleitung von /login nach /
   // verursachte bei alten Cookies eine Schleife: Layout -> /login -> /.
-  if (!hasSession && !isLogin) {
+  if (!hasSession && !isLogin && !isPortal) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
   return NextResponse.next();

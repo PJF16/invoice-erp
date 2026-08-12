@@ -212,6 +212,34 @@ model Customer {
   movements           Movement[]
 }
 
+model PortalLoginToken {
+  id            String    @id @default(cuid())
+  email         String
+  codeHash      String
+  linkHash      String    @unique
+  requestIpHash String?
+  expiresAt     DateTime
+  attempts      Int       @default(0)
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([email, createdAt])
+  @@index([requestIpHash, createdAt])
+  @@index([expiresAt])
+}
+
+model PortalSession {
+  // Die ID ist bereits ein Hash des zufälligen Cookie-Werts. Damit ist ein
+  // Datenbank-Dump allein nicht ausreichend, um eine Sitzung zu übernehmen.
+  id        String   @id
+  email     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
 model SoftwareItem {
   id             String                 @id @default(cuid())
   name           String
@@ -400,22 +428,22 @@ model RecurringInvoice {
 }
 
 model RecurringInvoiceLine {
-  id                 String           @id @default(cuid())
-  recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
-  recurringInvoiceId String
-  position           Int
+  id                        String              @id @default(cuid())
+  recurringInvoice          RecurringInvoice    @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
+  recurringInvoiceId        String
+  position                  Int
   // Wenn softwareItemId gesetzt: Bezeichnung + Preis werden bei der Erzeugung
   // vom Softwareartikel gelesen (Preisänderungen wirken auf künftige Rechnungen).
-  softwareItem       SoftwareItem?    @relation(fields: [softwareItemId], references: [id], onDelete: SetNull)
-  softwareItemId     String?
-  description        String?
-  unitPrice          Decimal?         @db.Decimal(10, 2)
-  priceAdjustmentType PriceAdjustmentType @default(ABSOLUTE)
-  priceAdjustmentValue Decimal        @default(0) @db.Decimal(10, 2)
-  priceAdjustmentIsDiscount Boolean   @default(false)
-  quantity           Decimal          @db.Decimal(10, 2)
-  unit               String           @default("Stk")
-  taxRate            Int              @default(20)
+  softwareItem              SoftwareItem?       @relation(fields: [softwareItemId], references: [id], onDelete: SetNull)
+  softwareItemId            String?
+  description               String?
+  unitPrice                 Decimal?            @db.Decimal(10, 2)
+  priceAdjustmentType       PriceAdjustmentType @default(ABSOLUTE)
+  priceAdjustmentValue      Decimal             @default(0) @db.Decimal(10, 2)
+  priceAdjustmentIsDiscount Boolean             @default(false)
+  quantity                  Decimal             @db.Decimal(10, 2)
+  unit                      String              @default("Stk")
+  taxRate                   Int                 @default(20)
 }
 
 model ExportSchedule {

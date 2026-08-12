@@ -29,6 +29,10 @@ services:
       # Öffentliche URL (z.B. hinter Cloudflare Tunnel) — sonst baut Auth.js
       # Redirects aus der internen Bind-Adresse (https://0.0.0.0:3000).
       AUTH_URL: ${AUTH_URL:-}
+      PORTAL_BASE_URL: ${PORTAL_BASE_URL:-}
+      # Expliziter lokaler Testmodus: Mails werden nicht versendet, sondern als
+      # JSON verarbeitet. Portal-Code und Magic-Link erscheinen im App-Log.
+      SMTP_JSON: ${SMTP_JSON:-0}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
