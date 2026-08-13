@@ -269,9 +269,13 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
                   </div>
                   <div className="lg:col-span-2">
                     <label className={label}>USt</label>
-                    <select disabled={!isStandard} value={line.taxRate} onChange={(event) => updateLine(line.key, { taxRate: Number(event.target.value) })} className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-400`}>
-                      <option value={20}>20%</option><option value={13}>13%</option><option value={10}>10%</option><option value={0}>0%</option>
-                    </select>
+                    {isStandard ? (
+                      <select value={line.taxRate} onChange={(event) => updateLine(line.key, { taxRate: Number(event.target.value) })} className={`${input} mt-1`}>
+                        <option value={20}>20%</option><option value={13}>13%</option><option value={10}>10%</option><option value={0}>0%</option>
+                      </select>
+                    ) : (
+                      <div className={`${input} mt-1 bg-gray-100 text-gray-500`}>–</div>
+                    )}
                   </div>
                 </div>
                 <p className="mt-2 text-right text-sm text-gray-500">Netto: <span className="font-semibold text-gray-900">{eur.format(Math.round(line.quantity * line.unitPrice * 100) / 100)}</span></p>

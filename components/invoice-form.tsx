@@ -246,7 +246,7 @@ export function InvoiceForm({
             </select>
             {!isStandard && (
               <p className="mt-1 text-xs text-amber-700">
-                Alle Positionen werden mit 0% USt gerechnet, die Rechnung erhält den gesetzlichen Hinweis.
+                Es wird keine österreichische USt ausgewiesen; die Rechnung erhält den passenden gesetzlichen Hinweis.
               </p>
             )}
           </div>
@@ -434,17 +434,20 @@ export function InvoiceForm({
                   </div>
                   <div>
                     <label className={label}>USt</label>
-                    <select
-                      value={line.taxRate}
-                      disabled={!isStandard}
-                      onChange={(e) => updateLine(line.key, { taxRate: Number(e.target.value) })}
-                      className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-400`}
-                    >
-                      <option value={20}>20%</option>
-                      <option value={13}>13%</option>
-                      <option value={10}>10%</option>
-                      <option value={0}>0%</option>
-                    </select>
+                    {isStandard ? (
+                      <select
+                        value={line.taxRate}
+                        onChange={(e) => updateLine(line.key, { taxRate: Number(e.target.value) })}
+                        className={`${input} mt-1`}
+                      >
+                        <option value={20}>20%</option>
+                        <option value={13}>13%</option>
+                        <option value={10}>10%</option>
+                        <option value={0}>0%</option>
+                      </select>
+                    ) : (
+                      <div className={`${input} mt-1 bg-gray-100 text-gray-500`}>–</div>
+                    )}
                   </div>
                 </div>
                 {line.sourceMovementId && (

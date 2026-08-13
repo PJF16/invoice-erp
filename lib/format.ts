@@ -26,10 +26,13 @@ export const OFFER_STATUS_LABELS: Record<string, { label: string; className: str
 
 export const TAX_TREATMENT_OPTIONS = [
   { value: "STANDARD", label: "Standard (österreichische USt)" },
-  { value: "REVERSE_CHARGE", label: "Reverse Charge — EU-B2B, 0% (z.B. deutsches Unternehmen)" },
-  { value: "INTRA_EU_SUPPLY", label: "Innergemeinschaftliche Lieferung — 0%" },
-  { value: "EXPORT", label: "Ausfuhr Drittland — 0%" },
+  { value: "REVERSE_CHARGE", label: "Reverse Charge — Steuerschuld beim Leistungsempfänger" },
+  { value: "INTRA_EU_SUPPLY", label: "Innergemeinschaftliche Lieferung — steuerfrei" },
+  { value: "EXPORT", label: "Ausfuhr Drittland — steuerfrei" },
 ] as const;
+
+export const formatTaxRate = (taxRate: number, taxTreatment: string) =>
+  taxTreatment === "STANDARD" ? `${taxRate}%` : "–";
 
 export const INTERVAL_LABELS: Record<string, string> = {
   MONTHLY: "Monatlich",

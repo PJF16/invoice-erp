@@ -6,17 +6,16 @@ import { assignInvoiceNumberTx } from "@/lib/document-numbers";
 import type { TaxTreatment } from "@/lib/generated/prisma/enums";
 
 export const TAX_NOTES: Record<Exclude<TaxTreatment, "STANDARD">, string> = {
-  REVERSE_CHARGE:
-    "Übergang der Steuerschuld auf den Leistungsempfänger (Reverse Charge, § 19 UStG / Art 196 MwSt-RL).",
+  REVERSE_CHARGE: "Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge).",
   INTRA_EU_SUPPLY: "Steuerfreie innergemeinschaftliche Lieferung (Art 6 Abs 1 UStG).",
   EXPORT: "Steuerfreie Ausfuhrlieferung (§ 7 UStG).",
 };
 
 export const TAX_TREATMENT_LABELS: Record<TaxTreatment, string> = {
   STANDARD: "Standard (USt)",
-  REVERSE_CHARGE: "Reverse Charge (EU-B2B)",
-  INTRA_EU_SUPPLY: "Innergem. Lieferung (0%)",
-  EXPORT: "Ausfuhr Drittland (0%)",
+  REVERSE_CHARGE: "Reverse Charge (Steuerschuld beim Leistungsempfänger)",
+  INTRA_EU_SUPPLY: "Innergemeinschaftliche Lieferung (steuerfrei)",
+  EXPORT: "Ausfuhr Drittland (steuerfrei)",
 };
 
 export type LineInput = {
@@ -35,7 +34,8 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * Berechnet Netto/USt/Brutto. Bei allen Steuerbehandlungen außer STANDARD
- * werden sämtliche Positionen mit 0% gerechnet (Reverse Charge, ig. Lieferung, Ausfuhr).
+ * wird keine österreichische USt berechnet (Reverse Charge, ig. Lieferung, Ausfuhr).
+ * Der interne Steuersatz 0 dient nur der Datenkompatibilität und wird nicht als 0% ausgewiesen.
  */
 export function computeTotals(lines: LineInput[], treatment: TaxTreatment) {
   const effective = lines.map((line) => ({

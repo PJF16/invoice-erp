@@ -322,17 +322,20 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
                   )}
                   <div className="lg:col-span-2">
                     <label className={label}>USt</label>
-                    <select
-                      value={line.taxRate}
-                      disabled={!isStandard}
-                      onChange={(e) => updateLine(line.key, { taxRate: Number(e.target.value) })}
-                      className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-400`}
-                    >
-                      <option value={20}>20%</option>
-                      <option value={13}>13%</option>
-                      <option value={10}>10%</option>
-                      <option value={0}>0%</option>
-                    </select>
+                    {isStandard ? (
+                      <select
+                        value={line.taxRate}
+                        onChange={(e) => updateLine(line.key, { taxRate: Number(e.target.value) })}
+                        className={`${input} mt-1`}
+                      >
+                        <option value={20}>20%</option>
+                        <option value={13}>13%</option>
+                        <option value={10}>10%</option>
+                        <option value={0}>0%</option>
+                      </select>
+                    ) : (
+                      <div className={`${input} mt-1 bg-gray-100 text-gray-500`}>–</div>
+                    )}
                   </div>
                 </div>
               </div>

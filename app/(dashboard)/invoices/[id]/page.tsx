@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { eur, formatDate, INVOICE_STATUS_LABELS } from "@/lib/format";
+import { eur, formatDate, formatTaxRate, INVOICE_STATUS_LABELS } from "@/lib/format";
 import { TAX_NOTES, TAX_TREATMENT_LABELS } from "@/lib/invoices";
 import { skontoDeadline } from "@/lib/payments";
 import { InvoiceActions } from "@/components/invoice-actions";
@@ -139,7 +139,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                   {Number(line.quantity)} {line.unit}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums">{eur.format(Number(line.unitPrice))}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{line.taxRate}%</td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {formatTaxRate(line.taxRate, invoice.taxTreatment)}
+                </td>
                 <td className="px-4 py-3 text-right font-semibold tabular-nums">{eur.format(Number(line.lineNet))}</td>
               </tr>
             ))}
@@ -155,7 +157,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               <td colSpan={5} className="px-4 py-2 text-right text-gray-500">
                 USt
               </td>
-              <td className="px-4 py-2 text-right font-semibold tabular-nums">{eur.format(Number(invoice.taxTotal))}</td>
+              <td className="px-4 py-2 text-right font-semibold tabular-nums">
+                {invoice.taxTreatment === "STANDARD" ? eur.format(Number(invoice.taxTotal)) : "–"}
+              </td>
             </tr>
             <tr className="text-base">
               <td colSpan={5} className="px-4 py-3 text-right font-semibold">

@@ -82,7 +82,7 @@ export default async function PortalInvoicePage({ params }: { params: Promise<{ 
             </tbody>
             <tfoot className="border-t border-slate-200 bg-slate-50/60">
               <tr><td colSpan={4} className="px-5 pt-4 text-right text-slate-500">Netto</td><td className="px-5 pt-4 text-right font-medium tabular-nums">{eur.format(Number(invoice.netTotal))}</td></tr>
-              <tr><td colSpan={4} className="px-5 py-2 text-right text-slate-500">Umsatzsteuer</td><td className="px-5 py-2 text-right font-medium tabular-nums">{eur.format(Number(invoice.taxTotal))}</td></tr>
+              <tr><td colSpan={4} className="px-5 py-2 text-right text-slate-500">Umsatzsteuer</td><td className="px-5 py-2 text-right font-medium tabular-nums">{invoice.taxTreatment === "STANDARD" ? eur.format(Number(invoice.taxTotal)) : "–"}</td></tr>
               <tr><td colSpan={4} className="px-5 pb-4 text-right font-semibold">Gesamt</td><td className="px-5 pb-4 text-right text-base font-bold tabular-nums">{eur.format(Number(invoice.grossTotal))}</td></tr>
             </tfoot>
           </table>
