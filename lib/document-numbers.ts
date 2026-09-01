@@ -2,7 +2,8 @@ import type { Tx } from "@/lib/movements";
 
 type NumberSettings = {
   invoicePrefix: string;
-  invoiceNumberCycle: "YEARLY" | "DAILY";
+  invoiceNumberCycle: "YEARLY" | "DAILY" | "CUSTOM";
+  nextInvoiceNumber: number;
   lastInvoiceYear: number;
   lastInvoiceSeq: number;
   offerPrefix: string;
@@ -21,7 +22,7 @@ async function lockNumberSettings(tx: Tx): Promise<NumberSettings> {
   });
   const [settings] = await tx.$queryRaw<NumberSettings[]>`
     SELECT
-      "invoicePrefix", "invoiceNumberCycle", "lastInvoiceYear", "lastInvoiceSeq",
+      "invoicePrefix", "invoiceNumberCycle", "nextInvoiceNumber", "lastInvoiceYear", "lastInvoiceSeq",
       "offerPrefix", "lastOfferYear", "lastOfferSeq",
       "deliveryNotePrefix", "lastDeliveryNoteYear", "lastDeliveryNoteSeq"
     FROM "CompanySettings"
@@ -40,6 +41,15 @@ export function invoiceDayKey(date: Date) {
 
 export async function assignInvoiceNumberTx(tx: Tx, issueDate: Date) {
   const settings = await lockNumberSettings(tx);
+
+  if (settings.invoiceNumberCycle === "CUSTOM") {
+    const number = settings.nextInvoiceNumber;
+    await tx.companySettings.update({
+      where: { id: "singleton" },
+      data: { nextInvoiceNumber: { increment: 1 } },
+    });
+    return String(number);
+  }
 
   if (settings.invoiceNumberCycle === "DAILY") {
     const day = invoiceDayKey(issueDate);

@@ -210,7 +210,13 @@ export const settingsSchema = z.object({
   email: z.string().trim().default(""),
   phone: z.string().trim().default(""),
   invoicePrefix: z.string().trim().max(20).default(""),
-  invoiceNumberCycle: z.enum(["YEARLY", "DAILY"]).default("YEARLY"),
+  invoiceNumberCycle: z.enum(["YEARLY", "DAILY", "CUSTOM"]).default("YEARLY"),
+  nextInvoiceNumber: z
+    .number()
+    .int("Die nächste Rechnungsnummer muss ganzzahlig sein")
+    .min(1, "Die nächste Rechnungsnummer muss mindestens 1 sein")
+    .max(2_147_483_646, "Die nächste Rechnungsnummer ist zu groß")
+    .optional(),
   offerPrefix: z.string().trim().max(20).default("ANG-"),
   deliveryNotePrefix: z.string().trim().max(20).default("LS-"),
   paymentDays: z.number().int().min(0).max(365).default(14),

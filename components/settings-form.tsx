@@ -21,7 +21,8 @@ type Settings = {
   email: string;
   phone: string;
   invoicePrefix: string;
-  invoiceNumberCycle: "YEARLY" | "DAILY";
+  invoiceNumberCycle: "YEARLY" | "DAILY" | "CUSTOM";
+  nextInvoiceNumber: number;
   currentDailyInvoiceSeq: number;
   offerPrefix: string;
   deliveryNotePrefix: string;
@@ -51,6 +52,8 @@ export function SettingsForm({
   const [loading, setLoading] = useState(false);
   const [invoicePrefix, setInvoicePrefix] = useState(settings.invoicePrefix);
   const [invoiceNumberCycle, setInvoiceNumberCycle] = useState(settings.invoiceNumberCycle);
+  const [nextInvoiceNumber, setNextInvoiceNumber] = useState(settings.nextInvoiceNumber);
+  const [nextInvoiceNumberChanged, setNextInvoiceNumberChanged] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -75,6 +78,7 @@ export function SettingsForm({
         phone: form.get("phone"),
         invoicePrefix: form.get("invoicePrefix"),
         invoiceNumberCycle: form.get("invoiceNumberCycle"),
+        ...(nextInvoiceNumberChanged ? { nextInvoiceNumber: Number(form.get("nextInvoiceNumber")) } : {}),
         offerPrefix: form.get("offerPrefix"),
         deliveryNotePrefix: form.get("deliveryNotePrefix"),
         paymentDays: Number(form.get("paymentDays")),
@@ -91,6 +95,9 @@ export function SettingsForm({
     });
     setLoading(false);
     if (res.ok) {
+      const data = await res.json();
+      setNextInvoiceNumber(data.nextInvoiceNumber);
+      setNextInvoiceNumberChanged(false);
       setSaved(true);
       router.refresh();
     } else {
@@ -107,7 +114,9 @@ export function SettingsForm({
     today.getDate(),
   ).padStart(2, "0")}`;
   const nextNumber =
-    invoiceNumberCycle === "DAILY"
+    invoiceNumberCycle === "CUSTOM"
+      ? String(nextInvoiceNumber)
+      : invoiceNumberCycle === "DAILY"
       ? `${invoicePrefix}${todayKey}-${String(settings.currentDailyInvoiceSeq + 1).padStart(3, "0")}`
       : `${invoicePrefix}${today.getFullYear()}-${String(
           settings.lastInvoiceYear === today.getFullYear() ? settings.lastInvoiceSeq + 1 : 1,
@@ -180,34 +189,65 @@ export function SettingsForm({
       <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-sm font-semibold">Belegnummern &amp; Rechnungen</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className={label}>Rechnungsnummern-Präfix</label>
-            <input
-              name="invoicePrefix"
-              value={invoicePrefix}
-              onChange={(event) => setInvoicePrefix(event.target.value)}
-              placeholder='z.B. "RE-"'
-              className={`${input} font-mono`}
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Nächste Nummer: <span className="font-mono font-semibold">{nextNumber}</span>
-            </p>
-          </div>
+          {invoiceNumberCycle === "CUSTOM" ? (
+            <input type="hidden" name="invoicePrefix" value={invoicePrefix} />
+          ) : (
+            <div>
+              <label className={label}>Rechnungsnummern-Präfix</label>
+              <input
+                name="invoicePrefix"
+                value={invoicePrefix}
+                onChange={(event) => setInvoicePrefix(event.target.value)}
+                placeholder='z.B. "RE-"'
+                className={`${input} font-mono`}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Nächste Nummer: <span className="font-mono font-semibold">{nextNumber}</span>
+              </p>
+            </div>
+          )}
           <div>
             <label className={label}>Rechnungszähler</label>
             <select
               name="invoiceNumberCycle"
               value={invoiceNumberCycle}
-              onChange={(event) => setInvoiceNumberCycle(event.target.value as "YEARLY" | "DAILY")}
+              onChange={(event) =>
+                setInvoiceNumberCycle(event.target.value as "YEARLY" | "DAILY" | "CUSTOM")
+              }
               className={input}
             >
               <option value="YEARLY">Jährlich – Format JJJJ-NNN</option>
               <option value="DAILY">Täglich – Format JJJJMMTT-NNN</option>
+              <option value="CUSTOM">Fortlaufend – nur Zahlen</option>
             </select>
             <p className="mt-1 text-xs text-gray-500">
-              Bei täglicher Zählung beginnt jeder Kalendertag mit 001.
+              {invoiceNumberCycle === "CUSTOM"
+                ? "Ideal für die Übernahme eines bestehenden rein numerischen Nummernkreises."
+                : "Bei täglicher Zählung beginnt jeder Kalendertag mit 001."}
             </p>
           </div>
+          {invoiceNumberCycle === "CUSTOM" && (
+            <div>
+              <label className={label}>Nächste Rechnungsnummer</label>
+              <input
+                name="nextInvoiceNumber"
+                type="number"
+                min={1}
+                max={2_147_483_646}
+                step={1}
+                required
+                value={nextInvoiceNumber}
+                onChange={(event) => {
+                  setNextInvoiceNumber(Number(event.target.value));
+                  setNextInvoiceNumberChanged(true);
+                }}
+                className={`${input} font-mono`}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Diese Nummer wird als Nächstes vergeben; danach wird jeweils um 1 erhöht.
+              </p>
+            </div>
+          )}
           <div>
             <label className={label}>Angebotsnummern-Präfix</label>
             <input name="offerPrefix" defaultValue={settings.offerPrefix} placeholder='z.B. "ANG-"' className={`${input} font-mono`} />

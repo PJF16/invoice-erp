@@ -40,6 +40,7 @@ enum InvoiceType {
 enum InvoiceNumberCycle {
   YEARLY
   DAILY
+  CUSTOM
 }
 
 enum OfferStatus {
@@ -165,6 +166,7 @@ model CompanySettings {
   phone                String             @default("")
   invoicePrefix        String             @default("")
   invoiceNumberCycle   InvoiceNumberCycle @default(YEARLY)
+  nextInvoiceNumber    Int                @default(1)
   offerPrefix          String             @default("ANG-")
   deliveryNotePrefix   String             @default("LS-")
   paymentDays          Int                @default(14)

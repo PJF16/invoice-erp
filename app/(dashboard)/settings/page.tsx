@@ -41,6 +41,7 @@ export default async function SettingsPage() {
           phone: settings.phone,
           invoicePrefix: settings.invoicePrefix,
           invoiceNumberCycle: settings.invoiceNumberCycle,
+          nextInvoiceNumber: settings.nextInvoiceNumber,
           currentDailyInvoiceSeq: dailySequence?.lastSeq ?? 0,
           offerPrefix: settings.offerPrefix,
           deliveryNotePrefix: settings.deliveryNotePrefix,
