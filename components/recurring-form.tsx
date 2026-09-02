@@ -4,10 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { eur, toDateInput, TAX_TREATMENT_OPTIONS } from "@/lib/format";
 import { CustomerSelect } from "@/components/customer-select";
+import { assessTaxTreatment, SUPPLY_KIND_OPTIONS } from "@/lib/tax-rules";
+import type { CustomerType, SupplyKind } from "@/lib/generated/prisma/enums";
 
 type FormData = {
-  customers: { id: string; name: string; customerNumber: string | null; defaultTaxTreatment: string; email: string | null }[];
-  softwareItems: { id: string; name: string; unitPrice: number; unit: string }[];
+  customers: { id: string; name: string; customerNumber: string | null; defaultTaxTreatment: string; email: string | null; countryCode: string; customerType: CustomerType; uid: string | null }[];
+  softwareItems: { id: string; name: string; unitPrice: number; unit: string; supplyKind: SupplyKind }[];
 };
 
 type Line = {
@@ -21,6 +23,7 @@ type Line = {
   quantity: number;
   unit: string;
   taxRate: number;
+  supplyKind: SupplyKind;
 };
 
 export type RecurringInitial = {
@@ -49,6 +52,7 @@ const newLine = (): Line => ({
   quantity: 1,
   unit: "Stk",
   taxRate: 20,
+  supplyKind: "SERVICE",
 });
 
 export function RecurringForm({ data, initial }: { data: FormData; initial?: RecurringInitial }) {
@@ -69,9 +73,27 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
 
   const selectedCustomer = data.customers.find((c) => c.id === customerId);
   const isStandard = taxTreatment === "STANDARD";
+  const taxAssessment = selectedCustomer
+    ? assessTaxTreatment({
+        customerType: selectedCustomer.customerType,
+        countryCode: selectedCustomer.countryCode,
+        uid: selectedCustomer.uid,
+        supplyKinds: lines.map((line) => line.supplyKind),
+      })
+    : null;
 
   function updateLine(key: number, patch: Partial<Line>) {
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+    const nextLines = lines.map((line) => line.key === key ? { ...line, ...patch } : line);
+    setLines(nextLines);
+    if (selectedCustomer) {
+      const assessment = assessTaxTreatment({
+        customerType: selectedCustomer.customerType,
+        countryCode: selectedCustomer.countryCode,
+        uid: selectedCustomer.uid,
+        supplyKinds: nextLines.map((line) => line.supplyKind),
+      });
+      if (assessment.expectedTreatment) setTaxTreatment(assessment.expectedTreatment);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -97,6 +119,7 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
         quantity: l.quantity,
         unit: l.unit,
         taxRate: l.taxRate,
+        supplyKind: l.supplyKind,
       })),
     };
     const res = await fetch(
@@ -136,12 +159,26 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
               value={customerId}
               onValueChange={(id) => {
                 setCustomerId(id);
-                const c = data.customers.find((x) => x.id === id);
-                if (c) setTaxTreatment(c.defaultTaxTreatment);
+                const customer = data.customers.find((entry) => entry.id === id);
+                if (customer) {
+                  const assessment = assessTaxTreatment({
+                    customerType: customer.customerType,
+                    countryCode: customer.countryCode,
+                    uid: customer.uid,
+                    supplyKinds: lines.map((line) => line.supplyKind),
+                  });
+                  setTaxTreatment(assessment.expectedTreatment ?? customer.defaultTaxTreatment);
+                }
               }}
               className="mt-1"
             />
           </div>
+          {taxAssessment && (
+            <div className="lg:col-span-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">
+              <span className="font-semibold">Steuerprüfung:</span> {taxAssessment.reason}
+              {taxAssessment.warnings.map((warning) => <div key={warning} className="mt-1 text-amber-800">⚠ {warning}</div>)}
+            </div>
+          )}
           <div>
             <label className={label}>Steuerbehandlung</label>
             <select value={taxTreatment} onChange={(e) => setTaxTreatment(e.target.value)} className={`${input} mt-1`}>
@@ -222,6 +259,7 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
                           softwareItemId: e.target.value,
                           unit: s?.unit ?? line.unit,
                           priceAdjustmentValue: e.target.value ? line.priceAdjustmentValue : 0,
+                          supplyKind: s?.supplyKind ?? "SERVICE",
                         });
                       }}
                       className={`${input} mt-1`}
@@ -320,6 +358,16 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
                       </div>
                     </>
                   )}
+                  <div className="lg:col-span-2">
+                    <label className={label}>Leistungsart</label>
+                    {!line.softwareItemId ? (
+                      <select value={line.supplyKind} onChange={(e) => updateLine(line.key, { supplyKind: e.target.value as SupplyKind })} className={`${input} mt-1`}>
+                        {SUPPLY_KIND_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                    ) : (
+                      <div className={`${input} mt-1 bg-gray-100 text-gray-600`}>{SUPPLY_KIND_OPTIONS.find((option) => option.value === line.supplyKind)?.label}</div>
+                    )}
+                  </div>
                   <div className="lg:col-span-2">
                     <label className={label}>USt</label>
                     {isStandard ? (

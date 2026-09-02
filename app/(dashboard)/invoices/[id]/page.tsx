@@ -6,6 +6,8 @@ import { TAX_NOTES, TAX_TREATMENT_LABELS } from "@/lib/invoices";
 import { skontoDeadline } from "@/lib/payments";
 import { InvoiceActions } from "@/components/invoice-actions";
 import { InvoicePayments } from "@/components/invoice-payments";
+import { EU_COUNTRY_CODES, SUPPLY_KIND_LABELS } from "@/lib/tax-rules";
+import { InvoiceEvidences } from "@/components/invoice-evidences";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,12 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       sourceOffer: { select: { id: true, number: true } },
       relatedInvoice: { select: { id: true, number: true } },
       stornoInvoices: { select: { id: true, number: true } },
+      vatVerification: true,
+      evidences: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, type: true, fileName: true, size: true, note: true, createdAt: true },
+      },
     },
   });
   if (!invoice) notFound();
@@ -31,6 +39,13 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
   const badge = INVOICE_STATUS_LABELS[invoice.status];
   const customerName = invoice.customerName || invoice.customer.name;
+  const hasThirdCountryServiceExportMismatch =
+    invoice.status !== "DRAFT" &&
+    invoice.taxTreatment === "EXPORT" &&
+    invoice.customer.customerType === "BUSINESS" &&
+    invoice.customer.countryCode !== "AT" &&
+    !EU_COUNTRY_CODES.has(invoice.customer.countryCode) &&
+    invoice.lines.some((line) => line.supplyKind === "SERVICE" || line.supplyKind === "ELECTRONIC_SERVICE");
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -90,6 +105,13 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         />
       </div>
 
+      {hasThirdCountryServiceExportMismatch && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Dieser finalisierte Beleg verwendet den Hinweis „Ausfuhrlieferung“ für eine Drittlandsdienstleistung.
+          Bitte steuerlich prüfen und erforderlichenfalls stornieren und mit der Behandlung „B2B-Dienstleistung Drittland“ neu ausstellen.
+        </div>
+      )}
+
       <div className="grid gap-6 md:grid-cols-2">
         <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <h2 className="mb-2 text-sm font-semibold">Empfänger</h2>
@@ -115,6 +137,20 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               Leistungszeitraum: {formatDate(invoice.servicePeriodStart)} – {formatDate(invoice.servicePeriodEnd)}
             </p>
           )}
+          {invoice.deliveryDate && (
+            <p className="mt-2 text-sm text-gray-500">Lieferdatum: {formatDate(invoice.deliveryDate)}</p>
+          )}
+          {invoice.taxDecisionReason && (
+            <p className="mt-2 rounded-lg bg-blue-50 px-2 py-1.5 text-xs text-blue-900">{invoice.taxDecisionReason}</p>
+          )}
+          {invoice.vatVerification && (
+            <p className={`mt-2 text-xs ${invoice.vatVerification.status === "VALID" ? "text-green-700" : "text-amber-700"}`}>
+              UID-Prüfung vom {formatDate(invoice.vatVerification.checkedAt)}: {invoice.vatVerification.status === "VALID" ? "gültig" : "nicht bestätigt"}
+            </p>
+          )}
+          {invoice.uidCheckOverrideReason && (
+            <p className="mt-1 text-xs text-amber-700">UID-Warnung bestätigt: {invoice.uidCheckOverrideReason}</p>
+          )}
         </section>
       </div>
 
@@ -134,7 +170,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             {invoice.lines.map((line) => (
               <tr key={line.id} className="border-b border-gray-100 last:border-0">
                 <td className="px-4 py-3 text-gray-500">{line.position}</td>
-                <td className="px-4 py-3 font-medium">{line.description}</td>
+                <td className="px-4 py-3 font-medium">
+                  <div className="whitespace-pre-line">{line.description}</div>
+                  <div className="mt-1 text-xs font-normal text-gray-400">{SUPPLY_KIND_LABELS[line.supplyKind]}</div>
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums">
                   {Number(line.quantity)} {line.unit}
                 </td>
@@ -190,6 +229,11 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           }))}
         />
       )}
+
+      <InvoiceEvidences
+        invoiceId={invoice.id}
+        evidences={invoice.evidences.map((evidence) => ({ ...evidence, createdAt: evidence.createdAt.toISOString() }))}
+      />
 
       {invoice.notes && (
         <section className="mt-6 rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-600 shadow-sm">

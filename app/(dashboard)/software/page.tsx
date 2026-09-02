@@ -30,6 +30,7 @@ export default async function SoftwarePage() {
               <th className="px-4 py-3">Beschreibung</th>
               <th className="px-4 py-3 text-right">Preis (netto)</th>
               <th className="px-4 py-3">Einheit</th>
+              <th className="px-4 py-3">Leistungsart</th>
               <th className="px-4 py-3 text-right">In Abos</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 text-right">Aktionen</th>
@@ -38,7 +39,7 @@ export default async function SoftwarePage() {
           <tbody>
             {items.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                   Noch keine Softwareartikel angelegt.
                 </td>
               </tr>
@@ -51,6 +52,9 @@ export default async function SoftwarePage() {
                   {eur.format(Number(item.unitPrice))}
                 </td>
                 <td className="px-4 py-3 text-gray-500">{item.unit}</td>
+                <td className="px-4 py-3 text-xs text-gray-500">
+                  {item.supplyKind === "ELECTRONIC_SERVICE" ? "Elektronische Dienstleistung" : "Dienstleistung"}
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums">{item._count.recurringLines}</td>
                 <td className="px-4 py-3">
                   <span
@@ -72,6 +76,7 @@ export default async function SoftwarePage() {
                       unitPrice: Number(item.unitPrice),
                       unit: item.unit,
                       active: item.active,
+                      supplyKind: item.supplyKind,
                     }}
                   />
                 </td>

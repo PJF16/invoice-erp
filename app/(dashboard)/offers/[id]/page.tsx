@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { eur, formatDate, formatTaxRate, OFFER_STATUS_LABELS } from "@/lib/format";
 import { TAX_NOTES, TAX_TREATMENT_LABELS } from "@/lib/invoices";
 import { OfferActions } from "@/components/offer-actions";
+import { SUPPLY_KIND_LABELS } from "@/lib/tax-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,8 @@ export default async function OfferDetailPage({ params }: { params: Promise<{ id
           <p className="text-sm">{TAX_TREATMENT_LABELS[offer.taxTreatment]}</p>
           {offer.taxTreatment !== "STANDARD" && <p className="mt-1 text-xs text-gray-500">{TAX_NOTES[offer.taxTreatment]}</p>}
           <p className="mt-2 text-sm text-gray-500">Gültig bis {formatDate(offer.validUntil)}</p>
+          {offer.deliveryDate && <p className="mt-1 text-sm text-gray-500">Lieferdatum: {formatDate(offer.deliveryDate)}</p>}
+          {offer.servicePeriodStart && offer.servicePeriodEnd && <p className="mt-1 text-sm text-gray-500">Leistungszeitraum: {formatDate(offer.servicePeriodStart)} – {formatDate(offer.servicePeriodEnd)}</p>}
         </section>
       </div>
 
@@ -59,7 +62,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<{ id
             <th className="px-4 py-3">Pos</th><th className="px-4 py-3">Bezeichnung</th><th className="px-4 py-3 text-right">Menge</th><th className="px-4 py-3 text-right">Einzelpreis</th><th className="px-4 py-3 text-right">USt</th><th className="px-4 py-3 text-right">Netto</th>
           </tr></thead>
           <tbody>{offer.lines.map((line) => <tr key={line.id} className="border-b border-gray-100 last:border-0">
-            <td className="px-4 py-3 text-gray-500">{line.position}</td><td className="px-4 py-3 font-medium">{line.description}</td><td className="px-4 py-3 text-right tabular-nums">{Number(line.quantity)} {line.unit}</td><td className="px-4 py-3 text-right tabular-nums">{eur.format(Number(line.unitPrice))}</td><td className="px-4 py-3 text-right tabular-nums">{formatTaxRate(line.taxRate, offer.taxTreatment)}</td><td className="px-4 py-3 text-right font-semibold tabular-nums">{eur.format(Number(line.lineNet))}</td>
+            <td className="px-4 py-3 text-gray-500">{line.position}</td><td className="px-4 py-3 font-medium"><div className="whitespace-pre-line">{line.description}</div><div className="mt-1 text-xs font-normal text-gray-400">{SUPPLY_KIND_LABELS[line.supplyKind]}</div></td><td className="px-4 py-3 text-right tabular-nums">{Number(line.quantity)} {line.unit}</td><td className="px-4 py-3 text-right tabular-nums">{eur.format(Number(line.unitPrice))}</td><td className="px-4 py-3 text-right tabular-nums">{formatTaxRate(line.taxRate, offer.taxTreatment)}</td><td className="px-4 py-3 text-right font-semibold tabular-nums">{eur.format(Number(line.lineNet))}</td>
           </tr>)}</tbody>
           <tfoot>
             <tr className="border-t border-gray-200"><td colSpan={5} className="px-4 py-2 text-right text-gray-500">Netto</td><td className="px-4 py-2 text-right font-semibold tabular-nums">{eur.format(Number(offer.netTotal))}</td></tr>

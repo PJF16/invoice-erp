@@ -7,7 +7,10 @@ export const dynamic = "force-dynamic";
 export default async function CustomersPage() {
   const customers = await prisma.customer.findMany({
     orderBy: { name: "asc" },
-    include: { _count: { select: { invoices: true } } },
+    include: {
+      _count: { select: { invoices: true } },
+      vatVerifications: { orderBy: { checkedAt: "desc" }, take: 1 },
+    },
   });
 
   return (
@@ -51,7 +54,14 @@ export default async function CustomersPage() {
                   {[c.zip, c.city].filter(Boolean).join(" ")}
                   {c.country !== "Österreich" && c.country ? ` (${c.country})` : ""}
                 </td>
-                <td className="px-4 py-3 font-mono text-xs text-gray-500">{c.uid ?? "–"}</td>
+                <td className="px-4 py-3 font-mono text-xs text-gray-500">
+                  <div>{c.uid ?? "–"}</div>
+                  {c.vatVerifications[0] && (
+                    <div className={`mt-1 font-sans ${c.vatVerifications[0].status === "VALID" ? "text-green-700" : "text-amber-700"}`}>
+                      {c.vatVerifications[0].status === "VALID" ? "VIES gültig" : c.vatVerifications[0].status === "INVALID" ? "VIES ungültig" : "VIES nicht bestätigt"}
+                    </div>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-xs text-gray-500">
                   {TAX_TREATMENT_LABELS[c.defaultTaxTreatment]}
                 </td>
@@ -72,10 +82,15 @@ export default async function CustomersPage() {
                       zip: c.zip,
                       city: c.city,
                       country: c.country,
+                      countryCode: c.countryCode,
+                      customerType: c.customerType,
                       uid: c.uid,
                       defaultTaxTreatment: c.defaultTaxTreatment,
                       paymentDays: c.paymentDays,
                       notes: c.notes,
+                      latestVatVerification: c.vatVerifications[0]
+                        ? { status: c.vatVerifications[0].status, checkedAt: c.vatVerifications[0].checkedAt.toISOString() }
+                        : null,
                     }}
                   />
                 </td>

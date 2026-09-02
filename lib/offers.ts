@@ -1,14 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
-import { computeTotals, type LineInput } from "@/lib/invoices";
+import { computeTotals, TAX_TREATMENT_LABELS, type LineInput } from "@/lib/invoices";
 import { assignOfferNumberTx } from "@/lib/document-numbers";
 import type { OfferStatus, TaxTreatment } from "@/lib/generated/prisma/enums";
 import type { Tx } from "@/lib/movements";
+import { assessTaxTreatment } from "@/lib/tax-rules";
 
 export type OfferInput = {
   customerId: string;
   issueDate: Date;
   validUntil: Date;
+  deliveryDate?: Date | null;
+  servicePeriodStart?: Date | null;
+  servicePeriodEnd?: Date | null;
   taxTreatment: TaxTreatment;
   notes?: string | null;
   lines: Omit<LineInput, "sourceMovementId">[];
@@ -24,20 +28,30 @@ async function validateReferences(tx: Tx, input: OfferInput) {
   const softwareIds = [...new Set(input.lines.flatMap((line) => line.softwareItemId ? [line.softwareItemId] : []))];
   const itemIds = [...new Set(input.lines.flatMap((line) => line.itemId ? [line.itemId] : []))];
   const warehouseIds = [...new Set(input.lines.flatMap((line) => line.warehouseId ? [line.warehouseId] : []))];
-  const [customer, softwareCount, itemCount, warehouseCount] = await Promise.all([
+  const [customer, softwareItems, items, warehouseCount] = await Promise.all([
     tx.customer.findUnique({ where: { id: input.customerId }, select: { id: true } }),
-    tx.softwareItem.count({ where: { id: { in: softwareIds } } }),
-    tx.item.count({ where: { id: { in: itemIds } } }),
+    tx.softwareItem.findMany({ where: { id: { in: softwareIds } }, select: { id: true, supplyKind: true } }),
+    tx.item.findMany({ where: { id: { in: itemIds } }, select: { id: true, supplyKind: true } }),
     tx.warehouse.count({ where: { id: { in: warehouseIds } } }),
   ]);
   if (!customer) throw new ApiError(404, "Kunde nicht gefunden");
-  if (softwareCount !== softwareIds.length) throw new ApiError(404, "Softwareartikel nicht gefunden");
-  if (itemCount !== itemIds.length) throw new ApiError(404, "Hardware-Artikel nicht gefunden");
+  if (softwareItems.length !== softwareIds.length) throw new ApiError(404, "Softwareartikel nicht gefunden");
+  if (items.length !== itemIds.length) throw new ApiError(404, "Hardware-Artikel nicht gefunden");
   if (warehouseCount !== warehouseIds.length) throw new ApiError(404, "Lager nicht gefunden");
+  const softwareKinds = new Map(softwareItems.map((item) => [item.id, item.supplyKind]));
+  const itemKinds = new Map(items.map((item) => [item.id, item.supplyKind]));
+  return input.lines.map((line) => ({
+    ...line,
+    supplyKind: line.softwareItemId
+      ? softwareKinds.get(line.softwareItemId)!
+      : line.itemId
+        ? itemKinds.get(line.itemId)!
+        : line.supplyKind,
+  }));
 }
 
-function totalsAndLines(input: OfferInput) {
-  const totals = computeTotals(input.lines, input.taxTreatment);
+function totalsAndLines(input: OfferInput, resolvedLines: OfferInput["lines"]) {
+  const totals = computeTotals(resolvedLines, input.taxTreatment);
   return {
     ...totals,
     linesData: totals.lines.map((line, index) => ({
@@ -48,6 +62,7 @@ function totalsAndLines(input: OfferInput) {
       unitPrice: line.unitPrice,
       taxRate: line.taxRate,
       lineNet: line.lineNet,
+      supplyKind: line.supplyKind,
       softwareItemId: line.softwareItemId ?? null,
       itemId: line.itemId ?? null,
       warehouseId: line.warehouseId ?? null,
@@ -56,14 +71,17 @@ function totalsAndLines(input: OfferInput) {
 }
 
 export async function createDraftOffer(input: OfferInput) {
-  const { netTotal, taxTotal, grossTotal, linesData } = totalsAndLines(input);
   return prisma.$transaction(async (tx) => {
-    await validateReferences(tx, input);
+    const resolvedLines = await validateReferences(tx, input);
+    const { netTotal, taxTotal, grossTotal, linesData } = totalsAndLines(input, resolvedLines);
     return tx.offer.create({
       data: {
         customerId: input.customerId,
         issueDate: input.issueDate,
         validUntil: input.validUntil,
+        deliveryDate: input.deliveryDate ?? null,
+        servicePeriodStart: input.servicePeriodStart ?? null,
+        servicePeriodEnd: input.servicePeriodEnd ?? null,
         taxTreatment: input.taxTreatment,
         notes: input.notes ?? null,
         netTotal,
@@ -77,13 +95,13 @@ export async function createDraftOffer(input: OfferInput) {
 }
 
 export async function updateDraftOffer(offerId: string, input: OfferInput) {
-  const { netTotal, taxTotal, grossTotal, linesData } = totalsAndLines(input);
   return prisma.$transaction(async (tx) => {
     await lockOffer(tx, offerId);
     const offer = await tx.offer.findUnique({ where: { id: offerId }, select: { status: true } });
     if (!offer) throw new ApiError(404, "Angebot nicht gefunden");
     if (offer.status !== "DRAFT") throw new ApiError(400, "Nur Entwürfe können bearbeitet werden");
-    await validateReferences(tx, input);
+    const resolvedLines = await validateReferences(tx, input);
+    const { netTotal, taxTotal, grossTotal, linesData } = totalsAndLines(input, resolvedLines);
     await tx.offerLine.deleteMany({ where: { offerId } });
     return tx.offer.update({
       where: { id: offerId },
@@ -91,6 +109,9 @@ export async function updateDraftOffer(offerId: string, input: OfferInput) {
         customerId: input.customerId,
         issueDate: input.issueDate,
         validUntil: input.validUntil,
+        deliveryDate: input.deliveryDate ?? null,
+        servicePeriodStart: input.servicePeriodStart ?? null,
+        servicePeriodEnd: input.servicePeriodEnd ?? null,
         taxTreatment: input.taxTreatment,
         notes: input.notes ?? null,
         netTotal,
@@ -118,10 +139,29 @@ export async function finalizeOffer(offerId: string) {
     await lockOffer(tx, offerId);
     const offer = await tx.offer.findUnique({
       where: { id: offerId },
-      include: { customer: true },
+      include: { customer: true, lines: true },
     });
     if (!offer) throw new ApiError(404, "Angebot nicht gefunden");
     if (offer.status !== "DRAFT") throw new ApiError(400, "Nur Entwürfe können finalisiert werden");
+    const supplyKinds = offer.lines.map((line) => line.supplyKind);
+    if (supplyKinds.includes("GOODS") && !offer.deliveryDate) {
+      throw new ApiError(409, "Für Warenpositionen ist ein voraussichtliches Lieferdatum erforderlich");
+    }
+    if (supplyKinds.some((kind) => kind !== "GOODS") && (!offer.servicePeriodStart || !offer.servicePeriodEnd)) {
+      throw new ApiError(409, "Für Dienstleistungen ist ein voraussichtlicher Leistungszeitraum erforderlich");
+    }
+    const assessment = assessTaxTreatment({
+      customerType: offer.customer.customerType,
+      countryCode: offer.customer.countryCode,
+      uid: offer.customer.uid,
+      supplyKinds,
+    });
+    if (assessment.reason.startsWith("Waren und Dienstleistungen")) {
+      throw new ApiError(409, assessment.reason);
+    }
+    if (assessment.expectedTreatment && offer.taxTreatment !== assessment.expectedTreatment) {
+      throw new ApiError(409, `Erwartete Steuerbehandlung: ${TAX_TREATMENT_LABELS[assessment.expectedTreatment]}`);
+    }
     const number = await assignOfferNumberTx(tx, offer.issueDate);
     const customer = offer.customer;
     return tx.offer.update({
@@ -137,6 +177,8 @@ export async function finalizeOffer(offerId: string) {
           customer.country,
         ].filter(Boolean).join("\n"),
         customerUid: customer.uid,
+        customerCountryCode: customer.countryCode,
+        customerType: customer.customerType,
       },
       include: { lines: true, customer: true },
     });
@@ -193,6 +235,9 @@ export async function convertOfferToInvoice(offerId: string) {
         customerId: offer.customerId,
         issueDate,
         dueDate,
+        deliveryDate: offer.deliveryDate,
+        servicePeriodStart: offer.servicePeriodStart,
+        servicePeriodEnd: offer.servicePeriodEnd,
         taxTreatment: offer.taxTreatment,
         notes: offer.notes,
         netTotal: offer.netTotal,
@@ -209,6 +254,7 @@ export async function convertOfferToInvoice(offerId: string) {
             unitPrice: line.unitPrice,
             taxRate: line.taxRate,
             lineNet: line.lineNet,
+            supplyKind: line.supplyKind,
             softwareItemId: line.softwareItemId,
             itemId: line.itemId,
             warehouseId: line.warehouseId,

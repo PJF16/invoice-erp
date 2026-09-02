@@ -14,10 +14,13 @@ type CustomerData = {
   zip: string;
   city: string;
   country: string;
+  countryCode: string;
+  customerType: string;
   uid: string | null;
   defaultTaxTreatment: string;
   paymentDays: number | null;
   notes: string | null;
+  latestVatVerification?: { status: string; checkedAt: string } | null;
 };
 
 function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; onClose: () => void }) {
@@ -44,6 +47,8 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
         zip: form.get("zip"),
         city: form.get("city"),
         country: form.get("country"),
+        countryCode: form.get("countryCode"),
+        customerType: form.get("customerType"),
         uid: (form.get("uid") as string) || null,
         defaultTaxTreatment: form.get("defaultTaxTreatment"),
         paymentDays: paymentDays === "" ? null : Number(paymentDays),
@@ -109,6 +114,26 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
               <input name="country" defaultValue={customer?.country ?? "Österreich"} className={input} />
             </div>
             <div>
+              <label className="block text-sm font-medium">ISO-Ländercode *</label>
+              <input
+                name="countryCode"
+                required
+                minLength={2}
+                maxLength={2}
+                defaultValue={customer?.countryCode ?? "AT"}
+                placeholder="AT"
+                className={`${input} font-mono uppercase`}
+              />
+              <p className="mt-1 text-xs text-gray-500">Zweistellig, z.B. AT, DE oder CH.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Kundentyp</label>
+              <select name="customerType" defaultValue={customer?.customerType ?? "BUSINESS"} className={input}>
+                <option value="BUSINESS">Unternehmen (B2B)</option>
+                <option value="CONSUMER">Privatkunde (B2C)</option>
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium">UID-Nummer</label>
               <input
                 name="uid"
@@ -116,6 +141,9 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
                 placeholder="z.B. DE123456789"
                 className={`${input} font-mono`}
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Speichern ist auch ohne erfolgreiche Prüfung möglich. Die Prüfung erfolgt anschließend in der Kundenliste.
+              </p>
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium">Standard-Steuerbehandlung</label>
@@ -191,6 +219,7 @@ export function CustomerForm() {
 export function CustomerRowActions({ customer }: { customer: CustomerData & { id: string } }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   async function handleDelete() {
     if (!confirm(`Kunde „${customer.name}" wirklich löschen?`)) return;
@@ -202,8 +231,35 @@ export function CustomerRowActions({ customer }: { customer: CustomerData & { id
     }
   }
 
+  async function handleVatCheck() {
+    setChecking(true);
+    const res = await fetch(`/api/customers/${customer.id}/vat-verification`, { method: "POST" });
+    const data = await res.json().catch(() => null);
+    setChecking(false);
+    if (!res.ok) {
+      alert(data?.error ?? "UID-Prüfung fehlgeschlagen. Der Kunde bleibt unverändert gespeichert.");
+      return;
+    }
+    const message = data.status === "VALID"
+      ? "UID ist laut VIES gültig."
+      : data.status === "INVALID"
+        ? "Warnung: UID ist laut VIES ungültig. Der Kunde bleibt gespeichert und kann erneut geprüft werden."
+        : `Warnung: UID konnte derzeit nicht bestätigt werden${data.errorMessage ? ` (${data.errorMessage})` : ""}.`;
+    alert(message);
+    router.refresh();
+  }
+
   return (
     <div className="inline-flex gap-1">
+      {customer.uid && (
+        <button
+          onClick={handleVatCheck}
+          disabled={checking}
+          className="rounded-lg border border-blue-200 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+        >
+          {checking ? "Prüfe…" : customer.latestVatVerification ? "UID erneut prüfen" : "UID prüfen"}
+        </button>
+      )}
       <button onClick={() => setEditing(true)} className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs hover:bg-gray-100">
         Bearbeiten
       </button>

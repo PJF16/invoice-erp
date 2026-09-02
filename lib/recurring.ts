@@ -41,6 +41,7 @@ export async function generateInvoiceFromTemplate(templateId: string, userId: st
         unit: line.unit || line.softwareItem.unit,
         unitPrice: Math.max(0, basePrice + (line.priceAdjustmentIsDiscount ? -adjustment : adjustment)),
         taxRate: line.taxRate,
+        supplyKind: line.softwareItem.supplyKind,
         softwareItemId: line.softwareItemId,
       };
     }
@@ -50,6 +51,7 @@ export async function generateInvoiceFromTemplate(templateId: string, userId: st
       unit: line.unit,
       unitPrice: Number(line.unitPrice ?? 0),
       taxRate: line.taxRate,
+      supplyKind: line.supplyKind,
     };
   });
 

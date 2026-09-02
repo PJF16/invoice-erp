@@ -24,12 +24,16 @@ export default async function NewRecurringPage() {
             customerNumber: c.customerNumber,
             defaultTaxTreatment: c.defaultTaxTreatment,
             email: c.email,
+            countryCode: c.countryCode,
+            customerType: c.customerType,
+            uid: c.uid,
           })),
           softwareItems: softwareItems.map((s) => ({
             id: s.id,
             name: s.name,
             unitPrice: Number(s.unitPrice),
             unit: s.unit,
+            supplyKind: s.supplyKind,
           })),
         }}
       />

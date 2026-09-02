@@ -3,12 +3,15 @@ import { ApiError } from "@/lib/api-helpers";
 import { bookMovementTx, type Tx } from "@/lib/movements";
 import { getSettings } from "@/lib/settings";
 import { assignInvoiceNumberTx } from "@/lib/document-numbers";
-import type { TaxTreatment } from "@/lib/generated/prisma/enums";
+import type { SupplyKind, TaxTreatment } from "@/lib/generated/prisma/enums";
+import { assessTaxTreatment } from "@/lib/tax-rules";
+import { normalizeVatId } from "@/lib/vat-id";
 
 export const TAX_NOTES: Record<Exclude<TaxTreatment, "STANDARD">, string> = {
   REVERSE_CHARGE: "Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge).",
   INTRA_EU_SUPPLY: "Steuerfreie innergemeinschaftliche Lieferung (Art 6 Abs 1 UStG).",
   EXPORT: "Steuerfreie Ausfuhrlieferung (§ 7 UStG).",
+  THIRD_COUNTRY_SERVICE: "Nicht steuerbar in Österreich/EU (Reverse Charge).",
 };
 
 export const TAX_TREATMENT_LABELS: Record<TaxTreatment, string> = {
@@ -16,6 +19,7 @@ export const TAX_TREATMENT_LABELS: Record<TaxTreatment, string> = {
   REVERSE_CHARGE: "Reverse Charge (Steuerschuld beim Leistungsempfänger)",
   INTRA_EU_SUPPLY: "Innergemeinschaftliche Lieferung (steuerfrei)",
   EXPORT: "Ausfuhr Drittland (steuerfrei)",
+  THIRD_COUNTRY_SERVICE: "B2B-Dienstleistung Drittland (in Österreich nicht steuerbar)",
 };
 
 export type LineInput = {
@@ -24,6 +28,7 @@ export type LineInput = {
   unit: string;
   unitPrice: number;
   taxRate: number;
+  supplyKind: SupplyKind;
   softwareItemId?: string | null;
   itemId?: string | null;
   warehouseId?: string | null;
@@ -62,6 +67,7 @@ type CreateInvoiceInput = {
   customerId: string;
   issueDate: Date;
   dueDate: Date;
+  deliveryDate?: Date | null;
   servicePeriodStart?: Date | null;
   servicePeriodEnd?: Date | null;
   taxTreatment: TaxTreatment;
@@ -130,6 +136,7 @@ function invoiceLinesData(lines: ReturnType<typeof computeTotals>["lines"]) {
     unitPrice: line.unitPrice,
     taxRate: line.taxRate,
     lineNet: line.lineNet,
+    supplyKind: line.supplyKind,
     softwareItemId: line.softwareItemId ?? null,
     itemId: line.itemId ?? null,
     warehouseId: line.warehouseId ?? null,
@@ -137,9 +144,29 @@ function invoiceLinesData(lines: ReturnType<typeof computeTotals>["lines"]) {
   }));
 }
 
+async function resolveReferencedSupplyKinds(tx: Tx, lines: LineInput[]): Promise<LineInput[]> {
+  const softwareIds = [...new Set(lines.flatMap((line) => line.softwareItemId ? [line.softwareItemId] : []))];
+  const itemIds = [...new Set(lines.flatMap((line) => line.itemId ? [line.itemId] : []))];
+  const [softwareItems, items] = await Promise.all([
+    tx.softwareItem.findMany({ where: { id: { in: softwareIds } }, select: { id: true, supplyKind: true } }),
+    tx.item.findMany({ where: { id: { in: itemIds } }, select: { id: true, supplyKind: true } }),
+  ]);
+  if (softwareItems.length !== softwareIds.length) throw new ApiError(404, "Softwareartikel nicht gefunden");
+  if (items.length !== itemIds.length) throw new ApiError(404, "Hardware-Artikel nicht gefunden");
+  const softwareKinds = new Map(softwareItems.map((item) => [item.id, item.supplyKind]));
+  const itemKinds = new Map(items.map((item) => [item.id, item.supplyKind]));
+  return lines.map((line) => ({
+    ...line,
+    supplyKind: line.softwareItemId
+      ? softwareKinds.get(line.softwareItemId)!
+      : line.itemId
+        ? itemKinds.get(line.itemId)!
+        : line.supplyKind,
+  }));
+}
+
 export async function createDraftInvoice(input: CreateInvoiceInput) {
   if (input.lines.length === 0) throw new ApiError(400, "Mindestens eine Position ist erforderlich");
-  const { lines, netTotal, taxTotal, grossTotal } = computeTotals(input.lines, input.taxTreatment);
 
   // Skonto aus den Firmeneinstellungen einfrieren — außer bei automatisch aus
   // Vorlagen erzeugten (wiederkehrenden) Rechnungen.
@@ -148,6 +175,8 @@ export async function createDraftInvoice(input: CreateInvoiceInput) {
   const skontoDays = settings?.skontoDays ?? 0;
 
   return prisma.$transaction(async (tx) => {
+    const resolvedLines = await resolveReferencedSupplyKinds(tx, input.lines);
+    const { lines, netTotal, taxTotal, grossTotal } = computeTotals(resolvedLines, input.taxTreatment);
     const sourceIds = await validateSourceMovements(tx, input);
     // Vor dem Anlegen der Positionen atomar reservieren. So endet ein
     // paralleler Entwurf kontrolliert mit 409 statt an der Unique-Constraint.
@@ -157,6 +186,7 @@ export async function createDraftInvoice(input: CreateInvoiceInput) {
         customerId: input.customerId,
         issueDate: input.issueDate,
         dueDate: input.dueDate,
+        deliveryDate: input.deliveryDate ?? null,
         servicePeriodStart: input.servicePeriodStart ?? null,
         servicePeriodEnd: input.servicePeriodEnd ?? null,
         taxTreatment: input.taxTreatment,
@@ -177,7 +207,6 @@ export async function createDraftInvoice(input: CreateInvoiceInput) {
 
 export async function updateDraftInvoice(invoiceId: string, input: CreateInvoiceInput) {
   if (input.lines.length === 0) throw new ApiError(400, "Mindestens eine Position ist erforderlich");
-  const { lines, netTotal, taxTotal, grossTotal } = computeTotals(input.lines, input.taxTreatment);
   return prisma.$transaction(async (tx) => {
     await lockInvoice(tx, invoiceId);
     const existing = await tx.invoice.findUnique({
@@ -186,6 +215,9 @@ export async function updateDraftInvoice(invoiceId: string, input: CreateInvoice
     });
     if (!existing) throw new ApiError(404, "Rechnung nicht gefunden");
     if (existing.status !== "DRAFT") throw new ApiError(400, "Nur Entwürfe können bearbeitet werden");
+
+    const resolvedLines = await resolveReferencedSupplyKinds(tx, input.lines);
+    const { lines, netTotal, taxTotal, grossTotal } = computeTotals(resolvedLines, input.taxTreatment);
 
     const oldSourceIds = existing.lines
       .map((line) => line.sourceMovementId)
@@ -202,6 +234,7 @@ export async function updateDraftInvoice(invoiceId: string, input: CreateInvoice
         customerId: input.customerId,
         issueDate: input.issueDate,
         dueDate: input.dueDate,
+        deliveryDate: input.deliveryDate ?? null,
         servicePeriodStart: input.servicePeriodStart ?? null,
         servicePeriodEnd: input.servicePeriodEnd ?? null,
         taxTreatment: input.taxTreatment,
@@ -249,7 +282,11 @@ export async function deleteDraftInvoice(invoiceId: string) {
  * Rechnungsnummer, friert die Kundendaten ein und bucht
  * Hardware-Positionen aus dem Lager aus. Alles in einer Transaktion.
  */
-export async function finalizeInvoice(invoiceId: string, userId: string) {
+export async function finalizeInvoice(
+  invoiceId: string,
+  userId: string,
+  options: { acknowledgeUidWarning?: boolean; uidCheckOverrideReason?: string | null } = {},
+) {
   return prisma.$transaction(async (tx) => {
     await lockInvoice(tx, invoiceId);
     const invoice = await tx.invoice.findUnique({
@@ -258,6 +295,64 @@ export async function finalizeInvoice(invoiceId: string, userId: string) {
     });
     if (!invoice) throw new ApiError(404, "Rechnung nicht gefunden");
     if (invoice.status !== "DRAFT") throw new ApiError(400, "Nur Entwürfe können finalisiert werden");
+
+    const supplyKinds = invoice.lines.map((line) => line.supplyKind);
+    const hasGoods = supplyKinds.includes("GOODS");
+    const hasServices = supplyKinds.some((kind) => kind === "SERVICE" || kind === "ELECTRONIC_SERVICE");
+    if (hasGoods && !invoice.deliveryDate) {
+      throw new ApiError(409, "Für Warenpositionen ist ein Lieferdatum erforderlich", "PERFORMANCE_DATE_REQUIRED");
+    }
+    if (hasServices && (!invoice.servicePeriodStart || !invoice.servicePeriodEnd)) {
+      throw new ApiError(409, "Für Dienstleistungen ist ein Leistungszeitraum erforderlich", "PERFORMANCE_DATE_REQUIRED");
+    }
+
+    const assessment = assessTaxTreatment({
+      customerType: invoice.customer.customerType,
+      countryCode: invoice.customer.countryCode,
+      uid: invoice.customer.uid,
+      supplyKinds,
+    });
+    if (assessment.reason.startsWith("Waren und Dienstleistungen")) {
+      throw new ApiError(409, assessment.reason, "MIXED_TAX_TREATMENTS", { warnings: assessment.warnings });
+    }
+    if (assessment.expectedTreatment && invoice.taxTreatment !== assessment.expectedTreatment) {
+      throw new ApiError(
+        409,
+        `Die Steuerbehandlung passt nicht zur Konstellation. Erwartet: ${TAX_TREATMENT_LABELS[assessment.expectedTreatment]}.`,
+        "TAX_TREATMENT_MISMATCH",
+        { expectedTreatment: assessment.expectedTreatment, reason: assessment.reason },
+      );
+    }
+
+    let vatVerification = null;
+    if (assessment.requiresValidUid) {
+      const normalized = invoice.customer.uid
+        ? normalizeVatId(invoice.customer.uid, invoice.customer.countryCode)
+        : null;
+      vatVerification = normalized
+        ? await tx.vatVerification.findFirst({
+            where: {
+              customerId: invoice.customerId,
+              countryCode: normalized.countryCode,
+              vatNumber: normalized.vatNumber,
+            },
+            orderBy: { checkedAt: "desc" },
+          })
+        : null;
+      if (vatVerification?.status !== "VALID" && !options.acknowledgeUidWarning) {
+        const state = vatVerification?.status === "INVALID"
+          ? "Die letzte VIES-Prüfung war ungültig."
+          : vatVerification?.status === "UNAVAILABLE"
+            ? "VIES war bei der letzten Prüfung nicht erreichbar."
+            : "Es liegt keine erfolgreiche VIES-Prüfung vor.";
+        throw new ApiError(
+          409,
+          `${state} UID erneut prüfen oder die Rechnung nach manueller Prüfung trotzdem finalisieren.`,
+          "UID_CHECK_WARNING",
+          { verificationStatus: vatVerification?.status ?? null },
+        );
+      }
+    }
 
     const number = await assignInvoiceNumberTx(tx, invoice.issueDate);
 
@@ -291,6 +386,13 @@ export async function finalizeInvoice(invoiceId: string, userId: string) {
           .filter(Boolean)
           .join("\n"),
         customerUid: c.uid,
+        customerCountryCode: c.countryCode,
+        customerType: c.customerType,
+        taxDecisionReason: [assessment.reason, ...assessment.warnings].join(" "),
+        vatVerificationId: vatVerification?.id ?? null,
+        uidCheckOverrideReason: assessment.requiresValidUid && vatVerification?.status !== "VALID"
+          ? options.uidCheckOverrideReason?.trim() || "Trotz UID-Warnung nach manueller Prüfung finalisiert."
+          : null,
       },
       include: { lines: true, customer: true },
     });
@@ -342,11 +444,17 @@ export async function createStornoInvoice(invoiceId: string, userId: string) {
         customerName: invoice.customerName,
         customerAddress: invoice.customerAddress,
         customerUid: invoice.customerUid,
+        customerCountryCode: invoice.customerCountryCode,
+        customerType: invoice.customerType,
         issueDate: now,
         dueDate: now,
+        deliveryDate: invoice.deliveryDate,
         servicePeriodStart: invoice.servicePeriodStart,
         servicePeriodEnd: invoice.servicePeriodEnd,
         taxTreatment: invoice.taxTreatment,
+        taxDecisionReason: invoice.taxDecisionReason,
+        vatVerificationId: invoice.vatVerificationId,
+        uidCheckOverrideReason: invoice.uidCheckOverrideReason,
         notes: `Storno zu Rechnung ${invoice.number} vom ${new Intl.DateTimeFormat("de-AT", { dateStyle: "medium" }).format(invoice.issueDate)}.`,
         netTotal: -Number(invoice.netTotal),
         taxTotal: -Number(invoice.taxTotal),
@@ -360,6 +468,7 @@ export async function createStornoInvoice(invoiceId: string, userId: string) {
             unitPrice: -Number(line.unitPrice),
             taxRate: line.taxRate,
             lineNet: -Number(line.lineNet),
+            supplyKind: line.supplyKind,
             softwareItemId: line.softwareItemId,
             itemId: line.itemId,
             warehouseId: line.warehouseId,

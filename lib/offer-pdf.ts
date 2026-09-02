@@ -40,6 +40,10 @@ export async function renderOfferPdf(offer: OfferWithLines, settings: CompanySet
       ["Angebotsdatum:", dateFmt.format(offer.issueDate)],
       ["Gültig bis:", dateFmt.format(offer.validUntil)],
     ];
+    if (offer.deliveryDate) meta.push(["Lieferdatum:", dateFmt.format(offer.deliveryDate)]);
+    if (offer.servicePeriodStart && offer.servicePeriodEnd) {
+      meta.push(["Leistungszeitraum:", `${dateFmt.format(offer.servicePeriodStart)} – ${dateFmt.format(offer.servicePeriodEnd)}`]);
+    }
     let y = metaY;
     for (const [label, value] of meta) {
       doc.text(label, 320, y, { width: 110 });
@@ -72,6 +76,7 @@ export async function renderOfferPdf(offer: OfferWithLines, settings: CompanySet
         unit: line.unit,
         unitPrice: num(line.unitPrice),
         taxRate: line.taxRate,
+        supplyKind: line.supplyKind,
       })),
       offer.taxTreatment,
     );

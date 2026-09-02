@@ -26,6 +26,9 @@ export default async function EditOfferPage({ params }: { params: Promise<{ id: 
           customerId: offer.customerId,
           issueDate: toDateInput(offer.issueDate),
           validUntil: toDateInput(offer.validUntil),
+          deliveryDate: offer.deliveryDate ? toDateInput(offer.deliveryDate) : null,
+          servicePeriodStart: offer.servicePeriodStart ? toDateInput(offer.servicePeriodStart) : null,
+          servicePeriodEnd: offer.servicePeriodEnd ? toDateInput(offer.servicePeriodEnd) : null,
           taxTreatment: offer.taxTreatment,
           notes: offer.notes,
           lines: offer.lines.map((line) => ({
@@ -34,6 +37,7 @@ export default async function EditOfferPage({ params }: { params: Promise<{ id: 
             unit: line.unit,
             unitPrice: Number(line.unitPrice),
             taxRate: line.taxRate,
+            supplyKind: line.supplyKind,
             softwareItemId: line.softwareItemId ?? "",
             itemId: line.itemId ?? "",
             warehouseId: line.warehouseId ?? "",

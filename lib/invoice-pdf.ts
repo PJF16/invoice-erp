@@ -87,6 +87,9 @@ export async function renderInvoicePdf(
         `${dateFmt.format(invoice.servicePeriodStart)} – ${dateFmt.format(invoice.servicePeriodEnd)}`,
       ]);
     }
+    if (invoice.deliveryDate) {
+      meta.push(["Lieferdatum:", dateFmt.format(invoice.deliveryDate)]);
+    }
     let y = metaY;
     for (const [label, value] of meta) {
       doc.text(label, 320, y, { width: 110 });
@@ -122,6 +125,7 @@ export async function renderInvoicePdf(
         unit: l.unit,
         unitPrice: num(l.unitPrice),
         taxRate: l.taxRate,
+        supplyKind: l.supplyKind,
       })),
       invoice.taxTreatment,
     );

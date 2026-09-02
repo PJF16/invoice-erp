@@ -32,12 +32,16 @@ export default async function EditRecurringPage({ params }: { params: Promise<{ 
             customerNumber: c.customerNumber,
             defaultTaxTreatment: c.defaultTaxTreatment,
             email: c.email,
+            countryCode: c.countryCode,
+            customerType: c.customerType,
+            uid: c.uid,
           })),
           softwareItems: softwareItems.map((s) => ({
             id: s.id,
             name: s.name,
             unitPrice: Number(s.unitPrice),
             unit: s.unit,
+            supplyKind: s.supplyKind,
           })),
         }}
         initial={{
@@ -60,6 +64,7 @@ export default async function EditRecurringPage({ params }: { params: Promise<{ 
             quantity: Number(l.quantity),
             unit: l.unit,
             taxRate: l.taxRate,
+            supplyKind: l.supplyKind,
           })),
         }}
       />

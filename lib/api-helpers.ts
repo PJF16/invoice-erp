@@ -7,6 +7,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public code?: string,
+    public details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -32,7 +34,10 @@ export async function requireModule(module: ModuleName): Promise<Session> {
 
 export function handleApiError(error: unknown) {
   if (error instanceof ApiError) {
-    return NextResponse.json({ error: error.message }, { status: error.status });
+    return NextResponse.json(
+      { error: error.message, code: error.code, ...error.details },
+      { status: error.status },
+    );
   }
   console.error(error);
   return NextResponse.json({ error: "Interner Serverfehler" }, { status: 500 });

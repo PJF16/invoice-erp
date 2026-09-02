@@ -29,6 +29,7 @@ export const TAX_TREATMENT_OPTIONS = [
   { value: "REVERSE_CHARGE", label: "Reverse Charge — Steuerschuld beim Leistungsempfänger" },
   { value: "INTRA_EU_SUPPLY", label: "Innergemeinschaftliche Lieferung — steuerfrei" },
   { value: "EXPORT", label: "Ausfuhr Drittland — steuerfrei" },
+  { value: "THIRD_COUNTRY_SERVICE", label: "B2B-Dienstleistung Drittland — nicht steuerbar" },
 ] as const;
 
 export const formatTaxRate = (taxRate: number, taxTreatment: string) =>

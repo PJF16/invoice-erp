@@ -16,6 +16,9 @@ export async function loadInvoiceFormData(): Promise<InvoiceFormData> {
       customerNumber: c.customerNumber,
       defaultTaxTreatment: c.defaultTaxTreatment,
       paymentDays: c.paymentDays,
+      countryCode: c.countryCode,
+      customerType: c.customerType,
+      uid: c.uid,
     })),
     softwareItems: softwareItems.map((s) => ({
       id: s.id,
@@ -23,11 +26,13 @@ export async function loadInvoiceFormData(): Promise<InvoiceFormData> {
       description: s.description,
       unitPrice: Number(s.unitPrice),
       unit: s.unit,
+      supplyKind: s.supplyKind,
     })),
     hardwareItems: hardwareItems.map((i) => ({
       id: i.id,
       name: i.name,
       description: i.description,
+      supplyKind: i.supplyKind,
       stocks: i.stocks.map((s) => ({
         warehouseId: s.warehouseId,
         warehouseName: s.warehouse.name,

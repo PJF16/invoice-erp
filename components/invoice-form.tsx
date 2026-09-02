@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { eur, toDateInput, TAX_TREATMENT_OPTIONS } from "@/lib/format";
 import { CustomerSelect } from "@/components/customer-select";
+import { assessTaxTreatment, SUPPLY_KIND_OPTIONS } from "@/lib/tax-rules";
+import type { CustomerType, SupplyKind } from "@/lib/generated/prisma/enums";
 
 export type InvoiceFormData = {
   customers: {
@@ -12,12 +14,16 @@ export type InvoiceFormData = {
     customerNumber: string | null;
     defaultTaxTreatment: string;
     paymentDays: number | null;
+    countryCode: string;
+    customerType: CustomerType;
+    uid: string | null;
   }[];
-  softwareItems: { id: string; name: string; description: string | null; unitPrice: number; unit: string }[];
+  softwareItems: { id: string; name: string; description: string | null; unitPrice: number; unit: string; supplyKind: SupplyKind }[];
   hardwareItems: {
     id: string;
     name: string;
     description: string | null;
+    supplyKind: SupplyKind;
     stocks: { warehouseId: string; warehouseName: string; quantity: number }[];
   }[];
   warehouses: { id: string; name: string }[];
@@ -34,6 +40,7 @@ type Line = {
   unit: string;
   unitPrice: number;
   taxRate: number;
+  supplyKind: SupplyKind;
   softwareItemId: string;
   itemId: string;
   warehouseId: string;
@@ -45,6 +52,7 @@ export type InvoiceInitial = {
   customerId: string;
   issueDate: string;
   dueDate: string;
+  deliveryDate: string | null;
   servicePeriodStart: string | null;
   servicePeriodEnd: string | null;
   taxTreatment: string;
@@ -64,6 +72,7 @@ function newLine(): Line {
     unit: "Stk",
     unitPrice: 0,
     taxRate: 20,
+    supplyKind: "SERVICE",
     softwareItemId: "",
     itemId: "",
     warehouseId: "",
@@ -101,6 +110,7 @@ export function InvoiceForm({
     date.setDate(date.getDate() + 14);
     return toDateInput(date);
   });
+  const [deliveryDate, setDeliveryDate] = useState(initial?.deliveryDate ?? "");
   const [periodStart, setPeriodStart] = useState(initial?.servicePeriodStart ?? "");
   const [periodEnd, setPeriodEnd] = useState(initial?.servicePeriodEnd ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
@@ -123,6 +133,15 @@ export function InvoiceForm({
 
   const isStandard = taxTreatment === "STANDARD";
   const hasSourceMovements = lines.some((line) => Boolean(line.sourceMovementId));
+  const selectedCustomer = data.customers.find((customer) => customer.id === customerId);
+  const taxAssessment = selectedCustomer
+    ? assessTaxTreatment({
+        customerType: selectedCustomer.customerType,
+        countryCode: selectedCustomer.countryCode,
+        uid: selectedCustomer.uid,
+        supplyKinds: lines.map((line) => line.supplyKind),
+      })
+    : null;
 
   const totals = useMemo(() => {
     const net = lines.reduce((sum, l) => sum + Math.round(l.quantity * l.unitPrice * 100) / 100, 0);
@@ -136,14 +155,31 @@ export function InvoiceForm({
   }, [lines, isStandard]);
 
   function updateLine(key: number, patch: Partial<Line>) {
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+    const nextLines = lines.map((line) => line.key === key ? { ...line, ...patch } : line);
+    setLines(nextLines);
+    const customer = data.customers.find((entry) => entry.id === customerId);
+    if (customer) {
+      const assessment = assessTaxTreatment({
+        customerType: customer.customerType,
+        countryCode: customer.countryCode,
+        uid: customer.uid,
+        supplyKinds: nextLines.map((line) => line.supplyKind),
+      });
+      if (assessment.expectedTreatment) setTaxTreatment(assessment.expectedTreatment);
+    }
   }
 
   function selectCustomer(id: string) {
     setCustomerId(id);
     const customer = data.customers.find((c) => c.id === id);
     if (customer) {
-      setTaxTreatment(customer.defaultTaxTreatment);
+      const assessment = assessTaxTreatment({
+        customerType: customer.customerType,
+        countryCode: customer.countryCode,
+        uid: customer.uid,
+        supplyKinds: lines.map((line) => line.supplyKind),
+      });
+      setTaxTreatment(assessment.expectedTreatment ?? customer.defaultTaxTreatment);
       setDueDate(addDaysToDateInput(issueDate, customer.paymentDays ?? defaultPaymentDays));
     }
   }
@@ -163,6 +199,7 @@ export function InvoiceForm({
       additionalDescription: item?.description ?? "",
       unitPrice: item?.unitPrice ?? 0,
       unit: item?.unit ?? "Stk",
+      supplyKind: item?.supplyKind ?? "ELECTRONIC_SERVICE",
     });
   }
 
@@ -173,6 +210,7 @@ export function InvoiceForm({
       description: item?.name ?? "",
       additionalDescription: item?.description ?? "",
       warehouseId: item?.stocks.find((s) => s.quantity > 0)?.warehouseId ?? data.warehouses[0]?.id ?? "",
+      supplyKind: item?.supplyKind ?? "GOODS",
     });
   }
 
@@ -184,6 +222,7 @@ export function InvoiceForm({
       customerId,
       issueDate,
       dueDate,
+      deliveryDate: deliveryDate || null,
       servicePeriodStart: periodStart || null,
       servicePeriodEnd: periodEnd || null,
       taxTreatment,
@@ -194,6 +233,7 @@ export function InvoiceForm({
         unit: l.unit,
         unitPrice: l.unitPrice,
         taxRate: l.taxRate,
+        supplyKind: l.supplyKind,
         softwareItemId: l.type === "SOFTWARE" ? l.softwareItemId || null : null,
         itemId: l.type === "HARDWARE" ? l.itemId || null : null,
         warehouseId: l.type === "HARDWARE" ? l.warehouseId || null : null,
@@ -274,6 +314,19 @@ export function InvoiceForm({
               <input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} className={`${input} mt-1`} />
             </div>
           </div>
+          <div>
+            <label className={label}>Lieferdatum (Waren)</label>
+            <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} className={`${input} mt-1`} />
+          </div>
+          {taxAssessment && (
+            <div className="lg:col-span-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">
+              <span className="font-semibold">Steuerprüfung:</span> {taxAssessment.reason}
+              {taxAssessment.expectedTreatment && taxAssessment.expectedTreatment !== taxTreatment && (
+                <span className="ml-1 font-semibold text-amber-800">Auswahl bitte anpassen.</span>
+              )}
+              {taxAssessment.warnings.map((warning) => <div key={warning} className="mt-1 text-amber-800">⚠ {warning}</div>)}
+            </div>
+          )}
         </div>
       </section>
 
@@ -297,6 +350,7 @@ export function InvoiceForm({
                           softwareItemId: "",
                           itemId: "",
                           warehouseId: "",
+                          supplyKind: e.target.value === "HARDWARE" ? "GOODS" : e.target.value === "SOFTWARE" ? "ELECTRONIC_SERVICE" : "SERVICE",
                         })
                       }
                       className="rounded-lg border border-gray-300 px-2 py-1 text-xs disabled:bg-gray-100 disabled:text-gray-500"
@@ -431,6 +485,22 @@ export function InvoiceForm({
                       onChange={(e) => updateLine(line.key, { unitPrice: Number(e.target.value) })}
                       className={`${input} mt-1`}
                     />
+                  </div>
+                  <div>
+                    <label className={label}>Leistungsart</label>
+                    {line.type === "FREE" ? (
+                      <select
+                        value={line.supplyKind}
+                        onChange={(e) => updateLine(line.key, { supplyKind: e.target.value as SupplyKind })}
+                        className={`${input} mt-1`}
+                      >
+                        {SUPPLY_KIND_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                    ) : (
+                      <div className={`${input} mt-1 bg-gray-100 text-gray-600`}>
+                        {SUPPLY_KIND_OPTIONS.find((option) => option.value === line.supplyKind)?.label}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className={label}>USt</label>

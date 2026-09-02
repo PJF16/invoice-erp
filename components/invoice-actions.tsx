@@ -40,6 +40,30 @@ export function InvoiceActions({ invoice }: Props) {
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
+      if (name === "finalize" && data?.code === "UID_CHECK_WARNING") {
+        const proceed = confirm(
+          `${data.error}\n\nHast du die UID bzw. die Kundendaten manuell geprüft und möchtest trotzdem finalisieren? Die Abweichung wird am Beleg protokolliert.`,
+        );
+        if (proceed) {
+          setLoading(name);
+          const retry = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              acknowledgeUidWarning: true,
+              uidCheckOverrideReason: "UID-Warnung nach manueller Prüfung bestätigt.",
+            }),
+          });
+          setLoading(null);
+          if (retry.ok) {
+            router.refresh();
+            return;
+          }
+          const retryData = await retry.json().catch(() => null);
+          setError(retryData?.error ?? "Finalisierung fehlgeschlagen");
+          return;
+        }
+      }
       setError(data?.error ?? "Aktion fehlgeschlagen");
     }
   }

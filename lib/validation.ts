@@ -12,6 +12,7 @@ export const itemSchema = z.object({
   sku: optionalTrimmed,
   barcode: optionalTrimmed,
   description: optionalTrimmed,
+  supplyKind: z.enum(["GOODS", "SERVICE", "ELECTRONIC_SERVICE"]).default("GOODS"),
 });
 
 export const warehouseSchema = z.object({
@@ -43,7 +44,9 @@ export const movementBillingStatusSchema = z.object({
   billingStatus: z.enum(["PENDING", "INVOICED", "GIFTED"]),
 });
 
-const taxTreatment = z.enum(["STANDARD", "REVERSE_CHARGE", "INTRA_EU_SUPPLY", "EXPORT"]);
+const taxTreatment = z.enum(["STANDARD", "REVERSE_CHARGE", "INTRA_EU_SUPPLY", "EXPORT", "THIRD_COUNTRY_SERVICE"]);
+const supplyKind = z.enum(["GOODS", "SERVICE", "ELECTRONIC_SERVICE"]);
+const softwareSupplyKind = z.enum(["SERVICE", "ELECTRONIC_SERVICE"]);
 const taxRate = z.union([z.literal(0), z.literal(10), z.literal(13), z.literal(20)]);
 const money = z.number().min(0).max(99_999_999);
 const dateString = z.iso.date().or(z.iso.datetime()).transform((s) => new Date(s));
@@ -57,6 +60,8 @@ export const customerSchema = z.object({
   zip: z.string().trim().default(""),
   city: z.string().trim().default(""),
   country: z.string().trim().default("Österreich"),
+  countryCode: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "ISO-Ländercode mit zwei Buchstaben erforderlich").default("AT"),
+  customerType: z.enum(["BUSINESS", "CONSUMER"]).default("BUSINESS"),
   uid: optionalTrimmed,
   defaultTaxTreatment: taxTreatment.default("STANDARD"),
   paymentDays: z.number().int().min(0).max(365).nullable().optional(),
@@ -69,6 +74,7 @@ export const softwareItemSchema = z.object({
   unitPrice: money,
   unit: z.string().trim().min(1).default("Monat"),
   active: z.boolean().default(true),
+  supplyKind: softwareSupplyKind.default("ELECTRONIC_SERVICE"),
 });
 
 const documentLineSchema = z.object({
@@ -77,6 +83,7 @@ const documentLineSchema = z.object({
   unit: z.string().trim().min(1).default("Stk"),
   unitPrice: money,
   taxRate: taxRate.default(20),
+  supplyKind: supplyKind.default("SERVICE"),
   softwareItemId: optionalTrimmed,
   itemId: optionalTrimmed,
   warehouseId: optionalTrimmed,
@@ -116,6 +123,7 @@ export const invoiceSchema = z.object({
   customerId: z.string().min(1, "Kunde ist erforderlich"),
   issueDate: dateString,
   dueDate: dateString,
+  deliveryDate: dateString.nullable().optional(),
   servicePeriodStart: dateString.nullable().optional(),
   servicePeriodEnd: dateString.nullable().optional(),
   taxTreatment: taxTreatment.default("STANDARD"),
@@ -132,6 +140,9 @@ export const offerSchema = z
     customerId: z.string().min(1, "Kunde ist erforderlich"),
     issueDate: dateString,
     validUntil: dateString,
+    deliveryDate: dateString.nullable().optional(),
+    servicePeriodStart: dateString.nullable().optional(),
+    servicePeriodEnd: dateString.nullable().optional(),
     taxTreatment: taxTreatment.default("STANDARD"),
     notes: optionalTrimmed,
     lines: z.array(offerLineSchema).min(1, "Mindestens eine Position ist erforderlich"),
@@ -176,6 +187,7 @@ export const recurringLineSchema = z
     quantity: z.number().positive("Menge muss größer als 0 sein"),
     unit: z.string().trim().default("Stk"),
     taxRate: taxRate.default(20),
+    supplyKind: supplyKind.default("SERVICE"),
   })
   .refine((l) => l.softwareItemId || (l.description && l.unitPrice != null), {
     message: "Position braucht entweder einen Softwareartikel oder Bezeichnung + Preis",
@@ -195,6 +207,11 @@ export const recurringInvoiceSchema = z.object({
   taxTreatment: taxTreatment.default("STANDARD"),
   notes: optionalTrimmed,
   lines: z.array(recurringLineSchema).min(1, "Mindestens eine Position ist erforderlich"),
+});
+
+export const finalizeInvoiceSchema = z.object({
+  acknowledgeUidWarning: z.boolean().default(false),
+  uidCheckOverrideReason: z.string().trim().min(3).max(500).nullable().optional(),
 });
 
 export const settingsSchema = z.object({

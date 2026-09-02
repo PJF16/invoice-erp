@@ -10,6 +10,7 @@ type SoftwareData = {
   unitPrice: number;
   unit: string;
   active: boolean;
+  supplyKind: string;
 };
 
 function SoftwareDialog({ item, onClose }: { item: SoftwareData | null; onClose: () => void }) {
@@ -32,6 +33,7 @@ function SoftwareDialog({ item, onClose }: { item: SoftwareData | null; onClose:
         unitPrice: Number(form.get("unitPrice")),
         unit: form.get("unit"),
         active: form.get("active") === "on",
+        supplyKind: form.get("supplyKind"),
       }),
     });
     setLoading(false);
@@ -76,6 +78,20 @@ function SoftwareDialog({ item, onClose }: { item: SoftwareData | null; onClose:
               <label className="block text-sm font-medium">Einheit</label>
               <input name="unit" defaultValue={item?.unit ?? "Monat"} className={input} />
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Leistungsart</label>
+            <select
+              name="supplyKind"
+              defaultValue={item?.supplyKind ?? "ELECTRONIC_SERVICE"}
+              className={input}
+            >
+              <option value="ELECTRONIC_SERVICE">Elektronisch erbrachte Dienstleistung</option>
+              <option value="SERVICE">Sonstige Dienstleistung</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Software wird standardmäßig elektronisch eingestuft. Bei überwiegend persönlicher Leistung kann die Einstufung geändert werden.
+            </p>
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="active" defaultChecked={item?.active ?? true} />

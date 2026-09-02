@@ -22,6 +22,32 @@ enum TaxTreatment {
   REVERSE_CHARGE
   INTRA_EU_SUPPLY
   EXPORT
+  THIRD_COUNTRY_SERVICE
+}
+
+enum CustomerType {
+  BUSINESS
+  CONSUMER
+}
+
+enum SupplyKind {
+  GOODS
+  SERVICE
+  ELECTRONIC_SERVICE
+}
+
+enum VatVerificationStatus {
+  VALID
+  INVALID
+  UNAVAILABLE
+  ERROR
+}
+
+enum EvidenceType {
+  TRANSPORT_PROOF
+  EXPORT_PROOF
+  TAX_DOCUMENT
+  OTHER
 }
 
 enum InvoiceStatus {
@@ -102,16 +128,17 @@ enum PaymentMethod {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  name          String
-  passwordHash  String
-  role          Role           @default(MEMBER)
-  modules       Module[]       @default([STOCK, INVOICES])
-  createdAt     DateTime       @default(now())
-  movements     Movement[]
-  payments      Payment[]
-  deliveryNotes DeliveryNote[]
+  id              String            @id @default(cuid())
+  email           String            @unique
+  name            String
+  passwordHash    String
+  role            Role              @default(MEMBER)
+  modules         Module[]          @default([STOCK, INVOICES])
+  createdAt       DateTime          @default(now())
+  movements       Movement[]
+  payments        Payment[]
+  deliveryNotes   DeliveryNote[]
+  evidenceUploads InvoiceEvidence[]
 }
 
 model Warehouse {
@@ -132,6 +159,7 @@ model Item {
   sku               String?            @unique
   barcode           String?            @unique
   description       String?
+  supplyKind        SupplyKind         @default(GOODS)
   createdAt         DateTime           @default(now())
   stocks            Stock[]
   movements         Movement[]
@@ -202,6 +230,8 @@ model Customer {
   zip                 String             @default("")
   city                String             @default("")
   country             String             @default("Österreich")
+  countryCode         String             @default("AT")
+  customerType        CustomerType       @default(BUSINESS)
   uid                 String?
   defaultTaxTreatment TaxTreatment       @default(STANDARD)
   paymentDays         Int?
@@ -212,6 +242,7 @@ model Customer {
   deliveryNotes       DeliveryNote[]
   recurringInvoices   RecurringInvoice[]
   movements           Movement[]
+  vatVerifications    VatVerification[]
 }
 
 model PortalLoginToken {
@@ -249,6 +280,7 @@ model SoftwareItem {
   unitPrice      Decimal                @db.Decimal(10, 2)
   unit           String                 @default("Monat")
   active         Boolean                @default(true)
+  supplyKind     SupplyKind             @default(ELECTRONIC_SERVICE)
   createdAt      DateTime               @default(now())
   invoiceLines   InvoiceLine[]
   offerLines     OfferLine[]
@@ -256,68 +288,81 @@ model SoftwareItem {
 }
 
 model Invoice {
-  id                 String            @id @default(cuid())
-  number             String?           @unique
-  type               InvoiceType       @default(INVOICE)
-  relatedInvoice     Invoice?          @relation("Storno", fields: [relatedInvoiceId], references: [id])
-  relatedInvoiceId   String?
-  stornoInvoices     Invoice[]         @relation("Storno")
-  reminderCount      Int               @default(0)
-  lastReminderAt     DateTime?
-  status             InvoiceStatus     @default(DRAFT)
-  customer           Customer          @relation(fields: [customerId], references: [id])
-  customerId         String
-  customerName       String            @default("")
-  customerAddress    String            @default("")
-  customerUid        String?
-  issueDate          DateTime
-  dueDate            DateTime
-  servicePeriodStart DateTime?
-  servicePeriodEnd   DateTime?
-  taxTreatment       TaxTreatment      @default(STANDARD)
-  notes              String?
-  netTotal           Decimal           @default(0) @db.Decimal(12, 2)
-  taxTotal           Decimal           @default(0) @db.Decimal(12, 2)
-  grossTotal         Decimal           @default(0) @db.Decimal(12, 2)
-  paidTotal          Decimal           @default(0) @db.Decimal(12, 2)
-  skontoGranted      Decimal           @default(0) @db.Decimal(12, 2)
-  skontoPercent      Int               @default(0)
-  skontoDays         Int               @default(0)
-  recurringInvoice   RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
-  recurringInvoiceId String?
-  sourceOffer        Offer?            @relation("OfferInvoice", fields: [sourceOfferId], references: [id], onDelete: SetNull)
-  sourceOfferId      String?           @unique
-  sentAt             DateTime?
-  paidAt             DateTime?
-  createdAt          DateTime          @default(now())
-  lines              InvoiceLine[]
-  payments           Payment[]
+  id                     String            @id @default(cuid())
+  number                 String?           @unique
+  type                   InvoiceType       @default(INVOICE)
+  relatedInvoice         Invoice?          @relation("Storno", fields: [relatedInvoiceId], references: [id])
+  relatedInvoiceId       String?
+  stornoInvoices         Invoice[]         @relation("Storno")
+  reminderCount          Int               @default(0)
+  lastReminderAt         DateTime?
+  status                 InvoiceStatus     @default(DRAFT)
+  customer               Customer          @relation(fields: [customerId], references: [id])
+  customerId             String
+  customerName           String            @default("")
+  customerAddress        String            @default("")
+  customerUid            String?
+  customerCountryCode    String            @default("AT")
+  customerType           CustomerType      @default(BUSINESS)
+  issueDate              DateTime
+  dueDate                DateTime
+  deliveryDate           DateTime?
+  servicePeriodStart     DateTime?
+  servicePeriodEnd       DateTime?
+  taxTreatment           TaxTreatment      @default(STANDARD)
+  taxDecisionReason      String?
+  vatVerification        VatVerification?  @relation(fields: [vatVerificationId], references: [id], onDelete: SetNull)
+  vatVerificationId      String?
+  uidCheckOverrideReason String?
+  notes                  String?
+  netTotal               Decimal           @default(0) @db.Decimal(12, 2)
+  taxTotal               Decimal           @default(0) @db.Decimal(12, 2)
+  grossTotal             Decimal           @default(0) @db.Decimal(12, 2)
+  paidTotal              Decimal           @default(0) @db.Decimal(12, 2)
+  skontoGranted          Decimal           @default(0) @db.Decimal(12, 2)
+  skontoPercent          Int               @default(0)
+  skontoDays             Int               @default(0)
+  recurringInvoice       RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
+  recurringInvoiceId     String?
+  sourceOffer            Offer?            @relation("OfferInvoice", fields: [sourceOfferId], references: [id], onDelete: SetNull)
+  sourceOfferId          String?           @unique
+  sentAt                 DateTime?
+  paidAt                 DateTime?
+  createdAt              DateTime          @default(now())
+  lines                  InvoiceLine[]
+  payments               Payment[]
+  evidences              InvoiceEvidence[]
 
   @@index([status, issueDate])
 }
 
 model Offer {
-  id               String       @id @default(cuid())
-  number           String?      @unique
-  status           OfferStatus  @default(DRAFT)
-  customer         Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  customerId       String
-  customerName     String       @default("")
-  customerAddress  String       @default("")
-  customerUid      String?
-  issueDate        DateTime
-  validUntil       DateTime
-  taxTreatment     TaxTreatment @default(STANDARD)
-  notes            String?
-  netTotal         Decimal      @default(0) @db.Decimal(12, 2)
-  taxTotal         Decimal      @default(0) @db.Decimal(12, 2)
-  grossTotal       Decimal      @default(0) @db.Decimal(12, 2)
-  finalizedAt      DateTime?
-  acceptedAt       DateTime?
-  convertedAt      DateTime?
-  createdAt        DateTime     @default(now())
-  lines            OfferLine[]
-  convertedInvoice Invoice?     @relation("OfferInvoice")
+  id                  String       @id @default(cuid())
+  number              String?      @unique
+  status              OfferStatus  @default(DRAFT)
+  customer            Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  customerId          String
+  customerName        String       @default("")
+  customerAddress     String       @default("")
+  customerUid         String?
+  customerCountryCode String       @default("AT")
+  customerType        CustomerType @default(BUSINESS)
+  issueDate           DateTime
+  validUntil          DateTime
+  deliveryDate        DateTime?
+  servicePeriodStart  DateTime?
+  servicePeriodEnd    DateTime?
+  taxTreatment        TaxTreatment @default(STANDARD)
+  notes               String?
+  netTotal            Decimal      @default(0) @db.Decimal(12, 2)
+  taxTotal            Decimal      @default(0) @db.Decimal(12, 2)
+  grossTotal          Decimal      @default(0) @db.Decimal(12, 2)
+  finalizedAt         DateTime?
+  acceptedAt          DateTime?
+  convertedAt         DateTime?
+  createdAt           DateTime     @default(now())
+  lines               OfferLine[]
+  convertedInvoice    Invoice?     @relation("OfferInvoice")
 
   @@index([status, issueDate])
 }
@@ -333,6 +378,7 @@ model OfferLine {
   unitPrice      Decimal       @db.Decimal(10, 2)
   taxRate        Int           @default(20)
   lineNet        Decimal       @db.Decimal(12, 2)
+  supplyKind     SupplyKind    @default(SERVICE)
   softwareItem   SoftwareItem? @relation(fields: [softwareItemId], references: [id], onDelete: SetNull)
   softwareItemId String?
   item           Item?         @relation(fields: [itemId], references: [id], onDelete: SetNull)
@@ -403,6 +449,7 @@ model InvoiceLine {
   unitPrice        Decimal       @db.Decimal(10, 2)
   taxRate          Int           @default(20)
   lineNet          Decimal       @db.Decimal(12, 2)
+  supplyKind       SupplyKind    @default(SERVICE)
   softwareItem     SoftwareItem? @relation(fields: [softwareItemId], references: [id], onDelete: SetNull)
   softwareItemId   String?
   item             Item?         @relation(fields: [itemId], references: [id], onDelete: SetNull)
@@ -446,6 +493,44 @@ model RecurringInvoiceLine {
   quantity                  Decimal             @db.Decimal(10, 2)
   unit                      String              @default("Stk")
   taxRate                   Int                 @default(20)
+  supplyKind                SupplyKind          @default(SERVICE)
+}
+
+model VatVerification {
+  id           String                @id @default(cuid())
+  customer     Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId   String
+  countryCode  String
+  vatNumber    String
+  status       VatVerificationStatus
+  checkedAt    DateTime              @default(now())
+  requestDate  DateTime?
+  name         String?
+  address      String?
+  requestId    String?
+  errorMessage String?
+  invoices     Invoice[]
+
+  @@index([customerId, checkedAt])
+  @@index([countryCode, vatNumber, checkedAt])
+}
+
+model InvoiceEvidence {
+  id           String       @id @default(cuid())
+  invoice      Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId    String
+  type         EvidenceType
+  fileName     String
+  mimeType     String
+  size         Int
+  data         Bytes
+  note         String?
+  uploadedBy   User         @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  uploadedById String
+  createdAt    DateTime     @default(now())
+  deletedAt    DateTime?
+
+  @@index([invoiceId, createdAt])
 }
 
 model ExportSchedule {

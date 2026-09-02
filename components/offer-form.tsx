@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { CustomerSelect } from "@/components/customer-select";
 import type { InvoiceFormData } from "@/components/invoice-form";
 import { eur, TAX_TREATMENT_OPTIONS } from "@/lib/format";
+import { assessTaxTreatment, SUPPLY_KIND_OPTIONS } from "@/lib/tax-rules";
+import type { SupplyKind } from "@/lib/generated/prisma/enums";
 
 type LineType = "FREE" | "SOFTWARE" | "HARDWARE";
 
@@ -16,6 +18,7 @@ type OfferLine = {
   unit: string;
   unitPrice: number;
   taxRate: number;
+  supplyKind: SupplyKind;
   softwareItemId: string;
   itemId: string;
   warehouseId: string;
@@ -26,6 +29,9 @@ export type OfferInitial = {
   customerId: string;
   issueDate: string;
   validUntil: string;
+  deliveryDate: string | null;
+  servicePeriodStart: string | null;
+  servicePeriodEnd: string | null;
   taxTreatment: string;
   notes: string | null;
   lines: Omit<OfferLine, "key" | "type">[];
@@ -42,6 +48,7 @@ function newLine(): OfferLine {
     unit: "Stk",
     unitPrice: 0,
     taxRate: 20,
+    supplyKind: "SERVICE",
     softwareItemId: "",
     itemId: "",
     warehouseId: "",
@@ -54,6 +61,9 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
   const [customerId, setCustomerId] = useState(initial.customerId);
   const [issueDate, setIssueDate] = useState(initial.issueDate);
   const [validUntil, setValidUntil] = useState(initial.validUntil);
+  const [deliveryDate, setDeliveryDate] = useState(initial.deliveryDate ?? "");
+  const [periodStart, setPeriodStart] = useState(initial.servicePeriodStart ?? "");
+  const [periodEnd, setPeriodEnd] = useState(initial.servicePeriodEnd ?? "");
   const [taxTreatment, setTaxTreatment] = useState(initial.taxTreatment);
   const [notes, setNotes] = useState(initial.notes ?? "");
   const [lines, setLines] = useState<OfferLine[]>(
@@ -68,6 +78,15 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const isStandard = taxTreatment === "STANDARD";
+  const selectedCustomer = data.customers.find((customer) => customer.id === customerId);
+  const taxAssessment = selectedCustomer
+    ? assessTaxTreatment({
+        customerType: selectedCustomer.customerType,
+        countryCode: selectedCustomer.countryCode,
+        uid: selectedCustomer.uid,
+        supplyKinds: lines.map((line) => line.supplyKind),
+      })
+    : null;
 
   const totals = useMemo(() => {
     const net = lines.reduce((sum, line) => sum + Math.round(line.quantity * line.unitPrice * 100) / 100, 0);
@@ -85,13 +104,31 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
   }, [isStandard, lines]);
 
   function updateLine(key: number, patch: Partial<OfferLine>) {
-    setLines((current) => current.map((line) => line.key === key ? { ...line, ...patch } : line));
+    const nextLines = lines.map((line) => line.key === key ? { ...line, ...patch } : line);
+    setLines(nextLines);
+    if (selectedCustomer) {
+      const assessment = assessTaxTreatment({
+        customerType: selectedCustomer.customerType,
+        countryCode: selectedCustomer.countryCode,
+        uid: selectedCustomer.uid,
+        supplyKinds: nextLines.map((line) => line.supplyKind),
+      });
+      if (assessment.expectedTreatment) setTaxTreatment(assessment.expectedTreatment);
+    }
   }
 
   function selectCustomer(id: string) {
     setCustomerId(id);
     const customer = data.customers.find((entry) => entry.id === id);
-    if (customer) setTaxTreatment(customer.defaultTaxTreatment);
+    if (customer) {
+      const assessment = assessTaxTreatment({
+        customerType: customer.customerType,
+        countryCode: customer.countryCode,
+        uid: customer.uid,
+        supplyKinds: lines.map((line) => line.supplyKind),
+      });
+      setTaxTreatment(assessment.expectedTreatment ?? customer.defaultTaxTreatment);
+    }
   }
 
   function selectSoftware(key: number, id: string) {
@@ -101,6 +138,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
       description: [item?.name, item?.description].filter(Boolean).join("\n"),
       unitPrice: item?.unitPrice ?? 0,
       unit: item?.unit ?? "Stk",
+      supplyKind: item?.supplyKind ?? "ELECTRONIC_SERVICE",
       itemId: "",
       warehouseId: "",
     });
@@ -114,6 +152,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
       softwareItemId: "",
       warehouseId: item?.stocks.find((stock) => stock.quantity > 0)?.warehouseId ?? "",
       unit: "Stk",
+      supplyKind: item?.supplyKind ?? "GOODS",
     });
   }
 
@@ -128,6 +167,9 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
         customerId,
         issueDate,
         validUntil,
+        deliveryDate: deliveryDate || null,
+        servicePeriodStart: periodStart || null,
+        servicePeriodEnd: periodEnd || null,
         taxTreatment,
         notes: notes || null,
         lines: lines.map((line) => ({
@@ -136,6 +178,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
           unit: line.unit,
           unitPrice: line.unitPrice,
           taxRate: line.taxRate,
+          supplyKind: line.supplyKind,
           softwareItemId: line.type === "SOFTWARE" ? line.softwareItemId || null : null,
           itemId: line.type === "HARDWARE" ? line.itemId || null : null,
           warehouseId: line.type === "HARDWARE" ? line.warehouseId || null : null,
@@ -169,6 +212,26 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
               required
               className="mt-1"
             />
+          </div>
+          {taxAssessment && (
+            <div className="sm:col-span-2 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">
+              <span className="font-semibold">Steuerprüfung:</span> {taxAssessment.reason}
+              {taxAssessment.warnings.map((warning) => <div key={warning} className="mt-1 text-amber-800">⚠ {warning}</div>)}
+            </div>
+          )}
+          <div>
+            <label className={label}>Voraussichtliches Lieferdatum</label>
+            <input type="date" value={deliveryDate} onChange={(event) => setDeliveryDate(event.target.value)} className={`${input} mt-1`} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={label}>Leistung von</label>
+              <input type="date" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} className={`${input} mt-1`} />
+            </div>
+            <div>
+              <label className={label}>bis</label>
+              <input type="date" value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} className={`${input} mt-1`} />
+            </div>
           </div>
           <div>
             <label className={label}>Angebotsdatum *</label>
@@ -208,6 +271,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
                         softwareItemId: "",
                         itemId: "",
                         warehouseId: "",
+                        supplyKind: event.target.value === "HARDWARE" ? "GOODS" : event.target.value === "SOFTWARE" ? "ELECTRONIC_SERVICE" : "SERVICE",
                       })}
                       className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
                     >
@@ -266,6 +330,16 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
                   <div className="lg:col-span-2">
                     <label className={label}>Einzelpreis € *</label>
                     <input type="number" min={0} step="0.01" required value={line.unitPrice} onChange={(event) => updateLine(line.key, { unitPrice: Number(event.target.value) })} className={`${input} mt-1`} />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <label className={label}>Leistungsart</label>
+                    {line.type === "FREE" ? (
+                      <select value={line.supplyKind} onChange={(event) => updateLine(line.key, { supplyKind: event.target.value as SupplyKind })} className={`${input} mt-1`}>
+                        {SUPPLY_KIND_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                    ) : (
+                      <div className={`${input} mt-1 bg-gray-100 text-gray-600`}>{SUPPLY_KIND_OPTIONS.find((option) => option.value === line.supplyKind)?.label}</div>
+                    )}
                   </div>
                   <div className="lg:col-span-2">
                     <label className={label}>USt</label>
