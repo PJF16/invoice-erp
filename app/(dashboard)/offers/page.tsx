@@ -25,7 +25,7 @@ export default async function OffersPage({ searchParams }: { searchParams: Promi
   });
   const now = new Date();
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-[100rem]">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Angebote</h1>

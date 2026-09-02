@@ -93,30 +93,36 @@ export default async function DashboardPage() {
       <h1 className="mb-6 text-2xl font-semibold">Dashboard</h1>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
             Umsatz {monthFmt.format(now)} (netto)
           </p>
-          <p className="mt-1 text-2xl font-bold tabular-nums">
+          <p
+            className="mt-1 truncate text-2xl font-bold tabular-nums"
+            title={eur.format(Number(monthAgg._sum.netTotal ?? 0))}
+          >
             {eur.format(Number(monthAgg._sum.netTotal ?? 0))}
           </p>
           <p className="text-xs text-gray-500">{monthAgg._count._all} Rechnungen</p>
         </div>
-        <Link href="/offene-posten" className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:border-blue-300">
+        <Link href="/offene-posten" className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:border-blue-300">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Offene Posten</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums">{eur.format(openSum)}</p>
+          <p className="mt-1 truncate text-2xl font-bold tabular-nums" title={eur.format(openSum)}>{eur.format(openSum)}</p>
           <p className="text-xs text-gray-500">{openInvoices.length} unbezahlte Rechnungen</p>
         </Link>
-        <Link href="/reminders" className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:border-red-300">
+        <Link href="/reminders" className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:border-red-300">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Überfällig</p>
-          <p className={`mt-1 text-2xl font-bold tabular-nums ${overdue.length > 0 ? "text-red-600" : ""}`}>
+          <p
+            className={`mt-1 truncate text-2xl font-bold tabular-nums ${overdue.length > 0 ? "text-red-600" : ""}`}
+            title={eur.format(overdueSum)}
+          >
             {eur.format(overdueSum)}
           </p>
           <p className="text-xs text-gray-500">
             {overdue.length > 0 ? `${overdue.length} Rechnung(en) → Mahnwesen` : "Nichts überfällig"}
           </p>
         </Link>
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Lager</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">{itemCount}</p>
           <p className="text-xs text-gray-500">Artikel · {movementsToday} Bewegungen heute</p>
@@ -124,13 +130,13 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <section className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold">Umsatz der letzten 6 Monate</h2>
           <p className="mb-4 text-xs text-gray-500">Netto, ohne stornierte Rechnungen</p>
           <div className="flex items-end gap-3">
             {months.map((m) => (
-              <div key={m.key} className="flex flex-1 flex-col items-center gap-1" title={`${m.label}: ${eur.format(m.total)}`}>
-                <span className="text-[10px] tabular-nums text-gray-500">
+              <div key={m.key} className="flex min-w-0 flex-1 flex-col items-center gap-1" title={`${m.label}: ${eur.format(m.total)}`}>
+                <span className="w-full truncate text-center text-[10px] tabular-nums text-gray-500">
                   {m.total > 0 ? eur.format(m.total).replace(",00", "") : ""}
                 </span>
                 <div
@@ -143,7 +149,7 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <section className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold">Top-Kunden {now.getFullYear()}</h2>
           <p className="mb-4 text-xs text-gray-500">Nettoumsatz im laufenden Jahr</p>
           {topCustomers.length === 0 ? (
@@ -152,8 +158,8 @@ export default async function DashboardPage() {
             <div className="space-y-3">
               {topCustomers.map(([name, total]) => (
                 <div key={name}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="truncate font-medium">{name}</span>
+                  <div className="mb-1 flex min-w-0 items-center justify-between text-sm">
+                    <span className="min-w-0 truncate font-medium" title={name}>{name}</span>
                     <span className="ml-2 shrink-0 tabular-nums text-gray-500">{eur.format(total)}</span>
                   </div>
                   <div className="h-2 rounded-full bg-gray-100">
@@ -170,14 +176,14 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <section className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
             <h2 className="text-sm font-semibold">Letzte Rechnungen</h2>
             <Link href="/invoices" className="text-xs text-blue-600 hover:underline">
               Alle anzeigen →
             </Link>
           </div>
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <tbody>
               {latest.length === 0 && (
                 <tr>
@@ -188,7 +194,7 @@ export default async function DashboardPage() {
                 const badge = INVOICE_STATUS_LABELS[inv.status];
                 return (
                   <tr key={inv.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                    <td className="px-5 py-2.5">
+                    <td className="w-1/4 truncate px-5 py-2.5">
                       <Link href={`/invoices/${inv.id}`} className="font-medium hover:text-blue-700 hover:underline">
                         {inv.number ?? "(Entwurf)"}
                       </Link>
@@ -196,9 +202,9 @@ export default async function DashboardPage() {
                         <span className="ml-1.5 text-xs text-gray-400">Storno</span>
                       )}
                     </td>
-                    <td className="px-2 py-2.5 text-gray-500">{inv.customerName || inv.customer.name}</td>
-                    <td className="px-2 py-2.5 text-right tabular-nums">{eur.format(Number(inv.grossTotal))}</td>
-                    <td className="px-5 py-2.5 text-right">
+                    <td className="truncate px-2 py-2.5 text-gray-500" title={inv.customerName || inv.customer.name}>{inv.customerName || inv.customer.name}</td>
+                    <td className="w-1/4 truncate px-2 py-2.5 text-right tabular-nums" title={eur.format(Number(inv.grossTotal))}>{eur.format(Number(inv.grossTotal))}</td>
+                    <td className="w-1/4 truncate px-5 py-2.5 text-right">
                       <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${badge.className}`}>
                         {badge.label}
                       </span>
@@ -210,14 +216,14 @@ export default async function DashboardPage() {
           </table>
         </section>
 
-        <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <section className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
             <h2 className="text-sm font-semibold">Überfällige Rechnungen</h2>
             <Link href="/reminders" className="text-xs text-blue-600 hover:underline">
               Zum Mahnwesen →
             </Link>
           </div>
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <tbody>
               {overdue.length === 0 && (
                 <tr>
@@ -228,14 +234,14 @@ export default async function DashboardPage() {
               )}
               {overdue.map((inv) => (
                 <tr key={inv.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                  <td className="px-5 py-2.5">
+                  <td className="w-1/4 truncate px-5 py-2.5">
                     <Link href={`/invoices/${inv.id}`} className="font-medium hover:text-blue-700 hover:underline">
                       {inv.number}
                     </Link>
                   </td>
-                  <td className="px-2 py-2.5 text-gray-500">{inv.customerName || inv.customer.name}</td>
-                  <td className="px-2 py-2.5 text-right tabular-nums">{eur.format(Number(inv.grossTotal))}</td>
-                  <td className="px-5 py-2.5 text-right text-xs font-medium text-red-600">
+                  <td className="truncate px-2 py-2.5 text-gray-500" title={inv.customerName || inv.customer.name}>{inv.customerName || inv.customer.name}</td>
+                  <td className="w-1/4 truncate px-2 py-2.5 text-right tabular-nums" title={eur.format(Number(inv.grossTotal))}>{eur.format(Number(inv.grossTotal))}</td>
+                  <td className="w-1/4 truncate px-5 py-2.5 text-right text-xs font-medium text-red-600">
                     {daysOverdue(inv.dueDate)} Tage
                   </td>
                 </tr>

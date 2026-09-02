@@ -44,7 +44,7 @@ export default async function OpenItemsPage() {
   for (const r of rows) bucketSums.set(r.bucket, (bucketSums.get(r.bucket) ?? 0) + r.open);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-[100rem]">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Offene Posten</h1>
         <p className="text-sm text-gray-500">

@@ -12,7 +12,7 @@ export default async function ExportPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-[100rem]">
       <h1 className="mb-1 text-2xl font-semibold">Export</h1>
       <p className="mb-6 text-sm text-gray-500">
         Belege als ZIP herunterladen oder automatisch zu einem festen Zeitpunkt per E-Mail versenden lassen.

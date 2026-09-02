@@ -54,7 +54,7 @@ export default async function CustomerHandoversPage({ searchParams }: { searchPa
     item: movement.item, warehouse: movement.warehouse, invoice: movement.invoiceLine?.invoice ?? null,
     deliveryNote: movement.deliveryNoteLine?.deliveryNote ?? null,
   }] : []);
-  return <div className="mx-auto max-w-7xl">
+  return <div className="mx-auto max-w-[100rem]">
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div><h1 className="text-2xl font-semibold">Kundenübergaben</h1><p className="text-sm text-gray-500">{countFor("PENDING")} ausstehend · {countFor("INVOICED")} verrechnet · {countFor("GIFTED")} verschenkt</p></div>
       <form method="GET" className="flex flex-wrap gap-2">

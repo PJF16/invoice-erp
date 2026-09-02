@@ -25,7 +25,7 @@ export default async function DeliveryNotesPage({ searchParams }: { searchParams
   ]);
   const canCreateInvoice = Boolean(session?.user && hasModule(session.user, "INVOICES"));
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-[100rem]">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div><h1 className="text-2xl font-semibold">Lieferscheine</h1><p className="text-sm text-gray-500">{notes.length} Lieferscheine im aktuellen Filter</p></div>
         <div className="flex flex-wrap gap-2">
