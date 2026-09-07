@@ -51,6 +51,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
             itemId: l.itemId ?? "",
             warehouseId: l.warehouseId ?? "",
             sourceMovementId: l.sourceMovementId ?? "",
+            sourceDeliveryNoteLineId: l.sourceDeliveryNoteLineId ?? "",
           })),
         }}
       />

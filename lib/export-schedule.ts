@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
 import { getSettings } from "@/lib/settings";
-import { getMailTransport, fillMailTemplate } from "@/lib/mail-transport";
+import { sendMonitoredMail, fillMailTemplate } from "@/lib/mail-transport";
 import { addInterval } from "@/lib/dates";
 import { computePeriodRange, queryExportInvoices, buildDocumentsZip } from "@/lib/export";
 
@@ -31,11 +31,12 @@ export async function runExportSchedule(scheduleId: string) {
 
   const zip = await buildDocumentsZip(invoices, settings);
   const vars = { zeitraum: label };
-  const transport = getMailTransport();
-  await transport.sendMail({
+  const recipient = parseRecipients(schedule.recipientEmail).join(",");
+  const subject = fillMailTemplate(schedule.emailSubject, vars);
+  await sendMonitoredMail({ kind: "EXPORT", recipient, subject }, {
     from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
-    to: parseRecipients(schedule.recipientEmail).join(","),
-    subject: fillMailTemplate(schedule.emailSubject, vars),
+    to: recipient,
+    subject,
     text: fillMailTemplate(schedule.emailBody, vars),
     attachments: [
       {

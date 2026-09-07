@@ -65,16 +65,20 @@ export async function renderInvoicePdf(
     doc.fillColor("#000000");
 
     // Empfänger
+    const recipientX = 55;
+    const recipientWidth = 245;
     doc.moveDown(2.5);
     doc.fontSize(8).fillColor("#888888")
-      .text(`${settings.name} · ${settings.street} · ${settings.zip} ${settings.city}`);
+      .text(`${settings.name} · ${settings.street} · ${settings.zip} ${settings.city}`, { width: recipientWidth });
     doc.fillColor("#000000").fontSize(11).moveDown(0.4);
-    doc.font("Helvetica-Bold").text(invoice.customerName);
-    doc.font("Helvetica").text(invoice.customerAddress);
-    if (invoice.customerUid) doc.text(`UID: ${invoice.customerUid}`);
+    const recipientY = doc.y;
+    doc.font("Helvetica-Bold").text(invoice.customerName, recipientX, recipientY, { width: recipientWidth });
+    doc.font("Helvetica").text(invoice.customerAddress, recipientX, doc.y, { width: recipientWidth });
+    if (invoice.customerUid) doc.text(`UID: ${invoice.customerUid}`, recipientX, doc.y, { width: recipientWidth });
+    const recipientBottom = doc.y;
 
     // Meta rechts
-    const metaY = doc.y - 60;
+    const metaY = recipientY;
     doc.fontSize(10);
     const meta: [string, string][] = [
       ["Rechnungsnummer:", invoice.number ?? "ENTWURF"],
@@ -100,7 +104,7 @@ export async function renderInvoicePdf(
 
     // Titel
     const docTitle = invoice.type === "CREDIT_NOTE" ? "Stornorechnung" : "Rechnung";
-    doc.text("", 55, Math.max(doc.y, y) + 30);
+    doc.text("", 55, Math.max(recipientBottom, y) + 30);
     doc.fontSize(14).font("Helvetica-Bold").text(`${docTitle} ${invoice.number ?? "(Entwurf)"}`);
     doc.moveDown(0.8);
 

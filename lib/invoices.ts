@@ -33,6 +33,7 @@ export type LineInput = {
   itemId?: string | null;
   warehouseId?: string | null;
   sourceMovementId?: string | null;
+  sourceDeliveryNoteLineId?: string | null;
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -127,6 +128,40 @@ async function reserveSourceMovements(tx: Tx, sourceIds: string[]) {
   }
 }
 
+async function validateSourceDeliveryLines(tx: Tx, input: CreateInvoiceInput) {
+  const sourceIds = input.lines.map((line) => line.sourceDeliveryNoteLineId).filter((id): id is string => Boolean(id));
+  if (new Set(sourceIds).size !== sourceIds.length) throw new ApiError(400, "Eine Kundenübergabe kann nur einmal verrechnet werden");
+  if (sourceIds.length === 0) return sourceIds;
+  const deliveryLines = await tx.deliveryNoteLine.findMany({
+    where: { id: { in: sourceIds } },
+    include: { deliveryNote: true },
+  });
+  const byId = new Map(deliveryLines.map((line) => [line.id, line]));
+  for (const line of input.lines) {
+    if (!line.sourceDeliveryNoteLineId) continue;
+    const source = byId.get(line.sourceDeliveryNoteLineId);
+    if (!source) throw new ApiError(404, "Kundenübergabe nicht gefunden");
+    if (source.deliveryNote.status !== "ACTIVE" || source.deliveryNote.customerId !== input.customerId || source.billingStatus !== "PENDING") {
+      throw new ApiError(400, "Die Kundenübergabe ist nicht mehr zur Verrechnung verfügbar");
+    }
+    if (line.softwareItemId || line.itemId !== source.itemId || line.warehouseId !== source.warehouseId || line.quantity !== source.quantity) {
+      throw new ApiError(400, "Artikel und Menge einer Kundenübergabe dürfen nicht verändert werden");
+    }
+  }
+  return sourceIds;
+}
+
+async function reserveSourceDeliveryLines(tx: Tx, sourceIds: string[]) {
+  if (sourceIds.length === 0) return;
+  const updated = await tx.deliveryNoteLine.updateMany({
+    where: { id: { in: sourceIds }, billingStatus: "PENDING", deliveryNote: { status: "ACTIVE" } },
+    data: { billingStatus: "INVOICED" },
+  });
+  if (updated.count !== sourceIds.length) throw new ApiError(409, "Eine Kundenübergabe wurde zwischenzeitlich geändert");
+  const movements = await tx.deliveryNoteLine.findMany({ where: { id: { in: sourceIds }, movementId: { not: null } }, select: { movementId: true } });
+  await tx.movement.updateMany({ where: { id: { in: movements.flatMap((line) => line.movementId ? [line.movementId] : []) } }, data: { billingStatus: "INVOICED" } });
+}
+
 function invoiceLinesData(lines: ReturnType<typeof computeTotals>["lines"]) {
   return lines.map((line, i) => ({
     position: i + 1,
@@ -141,6 +176,7 @@ function invoiceLinesData(lines: ReturnType<typeof computeTotals>["lines"]) {
     itemId: line.itemId ?? null,
     warehouseId: line.warehouseId ?? null,
     sourceMovementId: line.sourceMovementId ?? null,
+    sourceDeliveryNoteLineId: line.sourceDeliveryNoteLineId ?? null,
   }));
 }
 
@@ -178,9 +214,11 @@ export async function createDraftInvoice(input: CreateInvoiceInput) {
     const resolvedLines = await resolveReferencedSupplyKinds(tx, input.lines);
     const { lines, netTotal, taxTotal, grossTotal } = computeTotals(resolvedLines, input.taxTreatment);
     const sourceIds = await validateSourceMovements(tx, input);
+    const deliverySourceIds = await validateSourceDeliveryLines(tx, input);
     // Vor dem Anlegen der Positionen atomar reservieren. So endet ein
     // paralleler Entwurf kontrolliert mit 409 statt an der Unique-Constraint.
     await reserveSourceMovements(tx, sourceIds);
+    await reserveSourceDeliveryLines(tx, deliverySourceIds);
     const invoice = await tx.invoice.create({
       data: {
         customerId: input.customerId,
@@ -211,7 +249,7 @@ export async function updateDraftInvoice(invoiceId: string, input: CreateInvoice
     await lockInvoice(tx, invoiceId);
     const existing = await tx.invoice.findUnique({
       where: { id: invoiceId },
-      include: { lines: { select: { sourceMovementId: true } } },
+      include: { lines: { select: { sourceMovementId: true, sourceDeliveryNoteLineId: true } } },
     });
     if (!existing) throw new ApiError(404, "Rechnung nicht gefunden");
     if (existing.status !== "DRAFT") throw new ApiError(400, "Nur Entwürfe können bearbeitet werden");
@@ -225,9 +263,17 @@ export async function updateDraftInvoice(invoiceId: string, input: CreateInvoice
     if (oldSourceIds.length > 0) {
       await tx.movement.updateMany({ where: { id: { in: oldSourceIds } }, data: { billingStatus: "PENDING" } });
     }
+    const oldDeliverySourceIds = existing.lines.map((line) => line.sourceDeliveryNoteLineId).filter((id): id is string => Boolean(id));
+    if (oldDeliverySourceIds.length > 0) {
+      await tx.deliveryNoteLine.updateMany({ where: { id: { in: oldDeliverySourceIds } }, data: { billingStatus: "PENDING" } });
+      const linked = await tx.deliveryNoteLine.findMany({ where: { id: { in: oldDeliverySourceIds }, movementId: { not: null } }, select: { movementId: true } });
+      await tx.movement.updateMany({ where: { id: { in: linked.flatMap((line) => line.movementId ? [line.movementId] : []) } }, data: { billingStatus: "PENDING" } });
+    }
     await tx.invoiceLine.deleteMany({ where: { invoiceId } });
     const sourceIds = await validateSourceMovements(tx, input);
+    const deliverySourceIds = await validateSourceDeliveryLines(tx, input);
     await reserveSourceMovements(tx, sourceIds);
+    await reserveSourceDeliveryLines(tx, deliverySourceIds);
     const invoice = await tx.invoice.update({
       where: { id: invoiceId },
       data: {
@@ -255,7 +301,7 @@ export async function deleteDraftInvoice(invoiceId: string) {
     await lockInvoice(tx, invoiceId);
     const existing = await tx.invoice.findUnique({
       where: { id: invoiceId },
-      include: { lines: { select: { sourceMovementId: true } } },
+      include: { lines: { select: { sourceMovementId: true, sourceDeliveryNoteLineId: true } } },
     });
     if (!existing) throw new ApiError(404, "Rechnung nicht gefunden");
     if (existing.status !== "DRAFT") {
@@ -266,6 +312,12 @@ export async function deleteDraftInvoice(invoiceId: string) {
       .filter((id): id is string => Boolean(id));
     if (sourceIds.length > 0) {
       await tx.movement.updateMany({ where: { id: { in: sourceIds } }, data: { billingStatus: "PENDING" } });
+    }
+    const deliverySourceIds = existing.lines.map((line) => line.sourceDeliveryNoteLineId).filter((id): id is string => Boolean(id));
+    if (deliverySourceIds.length > 0) {
+      await tx.deliveryNoteLine.updateMany({ where: { id: { in: deliverySourceIds } }, data: { billingStatus: "PENDING" } });
+      const linked = await tx.deliveryNoteLine.findMany({ where: { id: { in: deliverySourceIds }, movementId: { not: null } }, select: { movementId: true } });
+      await tx.movement.updateMany({ where: { id: { in: linked.flatMap((line) => line.movementId ? [line.movementId] : []) } }, data: { billingStatus: "PENDING" } });
     }
     if (existing.sourceOfferId) {
       await tx.offer.update({
@@ -357,7 +409,7 @@ export async function finalizeInvoice(
     const number = await assignInvoiceNumberTx(tx, invoice.issueDate);
 
     for (const line of invoice.lines) {
-      if (line.itemId && line.warehouseId && !line.sourceMovementId) {
+      if (line.itemId && line.warehouseId && !line.sourceMovementId && !line.sourceDeliveryNoteLineId) {
         const { movement } = await bookMovementTx(tx, {
           itemId: line.itemId,
           warehouseId: line.warehouseId,
@@ -370,7 +422,7 @@ export async function finalizeInvoice(
         });
         await tx.invoiceLine.update({
           where: { id: line.id },
-          data: { sourceMovementId: movement.id },
+          data: { sourceMovementId: movement.id, stockBookedByInvoice: true },
         });
       }
     }
@@ -422,7 +474,17 @@ export async function createStornoInvoice(invoiceId: string, userId: string) {
     const number = await assignInvoiceNumberTx(tx, now);
 
     for (const line of invoice.lines) {
-      if (line.itemId && line.warehouseId) {
+      if (line.sourceDeliveryNoteLineId) {
+        const source = await tx.deliveryNoteLine.update({
+          where: { id: line.sourceDeliveryNoteLineId },
+          data: { billingStatus: "PENDING" },
+          select: { movementId: true },
+        });
+        if (source.movementId) await tx.movement.update({ where: { id: source.movementId }, data: { billingStatus: "PENDING" } });
+      } else if (line.sourceMovementId && !line.stockBookedByInvoice) {
+        await tx.movement.update({ where: { id: line.sourceMovementId }, data: { billingStatus: "PENDING" } });
+        await tx.deliveryNoteLine.updateMany({ where: { movementId: line.sourceMovementId }, data: { billingStatus: "PENDING" } });
+      } else if (line.itemId && line.warehouseId && line.stockBookedByInvoice) {
         await bookMovementTx(tx, {
           itemId: line.itemId,
           warehouseId: line.warehouseId,
@@ -431,6 +493,12 @@ export async function createStornoInvoice(invoiceId: string, userId: string) {
           userId,
           note: `Stornorechnung ${number} zu ${invoice.number}`,
         });
+        if (line.sourceMovementId) {
+          await tx.movement.update({
+            where: { id: line.sourceMovementId },
+            data: { billingStatus: "CANCELED", canceledAt: now, canceledById: userId, canceledReason: `Stornorechnung ${number}` },
+          });
+        }
       }
     }
 

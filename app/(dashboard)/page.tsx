@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { eur, INVOICE_STATUS_LABELS } from "@/lib/format";
 import { overdueWhere, daysOverdue } from "@/lib/reminders";
+import { formatMailDate, MAIL_ERROR_LABELS } from "@/lib/mail-monitoring";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export default async function DashboardPage() {
   const startOfYear = new Date(now.getFullYear(), 0, 1);
   const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const mailSince = new Date(now.getTime() - 30 * 86_400_000);
 
   // Umsatz = finalisierte Rechnungen ohne Stornierte; Stornorechnungen bleiben
   // außen vor, da ihr Original ebenfalls nicht mitzählt (Paar hebt sich auf).
@@ -22,7 +24,7 @@ export default async function DashboardPage() {
     number: { not: null },
   };
 
-  const [monthAgg, openInvoices, overdue, revenueInvoices, yearInvoices, latest, itemCount, movementsToday] =
+  const [monthAgg, openInvoices, overdue, revenueInvoices, yearInvoices, latest, itemCount, movementsToday, mailTotal, mailProblems, latestMailProblems] =
     await Promise.all([
       prisma.invoice.aggregate({
         where: { ...revenueWhere, issueDate: { gte: startOfMonth } },
@@ -54,6 +56,21 @@ export default async function DashboardPage() {
       }),
       prisma.item.count(),
       prisma.movement.count({ where: { createdAt: { gte: startOfToday } } }),
+      prisma.mailEvent.count({ where: { createdAt: { gte: mailSince } } }),
+      prisma.mailEvent.count({
+        where: {
+          createdAt: { gte: mailSince },
+          status: { in: ["PARTIALLY_REJECTED", "REJECTED", "FAILED"] },
+        },
+      }),
+      prisma.mailEvent.findMany({
+        where: {
+          createdAt: { gte: mailSince },
+          status: { in: ["PARTIALLY_REJECTED", "REJECTED", "FAILED"] },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 3,
+      }),
     ]);
 
   const overdueSum = overdue.reduce((sum, i) => sum + Number(i.grossTotal), 0);
@@ -128,6 +145,32 @@ export default async function DashboardPage() {
           <p className="text-xs text-gray-500">Artikel · {movementsToday} Bewegungen heute</p>
         </div>
       </div>
+
+      <Link
+        href="/mail-monitoring"
+        className={`mt-6 block rounded-xl border bg-white p-5 shadow-sm hover:border-blue-300 ${mailProblems > 0 ? "border-red-300" : "border-gray-200"}`}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold">Mail-Monitoring</h2>
+            <p className="text-xs text-gray-500">{mailTotal} Versandversuche in den letzten 30 Tagen</p>
+          </div>
+          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${mailProblems > 0 ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-700"}`}>
+            {mailProblems > 0 ? `${mailProblems} Problem${mailProblems === 1 ? "" : "e"}` : "Keine Versandprobleme"}
+          </span>
+        </div>
+        {latestMailProblems.length > 0 && (
+          <div className="mt-3 grid gap-2 lg:grid-cols-3">
+            {latestMailProblems.map((event) => (
+              <div key={event.id} className="min-w-0 rounded-lg bg-red-50 px-3 py-2 text-xs">
+                <p className="truncate font-medium text-red-800">{event.recipient}</p>
+                <p className="truncate text-red-700">{event.errorCategory ? MAIL_ERROR_LABELS[event.errorCategory] : "Versandproblem"}</p>
+                <p className="text-red-500">{formatMailDate(event.createdAt)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Link>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm">

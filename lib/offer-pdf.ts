@@ -26,14 +26,20 @@ export async function renderOfferPdf(offer: OfferWithLines, settings: CompanySet
     if (contact) doc.text(contact);
     doc.fillColor("#000000");
 
+    const recipientX = 55;
+    const recipientWidth = 245;
     doc.moveDown(2.5);
-    doc.fontSize(8).fillColor("#888888").text(`${settings.name} · ${settings.street} · ${settings.zip} ${settings.city}`);
+    doc.fontSize(8).fillColor("#888888").text(`${settings.name} · ${settings.street} · ${settings.zip} ${settings.city}`, {
+      width: recipientWidth,
+    });
     doc.fillColor("#000000").fontSize(11).moveDown(0.4);
-    doc.font("Helvetica-Bold").text(offer.customerName);
-    doc.font("Helvetica").text(offer.customerAddress);
-    if (offer.customerUid) doc.text(`UID: ${offer.customerUid}`);
+    const recipientY = doc.y;
+    doc.font("Helvetica-Bold").text(offer.customerName, recipientX, recipientY, { width: recipientWidth });
+    doc.font("Helvetica").text(offer.customerAddress, recipientX, doc.y, { width: recipientWidth });
+    if (offer.customerUid) doc.text(`UID: ${offer.customerUid}`, recipientX, doc.y, { width: recipientWidth });
+    const recipientBottom = doc.y;
 
-    const metaY = doc.y - 60;
+    const metaY = recipientY;
     doc.fontSize(10);
     const meta: [string, string][] = [
       ["Angebotsnummer:", offer.number ?? "ENTWURF"],
@@ -52,7 +58,7 @@ export async function renderOfferPdf(offer: OfferWithLines, settings: CompanySet
       y += 15;
     }
 
-    doc.text("", 55, Math.max(doc.y, y) + 30);
+    doc.text("", 55, Math.max(recipientBottom, y) + 30);
     doc.fontSize(14).font("Helvetica-Bold").text(`Angebot ${offer.number ?? "(Entwurf)"}`);
     doc.moveDown(0.8);
 

@@ -12,6 +12,7 @@ type ItemOption = {
 };
 
 type Line = { key: number; itemId: string; warehouseId: string; quantity: number };
+type DeliveryMethod = "STOCK" | "DISTRIBUTOR_DIRECT";
 let keyCounter = 1;
 const newLine = (): Line => ({ key: keyCounter++, itemId: "", warehouseId: "", quantity: 1 });
 
@@ -29,6 +30,10 @@ export function DeliveryNoteForm({
   const router = useRouter();
   const [customerId, setCustomerId] = useState("");
   const [issueDate, setIssueDate] = useState(defaultIssueDate);
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("STOCK");
+  const [distributor, setDistributor] = useState("");
+  const [distributorReference, setDistributorReference] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([newLine()]);
   const [loading, setLoading] = useState(false);
@@ -47,7 +52,7 @@ export function DeliveryNoteForm({
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
-    const keys = lines.map((line) => `${line.itemId}:${line.warehouseId}`);
+    const keys = lines.map((line) => `${line.itemId}:${deliveryMethod === "STOCK" ? line.warehouseId : "direct"}`);
     if (new Set(keys).size !== keys.length) {
       setError("Derselbe Artikel und dasselbe Lager dürfen nur einmal vorkommen");
       return;
@@ -59,8 +64,12 @@ export function DeliveryNoteForm({
       body: JSON.stringify({
         customerId,
         issueDate,
+        deliveryMethod,
+        distributor: deliveryMethod === "DISTRIBUTOR_DIRECT" ? distributor : null,
+        distributorReference: deliveryMethod === "DISTRIBUTOR_DIRECT" ? distributorReference || null : null,
+        trackingNumber: deliveryMethod === "DISTRIBUTOR_DIRECT" ? trackingNumber || null : null,
         notes: notes || null,
-        lines: lines.map(({ itemId, warehouseId, quantity }) => ({ itemId, warehouseId, quantity })),
+        lines: lines.map(({ itemId, warehouseId, quantity }) => ({ itemId, warehouseId: deliveryMethod === "STOCK" ? warehouseId : null, quantity })),
       }),
     });
     setLoading(false);
@@ -89,12 +98,35 @@ export function DeliveryNoteForm({
             <input type="date" required value={issueDate} onChange={(event) => setIssueDate(event.target.value)} className={`${input} mt-1`} />
           </div>
         </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div>
+            <label className={label}>Lieferweg *</label>
+            <select value={deliveryMethod} onChange={(event) => setDeliveryMethod(event.target.value as DeliveryMethod)} className={`${input} mt-1`}>
+              <option value="STOCK">Aus eigenem Lager</option>
+              <option value="DISTRIBUTOR_DIRECT">Direktversand durch Distributor</option>
+            </select>
+          </div>
+          {deliveryMethod === "DISTRIBUTOR_DIRECT" && <>
+            <div>
+              <label className={label}>Distributor *</label>
+              <input required value={distributor} onChange={(event) => setDistributor(event.target.value)} className={`${input} mt-1`} placeholder="z. B. ALSO" />
+            </div>
+            <div>
+              <label className={label}>Distributor-Referenz</label>
+              <input value={distributorReference} onChange={(event) => setDistributorReference(event.target.value)} className={`${input} mt-1`} />
+            </div>
+            <div className="sm:col-start-2">
+              <label className={label}>Trackingnummer</label>
+              <input value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} className={`${input} mt-1`} />
+            </div>
+          </>}
+        </div>
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="mb-4">
           <h2 className="text-sm font-semibold">Gelieferte Artikel</h2>
-          <p className="text-xs text-gray-500">Beim Erstellen werden alle Positionen gemeinsam ausgebucht und als offene Kundenübergaben vorgemerkt.</p>
+          <p className="text-xs text-gray-500">{deliveryMethod === "STOCK" ? "Beim Erstellen werden alle Positionen gemeinsam ausgebucht und als offene Kundenübergaben vorgemerkt." : "Die Lieferung wird als offene Kundenübergabe protokolliert, ohne den eigenen Lagerbestand zu verändern."}</p>
         </div>
         <div className="space-y-3">
           {lines.map((line, index) => {
@@ -109,14 +141,14 @@ export function DeliveryNoteForm({
                     {items.map((entry) => <option key={entry.id} value={entry.id}>{entry.sku ? `${entry.sku} · ` : ""}{entry.name}</option>)}
                   </select>
                 </div>
-                <div className="sm:col-span-4">
+                {deliveryMethod === "STOCK" ? <div className="sm:col-span-4">
                   <label className={label}>Lager *</label>
                   <select required value={line.warehouseId} onChange={(event) => updateLine(line.key, { warehouseId: event.target.value })} className={`${input} mt-1`}>
                     <option value="">– Lager wählen –</option>
                     {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
                   </select>
                   {line.itemId && line.warehouseId && <p className={`mt-1 text-xs ${stock < line.quantity ? "text-red-600" : "text-gray-500"}`}>Bestand: {stock}</p>}
-                </div>
+                </div> : <div className="flex items-center text-sm text-blue-700 sm:col-span-4">Direktversand – keine Lagerbuchung</div>}
                 <div className="sm:col-span-2">
                   <label className={label}>Menge *</label>
                   <input type="number" min={1} step={1} required value={line.quantity} onChange={(event) => updateLine(line.key, { quantity: Number(event.target.value) })} className={`${input} mt-1`} />
@@ -138,7 +170,7 @@ export function DeliveryNoteForm({
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" onClick={() => router.back()} className="rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">Abbrechen</button>
-        <button type="submit" disabled={loading} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">{loading ? "Buche aus…" : "Lieferschein erstellen & ausbuchen"}</button>
+        <button type="submit" disabled={loading} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">{loading ? "Erstelle…" : deliveryMethod === "STOCK" ? "Lieferschein erstellen & ausbuchen" : "Direktlieferung protokollieren"}</button>
       </div>
     </form>
   );

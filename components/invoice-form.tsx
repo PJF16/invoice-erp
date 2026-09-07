@@ -45,6 +45,7 @@ type Line = {
   itemId: string;
   warehouseId: string;
   sourceMovementId: string;
+  sourceDeliveryNoteLineId: string;
 };
 
 export type InvoiceInitial = {
@@ -77,6 +78,7 @@ function newLine(): Line {
     itemId: "",
     warehouseId: "",
     sourceMovementId: "",
+    sourceDeliveryNoteLineId: "",
   };
 }
 
@@ -132,7 +134,7 @@ export function InvoiceForm({
   const [loading, setLoading] = useState(false);
 
   const isStandard = taxTreatment === "STANDARD";
-  const hasSourceMovements = lines.some((line) => Boolean(line.sourceMovementId));
+  const hasSourceMovements = lines.some((line) => Boolean(line.sourceMovementId || line.sourceDeliveryNoteLineId));
   const selectedCustomer = data.customers.find((customer) => customer.id === customerId);
   const taxAssessment = selectedCustomer
     ? assessTaxTreatment({
@@ -238,6 +240,7 @@ export function InvoiceForm({
         itemId: l.type === "HARDWARE" ? l.itemId || null : null,
         warehouseId: l.type === "HARDWARE" ? l.warehouseId || null : null,
         sourceMovementId: l.sourceMovementId || null,
+        sourceDeliveryNoteLineId: l.sourceDeliveryNoteLineId || null,
       })),
     };
     const res = await fetch(isEditing ? `/api/invoices/${initial!.id}` : "/api/invoices", {
@@ -343,7 +346,7 @@ export function InvoiceForm({
                   <div className="flex items-center gap-2">
                     <select
                       value={line.type}
-                      disabled={Boolean(line.sourceMovementId)}
+                      disabled={Boolean(line.sourceMovementId || line.sourceDeliveryNoteLineId)}
                       onChange={(e) =>
                         updateLine(line.key, {
                           type: e.target.value as LineType,
@@ -396,7 +399,7 @@ export function InvoiceForm({
                         <label className={label}>Hardware-Artikel</label>
                         <select
                           required
-                          disabled={Boolean(line.sourceMovementId)}
+                          disabled={Boolean(line.sourceMovementId || line.sourceDeliveryNoteLineId)}
                           value={line.itemId}
                           onChange={(e) => selectHardware(line.key, e.target.value)}
                           className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-500`}
@@ -411,9 +414,9 @@ export function InvoiceForm({
                       </div>
                       <div className="xl:col-span-2">
                         <label className={label}>Lager (Ausbuchung)</label>
-                        <select
+                        {line.sourceDeliveryNoteLineId && !line.warehouseId ? <div className={`${input} mt-1 bg-blue-50 text-blue-700`}>Direktversand – keine Lagerbuchung</div> : <select
                           required
-                          disabled={Boolean(line.sourceMovementId)}
+                          disabled={Boolean(line.sourceMovementId || line.sourceDeliveryNoteLineId)}
                           value={line.warehouseId}
                           onChange={(e) => updateLine(line.key, { warehouseId: e.target.value })}
                           className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-500`}
@@ -424,7 +427,7 @@ export function InvoiceForm({
                               {w.name}
                             </option>
                           ))}
-                        </select>
+                        </select>}
                         {stock && (
                           <p className={`mt-1 text-xs ${stock.quantity < line.quantity ? "text-red-600" : "text-gray-500"}`}>
                             Bestand: {stock.quantity}
@@ -460,7 +463,7 @@ export function InvoiceForm({
                       min={line.type === "HARDWARE" ? 1 : 0.01}
                       step={line.type === "HARDWARE" ? 1 : 0.01}
                       required
-                      disabled={Boolean(line.sourceMovementId)}
+                      disabled={Boolean(line.sourceMovementId || line.sourceDeliveryNoteLineId)}
                       value={line.quantity}
                       onChange={(e) => updateLine(line.key, { quantity: Number(e.target.value) })}
                       className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-500`}
@@ -520,9 +523,9 @@ export function InvoiceForm({
                     )}
                   </div>
                 </div>
-                {line.sourceMovementId && (
+                {(line.sourceMovementId || line.sourceDeliveryNoteLineId) && (
                   <p className="mt-2 text-xs text-blue-700">
-                    Bereits aus dem Lager gebucht – beim Finalisieren erfolgt keine zweite Ausbuchung.
+                    {line.warehouseId ? "Bereits aus dem Lager gebucht – beim Finalisieren erfolgt keine zweite Ausbuchung." : "Direktlieferung – beim Finalisieren erfolgt keine Lagerbuchung."}
                   </p>
                 )}
                 <p className="mt-2 text-right text-sm text-gray-500">

@@ -15,11 +15,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     const movement = await prisma.movement.findUnique({
       where: { id },
-      include: { invoiceLine: { select: { invoiceId: true } } },
+      include: { invoiceLine: { select: { invoiceId: true } }, deliveryNoteLine: { select: { id: true } } },
     });
     if (!movement) throw new ApiError(404, "Lagerbewegung nicht gefunden");
     if (movement.type !== "OUT" || !movement.customerId || !movement.billingStatus) {
       throw new ApiError(400, "Diese Lagerbewegung ist keine Kundenübergabe");
+    }
+    if (movement.billingStatus === "CANCELED" || movement.canceledAt) {
+      throw new ApiError(400, "Eine stornierte Übergabe kann nicht geändert werden");
+    }
+    if (movement.deliveryNoteLine) {
+      throw new ApiError(400, "Der Status dieser Übergabe wird über den Lieferschein verwaltet");
     }
     if (movement.invoiceLine && parsed.data.billingStatus !== "INVOICED") {
       throw new ApiError(400, "Die Übergabe ist mit einer Rechnung verknüpft und kann nicht manuell geändert werden");

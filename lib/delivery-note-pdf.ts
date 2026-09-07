@@ -31,7 +31,11 @@ export async function renderDeliveryNotePdf(note: DeliveryNoteWithLines, setting
     const meta: [string, string][] = [
       ["Lieferscheinnummer:", note.number],
       ["Lieferdatum:", dateFmt.format(note.issueDate)],
+      ["Lieferweg:", note.deliveryMethod === "STOCK" ? "Eigenes Lager" : "Distributor-Direktversand"],
     ];
+    if (note.distributor) meta.push(["Distributor:", note.distributor]);
+    if (note.distributorReference) meta.push(["Referenz:", note.distributorReference]);
+    if (note.trackingNumber) meta.push(["Tracking:", note.trackingNumber]);
     let y = metaY;
     doc.fontSize(10);
     for (const [label, value] of meta) {
@@ -43,6 +47,7 @@ export async function renderDeliveryNotePdf(note: DeliveryNoteWithLines, setting
 
     doc.text("", 55, Math.max(doc.y, y) + 30);
     doc.fontSize(14).font("Helvetica-Bold").text(`Lieferschein ${note.number}`);
+    if (note.status === "CANCELED") doc.moveDown(0.3).fillColor("#b91c1c").fontSize(12).text("STORNIERT").fillColor("#000000");
     doc.moveDown(0.8);
 
     const columns = { position: 55, sku: 85, description: 180, warehouse: 400, quantity: 495 };
@@ -62,7 +67,7 @@ export async function renderDeliveryNotePdf(note: DeliveryNoteWithLines, setting
       doc.text(line.itemSku ?? "–", columns.sku, rowY, { width: 85 });
       doc.text(line.itemName, columns.description, rowY, { width: 205 });
       const rowBottom = doc.y;
-      doc.text(line.warehouseName, columns.warehouse, rowY, { width: 90 });
+      doc.text(line.warehouseName ?? "Direktversand", columns.warehouse, rowY, { width: 90 });
       doc.text(`${line.quantity} Stk`, columns.quantity, rowY, { width: 60, align: "right" });
       doc.y = Math.max(doc.y, rowBottom) + 6;
     }
@@ -71,6 +76,11 @@ export async function renderDeliveryNotePdf(note: DeliveryNoteWithLines, setting
     if (note.notes) {
       doc.moveDown(1.5);
       doc.fontSize(9).text(note.notes, 55, doc.y, { width: pageWidth });
+    }
+    if (note.status === "CANCELED" && note.canceledReason) {
+      doc.moveDown(1);
+      doc.fillColor("#b91c1c").fontSize(9).text(`Stornogrund: ${note.canceledReason}`, 55, doc.y, { width: pageWidth });
+      doc.fillColor("#000000");
     }
     doc.moveDown(4);
     const signatureY = doc.y;

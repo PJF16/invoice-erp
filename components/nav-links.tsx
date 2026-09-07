@@ -37,6 +37,7 @@ const groups: {
       { href: "/customers", label: "Kunden" },
       { href: "/software", label: "Software" },
       { href: "/export", label: "Export" },
+      { href: "/mail-monitoring", label: "Mail-Monitoring" },
     ],
   },
 ];

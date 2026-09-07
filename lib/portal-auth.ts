@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest, NextResponse } from "next/server";
 import { ApiError } from "@/lib/api-helpers";
-import { getMailTransport } from "@/lib/mail-transport";
+import { sendMonitoredMail } from "@/lib/mail-transport";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 
@@ -124,10 +124,11 @@ export async function requestPortalLogin(emailInput: string, req: NextRequest) {
   const company = settings.name || "Kundenportal";
 
   try {
-    await getMailTransport().sendMail({
+    const subject = `Ihr Zugangscode für ${company}`;
+    await sendMonitoredMail({ kind: "PORTAL_LOGIN", recipient: email, subject }, {
       from: process.env.SMTP_FROM,
       to: email,
-      subject: `Ihr Zugangscode für ${company}`,
+      subject,
       text: `Ihr Zugangscode lautet: ${code}\n\nAlternativ können Sie diesen Anmeldelink verwenden:\n${magicUrl}\n\nCode und Link sind 10 Minuten gültig und nur einmal verwendbar.`,
       html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#172033">
         <h2 style="margin-bottom:8px">Anmeldung bei ${escapeHtml(company)}</h2>

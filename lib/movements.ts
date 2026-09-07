@@ -98,3 +98,37 @@ export async function bookMovementTx(tx: Tx, input: BookMovementInput) {
     return { movement, newQuantity };
   }
 }
+
+export async function cancelCustomerHandover(movementId: string, userId: string, reason: string) {
+  return prisma.$transaction(async (tx) => {
+    const movement = await tx.movement.findUnique({
+      where: { id: movementId },
+      include: { invoiceLine: true, deliveryNoteLine: true },
+    });
+    if (!movement) throw new ApiError(404, "Kundenübergabe nicht gefunden");
+    if (movement.deliveryNoteLine) {
+      throw new ApiError(400, "Übergaben eines Lieferscheins müssen über den Lieferschein storniert werden");
+    }
+    if (movement.type !== "OUT" || !movement.customerId || !movement.billingStatus) {
+      throw new ApiError(400, "Diese Lagerbewegung ist keine Kundenübergabe");
+    }
+    if (movement.canceledAt || movement.billingStatus === "CANCELED") {
+      throw new ApiError(400, "Die Kundenübergabe ist bereits storniert");
+    }
+    if (movement.invoiceLine || movement.billingStatus === "INVOICED") {
+      throw new ApiError(400, "Verrechnete Übergaben können erst nach dem Löschen des Rechnungsentwurfs oder dem Storno der Rechnung storniert werden");
+    }
+    await bookMovementTx(tx, {
+      itemId: movement.itemId,
+      warehouseId: movement.warehouseId,
+      type: "IN",
+      quantity: Math.abs(movement.quantity),
+      userId,
+      note: `Storno Kundenübergabe: ${reason}`,
+    });
+    return tx.movement.update({
+      where: { id: movementId },
+      data: { billingStatus: "CANCELED", canceledAt: new Date(), canceledById: userId, canceledReason: reason },
+    });
+  });
+}

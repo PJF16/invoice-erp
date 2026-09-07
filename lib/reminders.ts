@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
 import { getSettings, isSmtpConfigured } from "@/lib/settings";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
-import { getMailTransport, fillMailTemplate } from "@/lib/mail-transport";
+import { sendMonitoredMail, fillMailTemplate } from "@/lib/mail-transport";
 
 const eur = new Intl.NumberFormat("de-AT", { style: "currency", currency: "EUR" });
 const dateFmt = new Intl.DateTimeFormat("de-AT", { dateStyle: "medium" });
@@ -53,11 +53,16 @@ export async function sendReminderEmail(invoiceId: string) {
     tage: String(daysOverdue(invoice.dueDate)),
   };
 
-  const transport = getMailTransport();
-  await transport.sendMail({
+  const subject = fillMailTemplate(settings.reminderSubject, vars);
+  await sendMonitoredMail({
+    kind: "REMINDER",
+    recipient: invoice.customer.email,
+    subject,
+    invoiceId: invoice.id,
+  }, {
     from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
     to: invoice.customer.email,
-    subject: fillMailTemplate(settings.reminderSubject, vars),
+    subject,
     text: fillMailTemplate(settings.reminderBody, vars),
     attachments: [
       {

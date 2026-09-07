@@ -14,6 +14,7 @@ const billingLabels: Record<MovementBillingStatus, string> = {
   PENDING: "Ausstehend",
   INVOICED: "Verrechnet",
   GIFTED: "Verschenkt",
+  CANCELED: "Storniert",
 };
 
 export default async function MovementsPage({

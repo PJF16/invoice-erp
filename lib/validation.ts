@@ -88,13 +88,17 @@ const documentLineSchema = z.object({
   itemId: optionalTrimmed,
   warehouseId: optionalTrimmed,
   sourceMovementId: optionalTrimmed,
+  sourceDeliveryNoteLineId: optionalTrimmed,
 });
 
 function validateDocumentLine(
   line: z.infer<typeof documentLineSchema>,
   ctx: z.RefinementCtx,
 ) {
-  if (Boolean(line.itemId) !== Boolean(line.warehouseId)) {
+  if (line.sourceMovementId && line.sourceDeliveryNoteLineId) {
+    ctx.addIssue({ code: "custom", path: ["sourceDeliveryNoteLineId"], message: "Eine Position darf nur eine Kundenübergabe referenzieren" });
+  }
+  if (Boolean(line.itemId) !== Boolean(line.warehouseId) && !line.sourceDeliveryNoteLineId) {
     ctx.addIssue({
       code: "custom",
       path: [line.itemId ? "warehouseId" : "itemId"],
@@ -132,7 +136,7 @@ export const invoiceSchema = z.object({
 });
 
 export const offerLineSchema = documentLineSchema
-  .omit({ sourceMovementId: true })
+  .omit({ sourceMovementId: true, sourceDeliveryNoteLineId: true })
   .superRefine(validateDocumentLine);
 
 export const offerSchema = z
@@ -159,12 +163,28 @@ export const offerStatusSchema = z.object({
 export const deliveryNoteSchema = z.object({
   customerId: z.string().min(1, "Kunde ist erforderlich"),
   issueDate: dateString.optional(),
+  deliveryMethod: z.enum(["STOCK", "DISTRIBUTOR_DIRECT"]).default("STOCK"),
+  distributor: optionalTrimmed,
+  distributorReference: optionalTrimmed,
+  trackingNumber: optionalTrimmed,
   notes: optionalTrimmed,
   lines: z.array(z.object({
     itemId: z.string().min(1, "Artikel ist erforderlich"),
-    warehouseId: z.string().min(1, "Lager ist erforderlich"),
+    warehouseId: optionalTrimmed,
     quantity: z.number().int("Menge muss ganzzahlig sein").positive("Menge muss größer als 0 sein"),
   })).min(1, "Mindestens eine Position ist erforderlich").max(200, "Maximal 200 Positionen pro Lieferschein"),
+}).superRefine((note, ctx) => {
+  if (note.deliveryMethod === "STOCK") {
+    note.lines.forEach((line, index) => {
+      if (!line.warehouseId) ctx.addIssue({ code: "custom", path: ["lines", index, "warehouseId"], message: "Lager ist erforderlich" });
+    });
+  } else if (!note.distributor) {
+    ctx.addIssue({ code: "custom", path: ["distributor"], message: "Distributor ist erforderlich" });
+  }
+});
+
+export const cancellationSchema = z.object({
+  reason: z.string().trim().min(3, "Bitte einen Stornogrund angeben").max(500),
 });
 
 export const paymentSchema = z.object({

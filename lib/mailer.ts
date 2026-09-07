@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
 import { getSettings, isSmtpConfigured } from "@/lib/settings";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
-import { getMailTransport, fillMailTemplate } from "@/lib/mail-transport";
+import { sendMonitoredMail, fillMailTemplate } from "@/lib/mail-transport";
 
 /** Versendet eine finalisierte Rechnung als PDF-Anhang an die Kunden-E-Mail. */
 export async function sendInvoiceEmail(invoiceId: string) {
@@ -23,11 +23,16 @@ export async function sendInvoiceEmail(invoiceId: string) {
   const pdf = await renderInvoicePdf(invoice, settings);
   const vars = { nummer: invoice.number, kunde: invoice.customerName || invoice.customer.name };
 
-  const transport = getMailTransport();
-  await transport.sendMail({
+  const subject = fillMailTemplate(settings.emailSubject, vars);
+  await sendMonitoredMail({
+    kind: "INVOICE",
+    recipient: invoice.customer.email,
+    subject,
+    invoiceId: invoice.id,
+  }, {
     from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
     to: invoice.customer.email,
-    subject: fillMailTemplate(settings.emailSubject, vars),
+    subject,
     text: fillMailTemplate(settings.emailBody, vars),
     attachments: [
       {

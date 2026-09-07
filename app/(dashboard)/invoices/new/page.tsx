@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 export default async function NewInvoicePage({
   searchParams,
 }: {
-  searchParams: Promise<{ bewegungen?: string; lieferscheine?: string | string[] }>;
+  searchParams: Promise<{ bewegungen?: string; lieferscheine?: string | string[]; lieferpositionen?: string }>;
 }) {
-  const { bewegungen, lieferscheine } = await searchParams;
+  const { bewegungen, lieferscheine, lieferpositionen } = await searchParams;
   const movementIds = [...new Set((bewegungen ?? "").split(",").filter(Boolean))].slice(0, 100);
   const deliveryNoteIds = [
     ...new Set(
@@ -21,8 +21,9 @@ export default async function NewInvoicePage({
         .filter(Boolean),
     ),
   ].slice(0, 50);
+  const deliveryLineIds = [...new Set((lieferpositionen ?? "").split(",").filter(Boolean))].slice(0, 100);
   const hasMovementRequest = movementIds.length > 0;
-  const hasDeliveryNoteRequest = deliveryNoteIds.length > 0;
+  const hasDeliveryNoteRequest = deliveryNoteIds.length > 0 || deliveryLineIds.length > 0;
   const [data, movements, deliveryNotes, settings] = await Promise.all([
     loadInvoiceFormData(),
     hasMovementRequest
@@ -33,24 +34,23 @@ export default async function NewInvoicePage({
       : [],
     hasDeliveryNoteRequest
       ? prisma.deliveryNote.findMany({
-          where: { id: { in: deliveryNoteIds } },
+          where: deliveryLineIds.length > 0 ? { lines: { some: { id: { in: deliveryLineIds } } } } : { id: { in: deliveryNoteIds } },
           include: {
             customer: true,
             lines: {
               orderBy: { position: "asc" },
-              include: { movement: true },
             },
           },
         })
       : [],
     getSettings(),
   ]);
-  const orderedDeliveryNotes = deliveryNoteIds
-    .map((id) => deliveryNotes.find((note) => note.id === id))
-    .filter((note): note is NonNullable<typeof note> => Boolean(note));
+  const orderedDeliveryNotes = deliveryLineIds.length > 0
+    ? deliveryNotes
+    : deliveryNoteIds.map((id) => deliveryNotes.find((note) => note.id === id)).filter((note): note is NonNullable<typeof note> => Boolean(note));
   const pendingDeliveryLines = orderedDeliveryNotes.flatMap((note) =>
     note.lines
-      .filter((line) => line.movement.billingStatus === "PENDING")
+      .filter((line) => line.billingStatus === "PENDING" && (deliveryLineIds.length === 0 || deliveryLineIds.includes(line.id)))
       .map((line) => ({ note, line })),
   );
   const directCustomer = movements[0]?.customer;
@@ -69,15 +69,15 @@ export default async function NewInvoicePage({
   const validDeliveryNotes =
     hasDeliveryNoteRequest &&
     !hasMovementRequest &&
-    orderedDeliveryNotes.length === deliveryNoteIds.length &&
+    (deliveryLineIds.length > 0 ? pendingDeliveryLines.length === deliveryLineIds.length : orderedDeliveryNotes.length === deliveryNoteIds.length) &&
+    orderedDeliveryNotes.every((note) => note.status === "ACTIVE") &&
     Boolean(deliveryCustomer) &&
     pendingDeliveryLines.length > 0 &&
     orderedDeliveryNotes.every((note) => note.customerId === deliveryCustomer?.id) &&
     pendingDeliveryLines.every(
       ({ note, line }) =>
-        line.movement.type === "OUT" &&
-        line.movement.customerId === note.customerId &&
-        line.movement.billingStatus === "PENDING",
+        line.billingStatus === "PENDING" &&
+        (note.deliveryMethod === "DISTRIBUTOR_DIRECT" || Boolean(line.movementId)),
     );
   const customer = validDeliveryNotes ? deliveryCustomer : validMovements ? directCustomer : null;
   const issueDate = new Date();
@@ -106,8 +106,9 @@ export default async function NewInvoicePage({
               supplyKind: "GOODS",
               softwareItemId: "",
               itemId: line.itemId,
-              warehouseId: line.warehouseId,
-              sourceMovementId: line.movementId,
+              warehouseId: line.warehouseId ?? "",
+              sourceMovementId: "",
+              sourceDeliveryNoteLineId: line.id,
             }))
           : movementIds.map((id) => {
               const movement = movements.find((entry) => entry.id === id)!;
@@ -122,6 +123,7 @@ export default async function NewInvoicePage({
                 itemId: movement.itemId,
                 warehouseId: movement.warehouseId,
                 sourceMovementId: movement.id,
+                sourceDeliveryNoteLineId: "",
               };
             }),
       }
@@ -129,7 +131,7 @@ export default async function NewInvoicePage({
   const isSourceRequest = hasMovementRequest || hasDeliveryNoteRequest;
   const sourceLabel = validDeliveryNotes ? "Lieferscheinen" : "Kundenübergaben";
   const backHref = hasDeliveryNoteRequest
-    ? deliveryNoteIds.length === 1
+      ? deliveryNoteIds.length === 1 && deliveryLineIds.length === 0
       ? `/delivery-notes/${deliveryNoteIds[0]}`
       : "/delivery-notes"
     : initial
