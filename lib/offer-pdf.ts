@@ -91,11 +91,15 @@ export async function renderOfferPdf(offer: OfferWithLines, settings: CompanySet
       const rowY = doc.y;
       const quantity = num(line.quantity);
       doc.text(String(line.position), columns.position, rowY);
-      const rowBottom = renderPdfLineDescription(doc, line.description, columns.description, rowY, 230);
+      // Draw every value that belongs to the row before the description. A long
+      // description may make PDFKit add a page; explicit coordinates passed
+      // afterwards would then be interpreted on that new page and separate the
+      // prices from their position.
       doc.text(`${quantity % 1 === 0 ? quantity : quantity.toFixed(2)} ${line.unit}`, columns.quantity, rowY, { width: 60, align: "right" });
       doc.text(eur.format(num(line.unitPrice)), columns.price, rowY, { width: 65, align: "right" });
       doc.text(formatTaxRate(line.taxRate, offer.taxTreatment), columns.tax, rowY, { width: 30, align: "right" });
       doc.text(eur.format(num(line.lineNet)), columns.net, rowY, { width: 65, align: "right" });
+      const rowBottom = renderPdfLineDescription(doc, line.description, columns.description, rowY, 230);
       doc.y = Math.max(doc.y, rowBottom) + 4;
     }
 

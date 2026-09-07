@@ -138,11 +138,14 @@ export async function renderInvoicePdf(
       const rowY = doc.y;
       const qty = num(line.quantity);
       doc.text(String(line.position), cols.pos, rowY);
-      const rowBottom = renderPdfLineDescription(doc, line.description, cols.desc, rowY, 230);
+      // Render the fixed columns first. The description can span pages, and
+      // coordinates used after that automatic page break would target the new
+      // page instead of the page where the position starts.
       doc.text(`${qty % 1 === 0 ? qty : qty.toFixed(2)} ${line.unit}`, cols.qty, rowY, { width: 60, align: "right" });
       doc.text(eur.format(num(line.unitPrice)), cols.price, rowY, { width: 65, align: "right" });
       doc.text(formatTaxRate(line.taxRate, invoice.taxTreatment), cols.tax, rowY, { width: 30, align: "right" });
       doc.text(eur.format(num(line.lineNet)), cols.net, rowY, { width: 65, align: "right" });
+      const rowBottom = renderPdfLineDescription(doc, line.description, cols.desc, rowY, 230);
       doc.y = Math.max(doc.y, rowBottom) + 4;
     }
 
