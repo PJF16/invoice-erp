@@ -63,7 +63,7 @@ export default async function CustomerHandoversPage({ searchParams }: { searchPa
     deliveryNote: null,
   }] : []);
   const deliveryRows: CustomerHandoverRow[] = deliveryLines.map((line) => ({
-    id: line.id, sourceType: "DELIVERY_NOTE_LINE", createdAt: line.deliveryNote.createdAt.toISOString(), quantity: line.quantity,
+    id: line.id, sourceType: "DELIVERY_NOTE_LINE", createdAt: line.deliveryNote.createdAt.toISOString(), quantity: line.billingStatus === "CANCELED" ? line.quantity : line.quantity - line.canceledQuantity,
     billingStatus: line.billingStatus,
     note: line.deliveryNote.deliveryMethod === "DISTRIBUTOR_DIRECT" ? [`Direktversand: ${line.deliveryNote.distributor}`, line.deliveryNote.distributorReference].filter(Boolean).join(" · ") : line.deliveryNote.notes,
     customer: line.deliveryNote.customer, item: line.item, warehouse: { name: line.warehouse?.name ?? "Direktversand" },

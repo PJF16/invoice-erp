@@ -165,18 +165,19 @@ enum MailErrorCategory {
 }
 
 model User {
-  id                    String            @id @default(cuid())
-  email                 String            @unique
-  name                  String
-  passwordHash          String
-  role                  Role              @default(MEMBER)
-  modules               Module[]          @default([STOCK, INVOICES])
-  createdAt             DateTime          @default(now())
-  movements             Movement[]
-  payments              Payment[]
-  deliveryNotes         DeliveryNote[]    @relation("CreatedDeliveryNotes")
-  canceledDeliveryNotes DeliveryNote[]    @relation("CanceledDeliveryNotes")
-  evidenceUploads       InvoiceEvidence[]
+  id                        String                     @id @default(cuid())
+  email                     String                     @unique
+  name                      String
+  passwordHash              String
+  role                      Role                       @default(MEMBER)
+  modules                   Module[]                   @default([STOCK, INVOICES])
+  createdAt                 DateTime                   @default(now())
+  movements                 Movement[]
+  payments                  Payment[]
+  deliveryNotes             DeliveryNote[]             @relation("CreatedDeliveryNotes")
+  canceledDeliveryNotes     DeliveryNote[]             @relation("CanceledDeliveryNotes")
+  deliveryNoteCancellations DeliveryNoteCancellation[]
+  evidenceUploads           InvoiceEvidence[]
 }
 
 model Warehouse {
@@ -450,49 +451,75 @@ model OfferLine {
 }
 
 model DeliveryNote {
-  id                   String             @id @default(cuid())
-  number               String             @unique
-  customer             Customer           @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  id                   String                     @id @default(cuid())
+  number               String                     @unique
+  customer             Customer                   @relation(fields: [customerId], references: [id], onDelete: Restrict)
   customerId           String
   customerName         String
   customerAddress      String
   customerUid          String?
   issueDate            DateTime
-  deliveryMethod       DeliveryMethod     @default(STOCK)
+  deliveryMethod       DeliveryMethod             @default(STOCK)
   distributor          String?
   distributorReference String?
   trackingNumber       String?
-  status               DeliveryNoteStatus @default(ACTIVE)
+  status               DeliveryNoteStatus         @default(ACTIVE)
   canceledAt           DateTime?
   canceledReason       String?
-  canceledBy           User?              @relation("CanceledDeliveryNotes", fields: [canceledById], references: [id])
+  canceledBy           User?                      @relation("CanceledDeliveryNotes", fields: [canceledById], references: [id])
   canceledById         String?
   notes                String?
-  createdAt            DateTime           @default(now())
-  createdBy            User               @relation("CreatedDeliveryNotes", fields: [createdById], references: [id])
+  createdAt            DateTime                   @default(now())
+  createdBy            User                       @relation("CreatedDeliveryNotes", fields: [createdById], references: [id])
   createdById          String
   lines                DeliveryNoteLine[]
+  cancellations        DeliveryNoteCancellation[]
 
   @@index([customerId, issueDate])
 }
 
 model DeliveryNoteLine {
-  id             String                @id @default(cuid())
-  deliveryNote   DeliveryNote          @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
+  id                String                         @id @default(cuid())
+  deliveryNote      DeliveryNote                   @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
+  deliveryNoteId    String
+  position          Int
+  item              Item                           @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  itemId            String
+  itemName          String
+  itemSku           String?
+  warehouse         Warehouse?                     @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  warehouseId       String?
+  warehouseName     String?
+  quantity          Int
+  canceledQuantity  Int                            @default(0)
+  billingStatus     MovementBillingStatus          @default(PENDING)
+  movement          Movement?                      @relation(fields: [movementId], references: [id], onDelete: Restrict)
+  movementId        String?                        @unique
+  invoiceLine       InvoiceLine?                   @relation("DeliveryNoteLineInvoiceLine")
+  cancellationLines DeliveryNoteCancellationLine[]
+}
+
+model DeliveryNoteCancellation {
+  id             String                         @id @default(cuid())
+  deliveryNote   DeliveryNote                   @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
   deliveryNoteId String
-  position       Int
-  item           Item                  @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  itemId         String
-  itemName       String
-  itemSku        String?
-  warehouse      Warehouse?            @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  warehouseId    String?
-  warehouseName  String?
-  quantity       Int
-  billingStatus  MovementBillingStatus @default(PENDING)
-  movement       Movement?             @relation(fields: [movementId], references: [id], onDelete: Restrict)
-  movementId     String?               @unique
-  invoiceLine    InvoiceLine?          @relation("DeliveryNoteLineInvoiceLine")
+  reason         String
+  canceledAt     DateTime                       @default(now())
+  canceledBy     User                           @relation(fields: [canceledById], references: [id], onDelete: Restrict)
+  canceledById   String
+  lines          DeliveryNoteCancellationLine[]
+
+  @@index([deliveryNoteId, canceledAt])
+}
+
+model DeliveryNoteCancellationLine {
+  cancellation       DeliveryNoteCancellation @relation(fields: [cancellationId], references: [id], onDelete: Cascade)
+  cancellationId     String
+  deliveryNoteLine   DeliveryNoteLine         @relation(fields: [deliveryNoteLineId], references: [id], onDelete: Restrict)
+  deliveryNoteLineId String
+  quantity           Int
+
+  @@id([cancellationId, deliveryNoteLineId])
 }
 
 model Payment {

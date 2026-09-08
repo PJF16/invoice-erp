@@ -10,7 +10,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const deliveryNote = await prisma.deliveryNote.findUnique({
       where: { id },
-      include: { lines: { orderBy: { position: "asc" } }, customer: true, createdBy: true },
+      include: {
+        lines: { orderBy: { position: "asc" } },
+        customer: true,
+        createdBy: true,
+        cancellations: {
+          orderBy: { canceledAt: "asc" },
+          include: { lines: { include: { deliveryNoteLine: { select: { position: true } } } } },
+        },
+      },
     });
     if (!deliveryNote) return NextResponse.json({ error: "Lieferschein nicht gefunden" }, { status: 404 });
     const pdf = await renderDeliveryNotePdf(deliveryNote, await getSettings());

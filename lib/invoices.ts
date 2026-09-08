@@ -144,7 +144,7 @@ async function validateSourceDeliveryLines(tx: Tx, input: CreateInvoiceInput) {
     if (source.deliveryNote.status !== "ACTIVE" || source.deliveryNote.customerId !== input.customerId || source.billingStatus !== "PENDING") {
       throw new ApiError(400, "Die Kundenübergabe ist nicht mehr zur Verrechnung verfügbar");
     }
-    if (line.softwareItemId || line.itemId !== source.itemId || line.warehouseId !== source.warehouseId || line.quantity !== source.quantity) {
+    if (line.softwareItemId || line.itemId !== source.itemId || line.warehouseId !== source.warehouseId || line.quantity !== source.quantity - source.canceledQuantity) {
       throw new ApiError(400, "Artikel und Menge einer Kundenübergabe dürfen nicht verändert werden");
     }
   }

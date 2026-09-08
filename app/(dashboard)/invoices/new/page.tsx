@@ -99,7 +99,7 @@ export default async function NewInvoicePage({
         lines: validDeliveryNotes
           ? pendingDeliveryLines.map(({ line }) => ({
               description: line.itemName,
-              quantity: line.quantity,
+              quantity: line.quantity - line.canceledQuantity,
               unit: "Stk",
               unitPrice: 0,
               taxRate: 20,

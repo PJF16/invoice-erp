@@ -1,11 +1,19 @@
 import PDFDocument from "pdfkit";
 import type { Prisma, CompanySettings } from "@/lib/generated/prisma/client";
 
-type DeliveryNoteWithLines = Prisma.DeliveryNoteGetPayload<{ include: { lines: true; customer: true; createdBy: true } }>;
+type DeliveryNoteWithLines = Prisma.DeliveryNoteGetPayload<{
+  include: {
+    lines: true;
+    customer: true;
+    createdBy: true;
+    cancellations: { include: { lines: { include: { deliveryNoteLine: { select: { position: true } } } } } };
+  };
+}>;
 const dateFmt = new Intl.DateTimeFormat("de-AT", { dateStyle: "medium" });
 
 export async function renderDeliveryNotePdf(note: DeliveryNoteWithLines, settings: CompanySettings): Promise<Buffer> {
   return new Promise((resolve, reject) => {
+    const canceledQuantity = note.lines.reduce((sum, line) => sum + line.canceledQuantity, 0);
     const doc = new PDFDocument({ size: "A4", margins: { top: 50, bottom: 60, left: 55, right: 55 } });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk) => chunks.push(chunk));
@@ -48,6 +56,7 @@ export async function renderDeliveryNotePdf(note: DeliveryNoteWithLines, setting
     doc.text("", 55, Math.max(doc.y, y) + 30);
     doc.fontSize(14).font("Helvetica-Bold").text(`Lieferschein ${note.number}`);
     if (note.status === "CANCELED") doc.moveDown(0.3).fillColor("#b91c1c").fontSize(12).text("STORNIERT").fillColor("#000000");
+    else if (canceledQuantity > 0) doc.moveDown(0.3).fillColor("#b45309").fontSize(12).text("TEILWEISE STORNIERT").fillColor("#000000");
     doc.moveDown(0.8);
 
     const columns = { position: 55, sku: 85, description: 180, warehouse: 400, quantity: 495 };
@@ -68,10 +77,26 @@ export async function renderDeliveryNotePdf(note: DeliveryNoteWithLines, setting
       doc.text(line.itemName, columns.description, rowY, { width: 205 });
       const rowBottom = doc.y;
       doc.text(line.warehouseName ?? "Direktversand", columns.warehouse, rowY, { width: 90 });
-      doc.text(`${line.quantity} Stk`, columns.quantity, rowY, { width: 60, align: "right" });
+      const quantityLabel = line.canceledQuantity > 0
+        ? `${line.quantity} Stk\n-${line.canceledQuantity} storniert`
+        : `${line.quantity} Stk`;
+      doc.text(quantityLabel, columns.quantity, rowY, { width: 60, align: "right" });
       doc.y = Math.max(doc.y, rowBottom) + 6;
     }
     doc.moveTo(55, doc.y + 2).lineTo(55 + pageWidth, doc.y + 2).strokeColor("#cccccc").stroke();
+
+    if (note.cancellations.length > 0) {
+      doc.moveDown(1.5);
+      doc.font("Helvetica-Bold").fontSize(9).fillColor("#92400e").text("Stornoverlauf");
+      doc.font("Helvetica");
+      for (const cancellation of note.cancellations) {
+        const positions = cancellation.lines
+          .map((line) => `Pos. ${line.deliveryNoteLine.position}: ${line.quantity} Stk`)
+          .join(", ");
+        doc.text(`${dateFmt.format(cancellation.canceledAt)} · ${positions} · ${cancellation.reason}`, 55, doc.y, { width: pageWidth });
+      }
+      doc.fillColor("#000000");
+    }
 
     if (note.notes) {
       doc.moveDown(1.5);

@@ -85,42 +85,94 @@ export async function createDeliveryNote(input: DeliveryNoteInput, userId: strin
   }, { timeout: 15_000 });
 }
 
-export async function cancelDeliveryNote(deliveryNoteId: string, userId: string, reason: string) {
+export type DeliveryNoteCancellationLine = { lineId: string; quantity: number };
+
+export async function cancelDeliveryNote(
+  deliveryNoteId: string,
+  userId: string,
+  reason: string,
+  requestedLines?: DeliveryNoteCancellationLine[],
+) {
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "DeliveryNote" WHERE "id" = ${deliveryNoteId} FOR UPDATE
+    `;
     const note = await tx.deliveryNote.findUnique({
       where: { id: deliveryNoteId },
       include: { lines: { include: { invoiceLine: true, movement: { include: { invoiceLine: true } } } } },
     });
     if (!note) throw new ApiError(404, "Lieferschein nicht gefunden");
     if (note.status === "CANCELED") throw new ApiError(400, "Der Lieferschein ist bereits storniert");
-    if (note.lines.some((line) => line.invoiceLine || line.movement?.invoiceLine || line.billingStatus === "INVOICED")) {
-      throw new ApiError(400, "Verrechnete Übergaben können erst nach dem Löschen des Rechnungsentwurfs oder dem Storno der Rechnung storniert werden");
+
+    const selections = requestedLines ?? note.lines
+      .filter((line) => line.canceledQuantity < line.quantity)
+      .map((line) => ({ lineId: line.id, quantity: line.quantity - line.canceledQuantity }));
+    if (selections.length === 0) throw new ApiError(400, "Mindestens eine offene Position auswählen");
+    if (new Set(selections.map((line) => line.lineId)).size !== selections.length) {
+      throw new ApiError(400, "Eine Position darf pro Storno nur einmal vorkommen");
     }
 
+    const byId = new Map(note.lines.map((line) => [line.id, line]));
+    for (const selection of selections) {
+      const line = byId.get(selection.lineId);
+      if (!line) throw new ApiError(400, "Die ausgewählte Position gehört nicht zu diesem Lieferschein");
+      if (line.invoiceLine || line.movement?.invoiceLine || line.billingStatus === "INVOICED") {
+        throw new ApiError(400, `Position ${line.position} ist bereits verrechnet und kann nicht storniert werden`);
+      }
+      const remaining = line.quantity - line.canceledQuantity;
+      if (selection.quantity > remaining) {
+        throw new ApiError(400, `Bei Position ${line.position} können höchstens ${remaining} Stück storniert werden`);
+      }
+    }
+
+    await tx.deliveryNoteCancellation.create({
+      data: {
+        deliveryNoteId,
+        canceledById: userId,
+        reason,
+        lines: { create: selections.map((line) => ({ deliveryNoteLineId: line.lineId, quantity: line.quantity })) },
+      },
+    });
+
     const now = new Date();
-    for (const line of note.lines) {
-      if (line.movement && !line.movement.canceledAt) {
+    for (const selection of selections) {
+      const line = byId.get(selection.lineId)!;
+      const newCanceledQuantity = line.canceledQuantity + selection.quantity;
+      const fullyCanceled = newCanceledQuantity === line.quantity;
+      if (line.movement) {
         await bookMovementTx(tx, {
           itemId: line.itemId,
           warehouseId: line.movement.warehouseId,
           type: "IN",
-          quantity: line.quantity,
+          quantity: selection.quantity,
           userId,
-          note: `Storno Lieferschein ${note.number}: ${reason}`,
-        });
-        await tx.movement.update({
-          where: { id: line.movement.id },
-          data: { billingStatus: "CANCELED", canceledAt: now, canceledById: userId, canceledReason: reason },
+          note: `Teilstorno Lieferschein ${note.number}, Pos. ${line.position}: ${reason}`,
         });
       }
+      const updated = await tx.deliveryNoteLine.updateMany({
+        where: { id: line.id, billingStatus: line.billingStatus, canceledQuantity: line.canceledQuantity },
+        data: {
+          canceledQuantity: newCanceledQuantity,
+          billingStatus: fullyCanceled ? "CANCELED" : line.billingStatus,
+        },
+      });
+      if (updated.count !== 1) throw new ApiError(409, `Position ${line.position} wurde zwischenzeitlich geändert`);
+      if (fullyCanceled && line.movement) await tx.movement.update({
+        where: { id: line.movement.id },
+        data: { billingStatus: "CANCELED", canceledAt: now, canceledById: userId, canceledReason: reason },
+      });
     }
-    await tx.deliveryNoteLine.updateMany({
-      where: { deliveryNoteId },
-      data: { billingStatus: "CANCELED" },
+
+    const allCanceled = note.lines.every((line) => {
+      const selection = selections.find((entry) => entry.lineId === line.id);
+      return line.canceledQuantity + (selection?.quantity ?? 0) === line.quantity;
     });
     return tx.deliveryNote.update({
       where: { id: deliveryNoteId },
-      data: { status: "CANCELED", canceledAt: now, canceledById: userId, canceledReason: reason },
+      data: allCanceled
+        ? { status: "CANCELED", canceledAt: now, canceledById: userId, canceledReason: reason }
+        : {},
+      include: { lines: { orderBy: { position: "asc" } } },
     });
   }, { timeout: 15_000 });
 }

@@ -187,6 +187,13 @@ export const cancellationSchema = z.object({
   reason: z.string().trim().min(3, "Bitte einen Stornogrund angeben").max(500),
 });
 
+export const deliveryNoteCancellationSchema = cancellationSchema.extend({
+  lines: z.array(z.object({
+    lineId: z.string().min(1, "Position ist erforderlich"),
+    quantity: z.number().int("Menge muss ganzzahlig sein").positive("Menge muss größer als 0 sein"),
+  })).min(1, "Mindestens eine Position auswählen").max(200, "Maximal 200 Positionen pro Storno").optional(),
+});
+
 export const paymentSchema = z.object({
   amount: z.number().gt(0, "Betrag muss größer als 0 sein").max(99_999_999),
   date: dateString,
