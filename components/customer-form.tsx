@@ -8,6 +8,8 @@ type CustomerData = {
   id?: string;
   customerNumber: string | null;
   name: string;
+  firstName: string | null;
+  lastName: string | null;
   contactPerson: string | null;
   email: string | null;
   street: string;
@@ -27,6 +29,7 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [customerType, setCustomerType] = useState(customer?.customerType ?? "BUSINESS");
   const isEdit = Boolean(customer?.id);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -35,12 +38,19 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
     setLoading(true);
     const form = new FormData(e.currentTarget);
     const paymentDays = String(form.get("paymentDays") ?? "").trim();
+    const firstName = String(form.get("firstName") ?? "").trim();
+    const lastName = String(form.get("lastName") ?? "").trim();
+    const name = customerType === "CONSUMER"
+      ? [firstName, lastName].filter(Boolean).join(" ")
+      : String(form.get("name") ?? "").trim();
     const res = await fetch(isEdit ? `/api/customers/${customer!.id}` : "/api/customers", {
       method: isEdit ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         customerNumber: (form.get("customerNumber") as string) || null,
-        name: form.get("name"),
+        name,
+        firstName: firstName || null,
+        lastName: lastName || null,
         contactPerson: (form.get("contactPerson") as string) || null,
         email: (form.get("email") as string) || null,
         street: form.get("street"),
@@ -48,7 +58,7 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
         city: form.get("city"),
         country: form.get("country"),
         countryCode: form.get("countryCode"),
-        customerType: form.get("customerType"),
+        customerType,
         uid: (form.get("uid") as string) || null,
         defaultTaxTreatment: form.get("defaultTaxTreatment"),
         paymentDays: paymentDays === "" ? null : Number(paymentDays),
@@ -76,10 +86,23 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
         <h2 className="text-lg font-semibold">{isEdit ? "Kunde bearbeiten" : "Neuer Kunde"}</h2>
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium">Firmenname *</label>
-              <input name="name" required defaultValue={customer?.name ?? ""} autoFocus className={input} />
-            </div>
+            {customerType === "BUSINESS" ? (
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium">Firmenname *</label>
+                <input name="name" required defaultValue={customer?.name ?? ""} autoFocus className={input} />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium">Vorname *</label>
+                  <input name="firstName" required defaultValue={customer?.firstName ?? ""} autoFocus className={input} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Nachname *</label>
+                  <input name="lastName" required defaultValue={customer?.lastName ?? ""} className={input} />
+                </div>
+              </>
+            )}
             <div>
               <label className="block text-sm font-medium">Kundennummer</label>
               <input
@@ -128,7 +151,7 @@ function CustomerDialog({ customer, onClose }: { customer: CustomerData | null; 
             </div>
             <div>
               <label className="block text-sm font-medium">Kundentyp</label>
-              <select name="customerType" defaultValue={customer?.customerType ?? "BUSINESS"} className={input}>
+              <select name="customerType" value={customerType} onChange={(event) => setCustomerType(event.target.value)} className={input}>
                 <option value="BUSINESS">Unternehmen (B2B)</option>
                 <option value="CONSUMER">Privatkunde (B2C)</option>
               </select>

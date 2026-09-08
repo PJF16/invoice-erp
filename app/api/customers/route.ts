@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireModule, handleApiError } from "@/lib/api-helpers";
-import { customerSchema } from "@/lib/validation";
+import { customerDisplayName, customerSchema } from "@/lib/validation";
 
 export async function GET() {
   try {
@@ -20,7 +20,9 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
-    const customer = await prisma.customer.create({ data: parsed.data });
+    const customer = await prisma.customer.create({
+      data: { ...parsed.data, name: customerDisplayName(parsed.data) },
+    });
     return NextResponse.json(customer, { status: 201 });
   } catch (error) {
     return handleApiError(error);

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireModule, handleApiError } from "@/lib/api-helpers";
-import { customerSchema } from "@/lib/validation";
+import { customerDisplayName, customerPatchSchema, customerSchema } from "@/lib/validation";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -9,11 +9,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     await requireModule("INVOICES");
     const { id } = await params;
-    const parsed = customerSchema.partial().safeParse(await req.json());
+    const parsed = customerPatchSchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
-    const customer = await prisma.customer.update({ where: { id }, data: parsed.data });
+    const existing = await prisma.customer.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "Kunde nicht gefunden" }, { status: 404 });
+    }
+    const complete = customerSchema.safeParse({ ...existing, ...parsed.data });
+    if (!complete.success) {
+      return NextResponse.json({ error: complete.error.issues[0].message }, { status: 400 });
+    }
+    const customer = await prisma.customer.update({
+      where: { id },
+      data: { ...parsed.data, name: customerDisplayName(complete.data) },
+    });
     return NextResponse.json(customer);
   } catch (error) {
     return handleApiError(error);

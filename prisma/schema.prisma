@@ -263,6 +263,8 @@ model Customer {
   id                  String             @id @default(cuid())
   customerNumber      String?            @unique
   name                String
+  firstName           String?
+  lastName            String?
   contactPerson       String?
   email               String?
   street              String             @default("")

@@ -51,9 +51,11 @@ const taxRate = z.union([z.literal(0), z.literal(10), z.literal(13), z.literal(2
 const money = z.number().min(0).max(99_999_999);
 const dateString = z.iso.date().or(z.iso.datetime()).transform((s) => new Date(s));
 
-export const customerSchema = z.object({
+const customerFields = z.object({
   customerNumber: optionalTrimmed,
   name: z.string().trim().min(1, "Name ist erforderlich"),
+  firstName: optionalTrimmed,
+  lastName: optionalTrimmed,
   contactPerson: optionalTrimmed,
   email: z.email("Ungültige E-Mail-Adresse").nullable().optional().or(z.literal("").transform(() => null)),
   street: z.string().trim().default(""),
@@ -67,6 +69,24 @@ export const customerSchema = z.object({
   paymentDays: z.number().int().min(0).max(365).nullable().optional(),
   notes: optionalTrimmed,
 });
+
+export const customerSchema = customerFields.superRefine((customer, ctx) => {
+  if (customer.customerType !== "CONSUMER") return;
+  if (!customer.firstName) {
+    ctx.addIssue({ code: "custom", path: ["firstName"], message: "Vorname ist erforderlich" });
+  }
+  if (!customer.lastName) {
+    ctx.addIssue({ code: "custom", path: ["lastName"], message: "Nachname ist erforderlich" });
+  }
+});
+
+export const customerPatchSchema = customerFields.partial();
+
+export function customerDisplayName(customer: { customerType: "BUSINESS" | "CONSUMER"; name: string; firstName?: string | null; lastName?: string | null }) {
+  return customer.customerType === "CONSUMER"
+    ? [customer.firstName, customer.lastName].map((part) => part?.trim()).filter(Boolean).join(" ")
+    : customer.name.trim();
+}
 
 export const softwareItemSchema = z.object({
   name: z.string().trim().min(1, "Name ist erforderlich"),

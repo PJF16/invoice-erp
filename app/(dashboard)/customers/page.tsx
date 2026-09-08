@@ -76,6 +76,8 @@ export default async function CustomersPage() {
                       id: c.id,
                       customerNumber: c.customerNumber,
                       name: c.name,
+                      firstName: c.firstName,
+                      lastName: c.lastName,
                       contactPerson: c.contactPerson,
                       email: c.email,
                       street: c.street,
