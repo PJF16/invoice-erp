@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CustomerSelect, type CustomerSelectOption } from "@/components/customer-select";
+import { ItemSelect } from "@/components/item-select";
 
 type ItemOption = {
   id: string;
@@ -136,10 +137,7 @@ export function DeliveryNoteForm({
               <div key={line.key} className="grid gap-3 rounded-lg border border-gray-200 p-4 sm:grid-cols-12">
                 <div className="sm:col-span-5">
                   <label className={label}>Artikel {index + 1} *</label>
-                  <select required value={line.itemId} onChange={(event) => selectItem(line, event.target.value)} className={`${input} mt-1`}>
-                    <option value="">– Artikel wählen –</option>
-                    {items.map((entry) => <option key={entry.id} value={entry.id}>{entry.sku ? `${entry.sku} · ` : ""}{entry.name}</option>)}
-                  </select>
+                  <ItemSelect items={items} value={line.itemId} onValueChange={(itemId) => selectItem(line, itemId)} required className="mt-1" />
                 </div>
                 {deliveryMethod === "STOCK" ? <div className="sm:col-span-4">
                   <label className={label}>Lager *</label>
