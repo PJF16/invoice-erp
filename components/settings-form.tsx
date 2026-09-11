@@ -39,13 +39,7 @@ type Settings = {
   lastDeliveryNoteSeq: number;
 };
 
-export function SettingsForm({
-  settings,
-  smtpConfigured,
-}: {
-  settings: Settings;
-  smtpConfigured: boolean;
-}) {
+export function SettingsForm({ settings }: { settings: Settings }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -280,24 +274,7 @@ export function SettingsForm({
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">E-Mail-Versand</h2>
-          <span
-            className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${
-              smtpConfigured
-                ? "border-green-200 bg-green-50 text-green-700"
-                : "border-red-200 bg-red-50 text-red-700"
-            }`}
-          >
-            {smtpConfigured ? "SMTP konfiguriert" : "SMTP nicht konfiguriert"}
-          </span>
-        </div>
-        {!smtpConfigured && (
-          <p className="mb-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
-            Für den automatischen Versand SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS und SMTP_FROM in der
-            <code className="mx-1 font-mono">.env</code> setzen und den Server neu starten.
-          </p>
-        )}
+        <h2 className="mb-4 text-sm font-semibold">E-Mail-Vorlagen</h2>
         <div className="grid gap-4">
           <div>
             <label className={label}>Betreff-Vorlage</label>

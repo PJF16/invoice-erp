@@ -32,7 +32,9 @@ Modernes Lagerverwaltungs- und Rechnungsprogramm für ein österreichisches Unte
 
 ### E-Mail-Versand (SMTP)
 
-Für den (automatischen) Rechnungsversand in der `.env` konfigurieren:
+Admins können SMTP-Server, Port, Verschlüsselung, Zugangsdaten und Absender direkt unter **Einstellungen → SMTP-Einstellungen** hinterlegen und dort Verbindung sowie Anmeldung testen. Das Passwort wird verschlüsselt gespeichert; `SMTP_ENCRYPTION_KEY` oder ersatzweise `AUTH_SECRET` dient als Schlüssel.
+
+Alternativ bleibt die Konfiguration über `.env` möglich:
 
 ```bash
 SMTP_HOST="smtp.example.com"
@@ -41,6 +43,8 @@ SMTP_USER="rechnung@firma.at"
 SMTP_PASS="…"
 SMTP_FROM="Firma GmbH <rechnung@firma.at>"
 ```
+
+Gespeicherte Backend-Einstellungen haben Vorrang vor den SMTP-Umgebungsvariablen. Ein Schlüsselwechsel macht eine erneute Eingabe des SMTP-Passworts erforderlich.
 
 Der Scheduler prüft stündlich auf fällige wiederkehrende Rechnungen, Mahnungen, Exporte und Backups (deaktivierbar mit `DISABLE_RECURRING_SCHEDULER=1`). Ohne SMTP-Konfiguration werden Rechnungen trotzdem erzeugt, nur nicht versendet.
 
@@ -90,6 +94,17 @@ Falls das Image kein Seed-Tooling enthält, alternativ lokal mit `DATABASE_URL` 
 
 ## API-Überblick
 
+Die HTML-Übersicht ist nach dem Login unter **`/api-docs`** erreichbar. Die vollständige
+OpenAPI-3.1-Spezifikation steht unter **`GET /api/openapi`**, ein ausführlicher
+Integrationsleitfaden unter **`/docs/API.md`**.
+
+Für externe Integrationen kann unter **API & Integrationen** ein persönlicher Schlüssel
+erzeugt werden. Er wird als Bearer-Token mitgesendet und übernimmt Rolle und Modulrechte des Benutzers:
+
+```http
+Authorization: Bearer ierp_...
+```
+
 | Endpunkt | Methoden | Beschreibung |
 | --- | --- | --- |
 | `/api/items` | GET, POST | Artikel suchen/anlegen |
@@ -127,4 +142,5 @@ Falls das Image kein Seed-Tooling enthält, alternativ lokal mit `DATABASE_URL` 
 | `/api/export-schedules`, `…/{id}` | GET, POST, PATCH, DELETE | Geplante Exporte |
 | `/api/export-schedules/{id}/run` | POST | Sofort ausführen und versenden |
 
-Alle Endpunkte erfordern eine angemeldete Session.
+Alle fachlichen Endpunkte erfordern eine angemeldete Session oder einen gültigen API-Schlüssel.
+`GET /api/openapi` ist absichtlich öffentlich, damit API-Werkzeuge die Spezifikation laden können.

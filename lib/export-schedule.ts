@@ -34,7 +34,6 @@ export async function runExportSchedule(scheduleId: string) {
   const recipient = parseRecipients(schedule.recipientEmail).join(",");
   const subject = fillMailTemplate(schedule.emailSubject, vars);
   await sendMonitoredMail({ kind: "EXPORT", recipient, subject }, {
-    from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
     to: recipient,
     subject,
     text: fillMailTemplate(schedule.emailBody, vars),

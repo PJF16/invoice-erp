@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireModule, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError, getPagination } from "@/lib/api-helpers";
 import { itemSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
         : undefined,
       orderBy: { name: "asc" },
       include: { stocks: true },
+      ...getPagination(req.nextUrl.searchParams, { limit: 200, max: 500 }),
     });
     return NextResponse.json(items);
   } catch (error) {

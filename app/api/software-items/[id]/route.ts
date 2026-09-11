@@ -5,6 +5,18 @@ import { softwareItemSchema } from "@/lib/validation";
 
 type Params = { params: Promise<{ id: string }> };
 
+export async function GET(_req: NextRequest, { params }: Params) {
+  try {
+    await requireModule("INVOICES");
+    const { id } = await params;
+    const item = await prisma.softwareItem.findUnique({ where: { id } });
+    if (!item) return NextResponse.json({ error: "Softwareartikel nicht gefunden" }, { status: 404 });
+    return NextResponse.json(item);
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     await requireModule("INVOICES");

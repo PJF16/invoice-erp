@@ -1,18 +1,27 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireModule, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError, getPagination } from "@/lib/api-helpers";
 import { invoiceSchema } from "@/lib/validation";
 import { createDraftInvoice } from "@/lib/invoices";
 import type { InvoiceStatus } from "@/lib/generated/prisma/enums";
 
+const statuses = new Set<InvoiceStatus>(["DRAFT", "OPEN", "SENT", "PAID", "CANCELED"]);
+
 export async function GET(req: NextRequest) {
   try {
     await requireModule("INVOICES");
-    const status = req.nextUrl.searchParams.get("status") as InvoiceStatus | null;
+    const rawStatus = req.nextUrl.searchParams.get("status") as InvoiceStatus | null;
+    const status = rawStatus && statuses.has(rawStatus) ? rawStatus : undefined;
+    const customerId = req.nextUrl.searchParams.get("customerId") || undefined;
+    const q = req.nextUrl.searchParams.get("q")?.trim();
     const invoices = await prisma.invoice.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        status,
+        customerId,
+        ...(q ? { OR: [{ number: { contains: q, mode: "insensitive" } }, { customerName: { contains: q, mode: "insensitive" } }] } : {}),
+      },
       orderBy: { createdAt: "desc" },
-      take: 200,
+      ...getPagination(req.nextUrl.searchParams, { limit: 200, max: 500 }),
       include: { customer: { select: { id: true, name: true } } },
     });
     return NextResponse.json(invoices);

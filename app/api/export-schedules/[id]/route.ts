@@ -5,6 +5,18 @@ import { exportScheduleSchema } from "@/lib/validation";
 
 type Params = { params: Promise<{ id: string }> };
 
+export async function GET(_req: NextRequest, { params }: Params) {
+  try {
+    await requireModule("INVOICES");
+    const { id } = await params;
+    const schedule = await prisma.exportSchedule.findUnique({ where: { id } });
+    if (!schedule) return NextResponse.json({ error: "Exportplan nicht gefunden" }, { status: 404 });
+    return NextResponse.json(schedule);
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     await requireModule("INVOICES");

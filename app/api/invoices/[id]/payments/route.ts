@@ -2,6 +2,23 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireModule, handleApiError } from "@/lib/api-helpers";
 import { paymentSchema } from "@/lib/validation";
 import { recordPayment } from "@/lib/payments";
+import { prisma } from "@/lib/prisma";
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    await requireModule("INVOICES");
+    const { id } = await params;
+    const invoice = await prisma.invoice.findUnique({ where: { id }, select: { id: true } });
+    if (!invoice) return NextResponse.json({ error: "Rechnung nicht gefunden" }, { status: 404 });
+    return NextResponse.json(await prisma.payment.findMany({
+      where: { invoiceId: id },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      include: { user: { select: { id: true, name: true } } },
+    }));
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

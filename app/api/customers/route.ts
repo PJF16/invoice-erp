@@ -1,12 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireModule, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError, getPagination } from "@/lib/api-helpers";
 import { customerDisplayName, customerSchema } from "@/lib/validation";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await requireModule("INVOICES");
-    const customers = await prisma.customer.findMany({ orderBy: { name: "asc" } });
+    const q = req.nextUrl.searchParams.get("q")?.trim();
+    const customers = await prisma.customer.findMany({
+      where: q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { customerNumber: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }] } : undefined,
+      orderBy: { name: "asc" },
+      ...getPagination(req.nextUrl.searchParams, { limit: 200, max: 500 }),
+    });
     return NextResponse.json(customers);
   } catch (error) {
     return handleApiError(error);

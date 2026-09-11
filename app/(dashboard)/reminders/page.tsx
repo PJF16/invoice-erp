@@ -16,7 +16,7 @@ export default async function RemindersPage() {
     }),
     getSettings(),
   ]);
-  const smtp = isSmtpConfigured();
+  const smtp = await isSmtpConfigured(settings);
   const totalOverdue = overdue.reduce((sum, i) => sum + Number(i.grossTotal), 0);
 
   return (

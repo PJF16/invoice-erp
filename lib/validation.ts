@@ -295,6 +295,25 @@ export const settingsSchema = z.object({
   skontoDays: z.number().int().min(0).max(365).default(0),
 });
 
+const smtpSingleLine = z.string().trim().max(500).refine((value) => !/[\r\n]/.test(value), {
+  message: "Der Wert darf keinen Zeilenumbruch enthalten",
+});
+
+export const smtpSettingsSchema = z.object({
+  host: smtpSingleLine,
+  port: z.number().int("Der SMTP-Port muss ganzzahlig sein").min(1).max(65535),
+  security: z.enum(["STARTTLS", "TLS", "NONE"]),
+  user: smtpSingleLine,
+  password: z.string().max(1024).refine((value) => !/[\r\n]/.test(value), {
+    message: "Das SMTP-Passwort darf keinen Zeilenumbruch enthalten",
+  }),
+  from: smtpSingleLine,
+}).superRefine((settings, ctx) => {
+  if (settings.host && !settings.from) {
+    ctx.addIssue({ code: "custom", path: ["from"], message: "Absender ist erforderlich" });
+  }
+});
+
 const invoiceTypeArray = z
   .array(z.enum(["INVOICE", "CREDIT_NOTE"]))
   .min(1, "Mindestens ein Dokumenttyp ist erforderlich");
@@ -418,4 +437,12 @@ export const updateUserSchema = z.object({
   role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
   modules: moduleArray,
   password: z.union([z.string().min(8, "Passwort muss mindestens 8 Zeichen haben"), z.literal("")]).optional(),
+});
+
+export const apiKeySchema = z.object({
+  name: z.string().trim().min(1, "Name ist erforderlich").max(100),
+  expiresAt: z.union([
+    z.iso.date().transform((value) => new Date(`${value}T23:59:59.999Z`)),
+    z.iso.datetime().transform((value) => new Date(value)),
+  ]).nullable().optional(),
 });

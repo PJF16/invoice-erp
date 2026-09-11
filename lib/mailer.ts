@@ -30,7 +30,6 @@ export async function sendInvoiceEmail(invoiceId: string) {
     subject,
     invoiceId: invoice.id,
   }, {
-    from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
     to: invoice.customer.email,
     subject,
     text: fillMailTemplate(settings.emailBody, vars),

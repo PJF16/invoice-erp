@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { getSettings, isSmtpConfigured } from "@/lib/settings";
+import { getSettings, publicSmtpSettings } from "@/lib/settings";
 import { prisma } from "@/lib/prisma";
 import { invoiceDayKey } from "@/lib/document-numbers";
 import { SettingsForm } from "@/components/settings-form";
 import { BackupSettingsForm } from "@/components/backup-settings-form";
 import { getBackupSettings, publicBackupSettings } from "@/lib/backup";
+import { SmtpSettingsForm } from "@/components/smtp-settings-form";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-semibold">Einstellungen</h1>
       <p className="mb-6 text-sm text-gray-500">
-        Firmendaten, Nummernkreise, E-Mail-Vorlagen und automatische Backups.
+        Firmendaten, Nummernkreise, E-Mail-Versand und automatische Backups.
       </p>
       <SettingsForm
         settings={{
@@ -62,8 +63,8 @@ export default async function SettingsPage() {
           lastDeliveryNoteYear: settings.lastDeliveryNoteYear,
           lastDeliveryNoteSeq: settings.lastDeliveryNoteSeq,
         }}
-        smtpConfigured={isSmtpConfigured()}
       />
+      <SmtpSettingsForm settings={publicSmtpSettings(settings)} />
       <BackupSettingsForm
         settings={{
           enabled: backupSettings.enabled,

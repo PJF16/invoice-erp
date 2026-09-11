@@ -8,7 +8,16 @@ export async function GET() {
   try {
     await requireSession();
     const settings = await getSettings();
-    return NextResponse.json({ ...settings, smtpConfigured: isSmtpConfigured() });
+    return NextResponse.json({
+      ...settings,
+      smtpHost: undefined,
+      smtpPort: undefined,
+      smtpSecurity: undefined,
+      smtpUser: undefined,
+      smtpPasswordEncrypted: undefined,
+      smtpFrom: undefined,
+      smtpConfigured: await isSmtpConfigured(settings),
+    });
   } catch (error) {
     return handleApiError(error);
   }

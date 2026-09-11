@@ -5,6 +5,24 @@ import { customerDisplayName, customerPatchSchema, customerSchema } from "@/lib/
 
 type Params = { params: Promise<{ id: string }> };
 
+export async function GET(_req: NextRequest, { params }: Params) {
+  try {
+    await requireModule("INVOICES");
+    const { id } = await params;
+    const customer = await prisma.customer.findUnique({
+      where: { id },
+      include: {
+        vatVerifications: { orderBy: { checkedAt: "desc" }, take: 20 },
+        _count: { select: { invoices: true, offers: true, deliveryNotes: true, movements: true, recurringInvoices: true } },
+      },
+    });
+    if (!customer) return NextResponse.json({ error: "Kunde nicht gefunden" }, { status: 404 });
+    return NextResponse.json(customer);
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     await requireModule("INVOICES");

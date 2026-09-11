@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireModule, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError, getPagination } from "@/lib/api-helpers";
 import { offerSchema } from "@/lib/validation";
 import { createDraftOffer } from "@/lib/offers";
 import type { OfferStatus } from "@/lib/generated/prisma/enums";
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const offers = await prisma.offer.findMany({
       where: status ? { status } : undefined,
       orderBy: { createdAt: "desc" },
-      take: 200,
+      ...getPagination(req.nextUrl.searchParams, { limit: 200, max: 500 }),
       include: { customer: { select: { id: true, name: true, customerNumber: true } } },
     });
     return NextResponse.json(offers);

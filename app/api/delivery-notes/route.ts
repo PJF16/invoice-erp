@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireModule, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError, getPagination } from "@/lib/api-helpers";
 import { deliveryNoteSchema } from "@/lib/validation";
 import { createDeliveryNote } from "@/lib/delivery-notes";
 
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const deliveryNotes = await prisma.deliveryNote.findMany({
       where: { customerId },
       orderBy: { createdAt: "desc" },
-      take: 300,
+      ...getPagination(req.nextUrl.searchParams, { limit: 300, max: 500 }),
       include: { customer: { select: { id: true, name: true, customerNumber: true } }, _count: { select: { lines: true } } },
     });
     return NextResponse.json(deliveryNotes);

@@ -6,6 +6,21 @@ import { updateUserSchema } from "@/lib/validation";
 
 type Params = { params: Promise<{ id: string }> };
 
+export async function GET(_req: NextRequest, { params }: Params) {
+  try {
+    await requireAdmin();
+    const { id } = await params;
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true, name: true, role: true, modules: true, createdAt: true },
+    });
+    if (!user) return NextResponse.json({ error: "Benutzer nicht gefunden" }, { status: 404 });
+    return NextResponse.json(user);
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     await requireAdmin();

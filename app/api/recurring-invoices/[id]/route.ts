@@ -5,6 +5,25 @@ import { recurringInvoiceSchema } from "@/lib/validation";
 
 type Params = { params: Promise<{ id: string }> };
 
+export async function GET(_req: NextRequest, { params }: Params) {
+  try {
+    await requireModule("INVOICES");
+    const { id } = await params;
+    const template = await prisma.recurringInvoice.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        lines: { orderBy: { position: "asc" }, include: { softwareItem: true } },
+        invoices: { orderBy: { createdAt: "desc" }, take: 50 },
+      },
+    });
+    if (!template) return NextResponse.json({ error: "Vorlage nicht gefunden" }, { status: 404 });
+    return NextResponse.json(template);
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     await requireModule("INVOICES");

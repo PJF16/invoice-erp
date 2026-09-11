@@ -11,7 +11,10 @@ const groups: {
 }[] = [
   {
     title: "Übersicht",
-    links: [{ href: "/", label: "Dashboard" }],
+    links: [
+      { href: "/", label: "Dashboard" },
+      { href: "/api-keys", label: "API & Integrationen" },
+    ],
   },
   {
     title: "Lager",

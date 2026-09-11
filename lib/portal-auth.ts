@@ -126,7 +126,6 @@ export async function requestPortalLogin(emailInput: string, req: NextRequest) {
   try {
     const subject = `Ihr Zugangscode für ${company}`;
     await sendMonitoredMail({ kind: "PORTAL_LOGIN", recipient: email, subject }, {
-      from: process.env.SMTP_FROM,
       to: email,
       subject,
       text: `Ihr Zugangscode lautet: ${code}\n\nAlternativ können Sie diesen Anmeldelink verwenden:\n${magicUrl}\n\nCode und Link sind 10 Minuten gültig und nur einmal verwendbar.`,

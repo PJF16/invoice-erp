@@ -79,7 +79,7 @@ export async function generateInvoiceFromTemplate(templateId: string, userId: st
   let emailSent = false;
   let emailError: string | null = null;
   if (template.autoSend) {
-    if (isSmtpConfigured() && template.customer.email) {
+    if ((await isSmtpConfigured(settings)) && template.customer.email) {
       try {
         await sendInvoiceEmail(invoice.id);
         emailSent = true;

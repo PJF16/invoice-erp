@@ -178,6 +178,21 @@ model User {
   canceledDeliveryNotes     DeliveryNote[]             @relation("CanceledDeliveryNotes")
   deliveryNoteCancellations DeliveryNoteCancellation[]
   evidenceUploads           InvoiceEvidence[]
+  apiKeys                   ApiKey[]
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  prefix     String
+  tokenHash  String    @unique
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Warehouse {
@@ -252,6 +267,12 @@ model CompanySettings {
   reminderBody         String             @default("Sehr geehrte Damen und Herren,\n\ndürfen wir Sie freundlich daran erinnern, dass die Rechnung {nummer} vom {datum} über {betrag} seit {tage} Tagen überfällig ist?\n\nBitte überweisen Sie den offenen Betrag auf das angegebene Konto. Sollte sich Ihre Zahlung mit dieser Erinnerung überschnitten haben, betrachten Sie dieses Schreiben bitte als gegenstandslos.\n\nMit freundlichen Grüßen")
   skontoPercent        Int                @default(0)
   skontoDays           Int                @default(0)
+  smtpHost             String             @default("")
+  smtpPort             Int                @default(587)
+  smtpSecurity         String             @default("STARTTLS")
+  smtpUser             String             @default("")
+  smtpPasswordEncrypted String           @default("")
+  smtpFrom             String             @default("")
 }
 
 model InvoiceDailySequence {

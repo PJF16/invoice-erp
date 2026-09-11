@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireModule, handleApiError } from "@/lib/api-helpers";
+import { requireModule, handleApiError, getPagination } from "@/lib/api-helpers";
 import { movementSchema } from "@/lib/validation";
 import { bookMovement } from "@/lib/movements";
 import type { MovementType } from "@/lib/generated/prisma/enums";
+
+const movementTypes = new Set<MovementType>(["IN", "OUT", "ADJUST"]);
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,17 +13,17 @@ export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams;
     const warehouseId = sp.get("warehouseId") ?? undefined;
     const itemId = sp.get("itemId") ?? undefined;
-    const type = sp.get("type") as MovementType | null;
-    const limit = Math.min(Number(sp.get("limit") ?? 100), 500);
+    const rawType = sp.get("type") as MovementType | null;
+    const type = rawType && movementTypes.has(rawType) ? rawType : undefined;
 
     const movements = await prisma.movement.findMany({
       where: {
         warehouseId,
         itemId,
-        type: type ?? undefined,
+        type,
       },
       orderBy: { createdAt: "desc" },
-      take: limit,
+      ...getPagination(sp, { limit: 100, max: 500 }),
       include: {
         item: { select: { id: true, name: true, sku: true } },
         warehouse: { select: { id: true, name: true } },

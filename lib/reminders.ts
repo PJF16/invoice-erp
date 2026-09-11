@@ -60,7 +60,6 @@ export async function sendReminderEmail(invoiceId: string) {
     subject,
     invoiceId: invoice.id,
   }, {
-    from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
     to: invoice.customer.email,
     subject,
     text: fillMailTemplate(settings.reminderBody, vars),
@@ -86,7 +85,7 @@ export async function sendReminderEmail(invoiceId: string) {
  */
 export async function runAutoReminders() {
   const settings = await getSettings();
-  if (!settings.autoReminders || !isSmtpConfigured()) return { sent: 0 };
+  if (!settings.autoReminders || !(await isSmtpConfigured(settings))) return { sent: 0 };
 
   const threshold = new Date(startOfToday().getTime() - settings.reminderDays * 86_400_000);
   const candidates = await prisma.invoice.findMany({

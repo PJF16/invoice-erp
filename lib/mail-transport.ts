@@ -2,28 +2,84 @@ import nodemailer from "nodemailer";
 import type Mail from "nodemailer/lib/mailer";
 import { ApiError } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
+import { decryptSmtpSecret, getSettings } from "@/lib/settings";
 import type { MailErrorCategory, MailKind } from "@/lib/generated/prisma/client";
 
-export function getMailTransport() {
+type SmtpConfiguration = {
+  host: string;
+  port: number;
+  security: "STARTTLS" | "TLS" | "NONE";
+  user: string;
+  password: string;
+  from: string;
+  simulated: boolean;
+};
+
+export async function getSmtpConfiguration(): Promise<SmtpConfiguration> {
   // Für Tests/Entwicklung: SMTP_JSON=1 gibt die Mail als JSON aus statt zu senden.
   if (process.env.SMTP_JSON === "1") {
-    return nodemailer.createTransport({ jsonTransport: true });
+    return {
+      host: "", port: 587, security: "NONE", user: "", password: "",
+      from: process.env.SMTP_FROM ?? process.env.SMTP_USER ?? "test@localhost",
+      simulated: true,
+    };
+  }
+  const settings = await getSettings();
+  if (settings.smtpHost) {
+    return {
+      host: settings.smtpHost,
+      port: settings.smtpPort,
+      security: settings.smtpSecurity as SmtpConfiguration["security"],
+      user: settings.smtpUser,
+      password: settings.smtpPasswordEncrypted ? decryptSmtpSecret(settings.smtpPasswordEncrypted) : "",
+      from: settings.smtpFrom || settings.smtpUser,
+      simulated: false,
+    };
   }
   if (!process.env.SMTP_HOST) {
     throw new ApiError(
       400,
-      "SMTP ist nicht konfiguriert. Bitte SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS und SMTP_FROM in der .env setzen.",
+      "SMTP ist nicht konfiguriert. Bitte die SMTP-Einstellungen im Backend hinterlegen.",
     );
   }
   const port = Number(process.env.SMTP_PORT ?? 587);
-  return nodemailer.createTransport({
+  return {
     host: process.env.SMTP_HOST,
     port,
-    secure: port === 465,
-    auth: process.env.SMTP_USER
-      ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    security: port === 465 ? "TLS" : "STARTTLS",
+    user: process.env.SMTP_USER ?? "",
+    password: process.env.SMTP_PASS ?? "",
+    from: process.env.SMTP_FROM ?? process.env.SMTP_USER ?? "",
+    simulated: false,
+  };
+}
+
+function createMailTransport(config: SmtpConfiguration) {
+  if (config.simulated) return nodemailer.createTransport({ jsonTransport: true });
+  return nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.security === "TLS",
+    requireTLS: config.security === "STARTTLS",
+    auth: config.user
+      ? { user: config.user, pass: config.password }
       : undefined,
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 20_000,
   });
+}
+
+export async function verifySmtpConnection() {
+  const config = await getSmtpConfiguration();
+  if (config.simulated) return { simulated: true };
+  const transport = createMailTransport(config);
+  try {
+    await transport.verify();
+  } finally {
+    transport.close();
+  }
+  return { simulated: false };
 }
 
 export function fillMailTemplate(template: string, vars: Record<string, string>) {
@@ -94,7 +150,8 @@ export async function sendMonitoredMail(context: MonitoredMailContext, options: 
 
   let result: MailResult;
   try {
-    result = (await getMailTransport().sendMail(options)) as MailResult;
+    const config = await getSmtpConfiguration();
+    result = (await createMailTransport(config).sendMail({ ...options, from: options.from || config.from })) as MailResult;
   } catch (unknownError) {
     const error = (unknownError instanceof Error ? unknownError : new Error(String(unknownError))) as MailError;
     const errorCategory = classifyMailError(error);
