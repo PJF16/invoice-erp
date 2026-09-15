@@ -1,0 +1,68 @@
+{
+  "customerId": "cmsonasm4005401qglqzogvcw",
+  "issueDate": "2025-02-10",
+  "validUntil": "2025-03-12",
+  "deliveryDate": null,
+  "servicePeriodStart": "2024-05-01",
+  "servicePeriodEnd": "2024-11-30",
+  "taxTreatment": "STANDARD",
+  "notes": "Bereitstellung eines vollständigen Systems zur zentralen Verwaltung und Ausspielung von Werbeinhalten (z. B. TV-Spots, Hotelinformationen und Events) über die TV-Anlage des Hotels.\n\nWahlposition: Die Position 7 (Betreuungs- und Wartungspaket) wird nur bei gesonderter Beauftragung erbracht. Der Gesamtbetrag einschließlich Wahlposition beträgt 38.900,00 EUR netto. Ohne Wahlposition reduziert sich der Betrag auf 34.220,00 EUR netto bzw. 41.064,00 EUR brutto.\n\nZahlungsbedingungen: 50 % nach Auftragserteilung, 50 % nach erfolgreicher Übergabe. Zahlungsziel 14 Tage ohne Abzug.",
+  "lines": [
+    {
+      "description": "Projektierung & Planung - technische Abstimmung mit der Haustechnik, Bedarfserhebung, Systemkonzept inklusive Netzplan und Signalfluss sowie Auswahl geeigneter Hardware- und Kommunikationswege",
+      "quantity": 1,
+      "unit": "Pauschale",
+      "unitPrice": 3900,
+      "taxRate": 20,
+      "supplyKind": "SERVICE"
+    },
+    {
+      "description": "Serverhardware & Systembereitstellung - Medienserver in Industriequalität mit SSD-Speicher, redundanter Stromversorgung und Kühlung; Betriebssystem, automatisierte Playlists, Zeitsteuerung, Spot-Wiederholung und Administrations-Backend",
+      "quantity": 1,
+      "unit": "Pauschale",
+      "unitPrice": 10500,
+      "taxRate": 20,
+      "supplyKind": "SERVICE"
+    },
+    {
+      "description": "Netzwerkinfrastruktur & Signalverteilung - segmentiertes Mediennetzwerk, Managed Switches, Firewall/Router, erforderliche WLAN-Komponenten, Signalverteiler sowie Integration in die vorhandene TV-Infrastruktur",
+      "quantity": 1,
+      "unit": "Pauschale",
+      "unitPrice": 10800,
+      "taxRate": 20,
+      "supplyKind": "SERVICE"
+    },
+    {
+      "description": "Technische Umsetzung - Aufbau und Verkabelung, zentrale Inhalteverwaltung, automatische Neustartmechanismen, Fehlerprotokollierung, Remote-Updates und redundante Medienwiedergabe",
+      "quantity": 1,
+      "unit": "Pauschale",
+      "unitPrice": 5600,
+      "taxRate": 20,
+      "supplyKind": "SERVICE"
+    },
+    {
+      "description": "Test & Inbetriebnahme - vollständige System- und Signalprüfung, Test der Ausspielung auf den angebundenen Endgeräten sowie Übernahme in den produktiven Betrieb",
+      "quantity": 1,
+      "unit": "Pauschale",
+      "unitPrice": 1800,
+      "taxRate": 20,
+      "supplyKind": "SERVICE"
+    },
+    {
+      "description": "Dokumentation & Übergabe - technische Gesamtdokumentation, Schulung des Hotelpersonals sowie Einweisung in Störungsbehebung und Supportwege",
+      "quantity": 1,
+      "unit": "Pauschale",
+      "unitPrice": 1620,
+      "taxRate": 20,
+      "supplyKind": "SERVICE"
+    },
+    {
+      "description": "WAHLPOSITION - Betreuungs- und Wartungspaket: Fernwartung, monatlicher Systemcheck, Reaktionszeit innerhalb von 24 Stunden bei Störungen sowie kleinere laufende Inhaltsaktualisierungen; nur bei gesonderter Beauftragung",
+      "quantity": 12,
+      "unit": "Monat",
+      "unitPrice": 390,
+      "taxRate": 20,
+      "supplyKind": "SERVICE"
+    }
+  ]
+}

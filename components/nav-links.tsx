@@ -35,6 +35,7 @@ const groups: {
       { href: "/offers", label: "Angebote" },
       { href: "/invoices", label: "Rechnungen" },
       { href: "/offene-posten", label: "Offene Posten" },
+      { href: "/bankabgleich", label: "Bankabgleich" },
       { href: "/reminders", label: "Mahnwesen" },
       { href: "/recurring", label: "Wiederkehrend" },
       { href: "/customers", label: "Kunden" },

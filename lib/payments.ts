@@ -69,6 +69,7 @@ type PaymentInput = {
   reference?: string | null;
   note?: string | null;
   grantSkonto?: boolean;
+  bankTransactionId?: string;
 };
 
 /** Erfasst eine Zahlung zu einer finalisierten Rechnung und aktualisiert den Bezahlt-Status. */
@@ -103,6 +104,7 @@ export async function recordPayment(invoiceId: string, input: PaymentInput, user
         reference: input.reference ?? null,
         note: input.note ?? null,
         userId,
+        bankTransactionId: input.bankTransactionId,
       },
     });
 

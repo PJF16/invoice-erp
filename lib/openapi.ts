@@ -52,7 +52,7 @@ export const openApiDocument = {
   security: [{ bearerAuth: [] }],
   tags: [
     "Authentifizierung", "Dashboard", "Kunden", "Artikel", "Lager", "Bestand", "Lagerbewegungen",
-    "Lieferscheine", "Softwareartikel", "Angebote", "Rechnungen", "Zahlungen", "Nachweise",
+    "Lieferscheine", "Softwareartikel", "Angebote", "Rechnungen", "Zahlungen", "Bankabgleich", "Nachweise",
     "Wiederkehrende Rechnungen", "Export", "Einstellungen", "Benutzer", "Monitoring", "Backups",
   ].map((name) => ({ name })),
   paths: {
@@ -153,6 +153,18 @@ export const openApiDocument = {
       post: operation("Zahlungen", "Zahlung erfassen", { parameters: [id], body: "PaymentInput" }),
     }),
     "/api/invoices/{id}/payments/{paymentId}": path({ delete: operation("Zahlungen", "Zahlung löschen", { parameters: [id, { name: "paymentId", in: "path", required: true, schema: { type: "string" } }] }) }),
+    "/api/bank-reconciliation/import": path({
+      post: {
+        ...operation("Bankabgleich", "ELBA-CSV importieren und eindeutige Zahlungseingänge abgleichen"),
+        requestBody: {
+          required: true,
+          content: { "multipart/form-data": { schema: { type: "object", required: ["file"], properties: { file: { type: "string", format: "binary" } } } } },
+        },
+      },
+    }),
+    "/api/bank-reconciliation/{id}": path({
+      post: operation("Bankabgleich", "Bankumsatz zuordnen, ignorieren oder erneut prüfen", { parameters: [id], body: "BankReconciliationAction" }),
+    }),
     "/api/invoices/{id}/evidences": path({
       get: operation("Nachweise", "Metadaten der Rechnungsnachweise auflisten", { parameters: [id] }),
       post: { ...operation("Nachweise", "Nachweis hochladen (multipart/form-data, max. 10 MB)", { parameters: [id] }), requestBody: { required: true, content: { "multipart/form-data": { schema: { type: "object", required: ["file", "type"], properties: { file: { type: "string", format: "binary" }, type: { $ref: "#/components/schemas/EvidenceType" }, note: { type: "string" } } } } } } },
@@ -237,6 +249,12 @@ export const openApiDocument = {
       InvoiceStatusInput: { type: "object", required: ["status"], properties: { status: { type: "string", enum: ["OPEN", "PAID", "CANCELED"], description: "CANCELED erzeugt immer eine verknüpfte Stornorechnung." } } },
       FinalizeInvoiceInput: { type: "object", properties: { acknowledgeUidWarning: { type: "boolean", default: false }, uidCheckOverrideReason: { type: ["string", "null"], minLength: 3, maxLength: 500 } } },
       PaymentInput: { type: "object", required: ["amount", "date"], properties: { amount: { type: "number", exclusiveMinimum: 0 }, date: { type: "string", format: "date" }, method: { type: "string", enum: ["BANK_TRANSFER", "CASH", "CARD", "DIRECT_DEBIT", "PAYPAL", "OTHER"] }, reference: { type: ["string", "null"] }, note: { type: ["string", "null"] }, grantSkonto: { type: "boolean", default: false } } },
+      BankReconciliationAction: {
+        oneOf: [
+          { type: "object", required: ["action", "invoiceId"], properties: { action: { const: "MATCH" }, invoiceId: { type: "string" }, grantSkonto: { type: "boolean", default: false } } },
+          { type: "object", required: ["action"], properties: { action: { enum: ["IGNORE", "REOPEN"] } } },
+        ],
+      },
       DeliveryNoteInput: { type: "object", required: ["customerId", "lines"], properties: { customerId: { type: "string" }, issueDate: { type: "string", format: "date" }, deliveryMethod: { type: "string", enum: ["STOCK", "DISTRIBUTOR_DIRECT"], default: "STOCK" }, distributor: { type: ["string", "null"] }, distributorReference: { type: ["string", "null"] }, trackingNumber: { type: ["string", "null"] }, notes: { type: ["string", "null"] }, lines: { type: "array", minItems: 1, maxItems: 200, items: { type: "object", required: ["itemId", "quantity"], properties: { itemId: { type: "string" }, warehouseId: { type: ["string", "null"] }, quantity: { type: "integer", minimum: 1 } } } } } },
       DeliveryCancellationInput: { allOf: [{ $ref: "#/components/schemas/CancellationInput" }, { type: "object", properties: { lines: { type: "array", items: { type: "object", required: ["lineId", "quantity"], properties: { lineId: { type: "string" }, quantity: { type: "integer", minimum: 1 } } } } } }] },
       RecurringLine: { type: "object", required: ["quantity"], properties: { softwareItemId: { type: ["string", "null"] }, description: { type: ["string", "null"] }, unitPrice: { type: ["number", "null"], minimum: 0 }, priceAdjustmentType: { type: "string", enum: ["ABSOLUTE", "PERCENTAGE"] }, priceAdjustmentValue: { type: "number", minimum: 0 }, priceAdjustmentIsDiscount: { type: "boolean" }, quantity: { type: "number", exclusiveMinimum: 0 }, unit: { type: "string" }, taxRate: { type: "integer", enum: [0, 10, 13, 20] }, supplyKind: { $ref: "#/components/schemas/SupplyKind" } } },
