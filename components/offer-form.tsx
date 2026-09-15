@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CustomerSelect } from "@/components/customer-select";
+import { SoftwareItemSelect } from "@/components/software-item-select";
 import type { InvoiceFormData } from "@/components/invoice-form";
 import { eur, TAX_TREATMENT_OPTIONS } from "@/lib/format";
 import { assessTaxTreatment, SUPPLY_KIND_OPTIONS } from "@/lib/tax-rules";
@@ -290,10 +291,13 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
                   {line.type === "SOFTWARE" && (
                     <div className="lg:col-span-4">
                       <label className={label}>Softwareartikel</label>
-                      <select required value={line.softwareItemId} onChange={(event) => selectSoftware(line.key, event.target.value)} className={`${input} mt-1`}>
-                        <option value="">– wählen –</option>
-                        {data.softwareItems.map((item) => <option key={item.id} value={item.id}>{item.name} ({eur.format(item.unitPrice)}/{item.unit})</option>)}
-                      </select>
+                      <SoftwareItemSelect
+                        items={data.softwareItems}
+                        value={line.softwareItemId}
+                        onValueChange={(softwareItemId) => selectSoftware(line.key, softwareItemId)}
+                        required
+                        className="mt-1"
+                      />
                     </div>
                   )}
                   {line.type === "HARDWARE" && (

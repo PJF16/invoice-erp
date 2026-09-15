@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { eur, toDateInput, TAX_TREATMENT_OPTIONS } from "@/lib/format";
 import { CustomerSelect } from "@/components/customer-select";
+import { SoftwareItemSelect } from "@/components/software-item-select";
 import { assessTaxTreatment, SUPPLY_KIND_OPTIONS } from "@/lib/tax-rules";
 import type { CustomerType, SupplyKind } from "@/lib/generated/prisma/enums";
 
@@ -378,19 +379,13 @@ export function InvoiceForm({
                   {line.type === "SOFTWARE" && (
                     <div className="xl:col-span-2">
                       <label className={label}>Softwareartikel</label>
-                      <select
+                      <SoftwareItemSelect
+                        items={data.softwareItems}
                         required
                         value={line.softwareItemId}
-                        onChange={(e) => selectSoftware(line.key, e.target.value)}
-                        className={`${input} mt-1`}
-                      >
-                        <option value="">– wählen –</option>
-                        {data.softwareItems.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name} ({eur.format(s.unitPrice)}/{s.unit})
-                          </option>
-                        ))}
-                      </select>
+                        onValueChange={(softwareItemId) => selectSoftware(line.key, softwareItemId)}
+                        className="mt-1"
+                      />
                     </div>
                   )}
                   {line.type === "HARDWARE" && (

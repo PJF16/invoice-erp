@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { eur, toDateInput, TAX_TREATMENT_OPTIONS } from "@/lib/format";
 import { CustomerSelect } from "@/components/customer-select";
+import { SoftwareItemSelect } from "@/components/software-item-select";
 import { assessTaxTreatment, SUPPLY_KIND_OPTIONS } from "@/lib/tax-rules";
 import type { CustomerType, SupplyKind } from "@/lib/generated/prisma/enums";
 
@@ -251,26 +252,21 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className={label}>Softwareartikel (optional)</label>
-                    <select
+                    <SoftwareItemSelect
+                      items={data.softwareItems}
                       value={line.softwareItemId}
-                      onChange={(e) => {
-                        const s = data.softwareItems.find((x) => x.id === e.target.value);
+                      onValueChange={(softwareItemId) => {
+                        const s = data.softwareItems.find((x) => x.id === softwareItemId);
                         updateLine(line.key, {
-                          softwareItemId: e.target.value,
+                          softwareItemId,
                           unit: s?.unit ?? line.unit,
-                          priceAdjustmentValue: e.target.value ? line.priceAdjustmentValue : 0,
+                          priceAdjustmentValue: softwareItemId ? line.priceAdjustmentValue : 0,
                           supplyKind: s?.supplyKind ?? "SERVICE",
                         });
                       }}
-                      className={`${input} mt-1`}
-                    >
-                      <option value="">– Freitext-Position –</option>
-                      {data.softwareItems.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} (aktuell {eur.format(s.unitPrice)}/{s.unit})
-                        </option>
-                      ))}
-                    </select>
+                      allowFreeText
+                      className="mt-1"
+                    />
                   </div>
                   <div>
                     <label className={label}>
