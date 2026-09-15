@@ -3,14 +3,25 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest, NextResponse } from "next/server";
 import { ApiError } from "@/lib/api-helpers";
+import { auth } from "@/lib/auth";
 import { sendMonitoredMail } from "@/lib/mail-transport";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 
 export const PORTAL_COOKIE = "invoice-erp.portal-session";
+export const PORTAL_IMPERSONATION_COOKIE = "invoice-erp.portal-impersonation";
 const LOGIN_VALID_MS = 10 * 60 * 1000;
 const SESSION_VALID_MS = 30 * 24 * 60 * 60 * 1000;
+const IMPERSONATION_VALID_MS = 8 * 60 * 60 * 1000;
 const MAX_CODE_ATTEMPTS = 5;
+
+export type PortalSessionContext = {
+  email: string | null;
+  expiresAt: Date;
+  customerId: string | null;
+  customerName: string | null;
+  isImpersonating: boolean;
+};
 
 export function normalizePortalEmail(email: string) {
   return email.trim().toLocaleLowerCase("de-AT");
@@ -30,10 +41,43 @@ function sessionHash(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function impersonationSignature(payload: string) {
+  return createHmac("sha256", secret()).update(`impersonation:${payload}`).digest("base64url");
+}
+
 function safeEqual(left: string, right: string) {
   const a = Buffer.from(left);
   const b = Buffer.from(right);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+type ImpersonationPayload = { customerId: string; adminUserId: string; expiresAt: number };
+
+function createImpersonationToken(payload: ImpersonationPayload) {
+  const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  return `${encoded}.${impersonationSignature(encoded)}`;
+}
+
+function parseImpersonationToken(token: string): ImpersonationPayload | null {
+  const [encoded, suppliedSignature, extra] = token.split(".");
+  if (!encoded || !suppliedSignature || extra || !safeEqual(suppliedSignature, impersonationSignature(encoded))) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as Partial<ImpersonationPayload>;
+    if (
+      typeof payload.customerId !== "string" ||
+      typeof payload.adminUserId !== "string" ||
+      typeof payload.expiresAt !== "number" ||
+      payload.expiresAt <= Date.now()
+    ) {
+      return null;
+    }
+    return payload as ImpersonationPayload;
+  } catch {
+    return null;
+  }
 }
 
 export function requestIpHash(req: NextRequest) {
@@ -232,8 +276,34 @@ export function setPortalSessionCookie(response: NextResponse, session: NewSessi
   });
 }
 
-export async function getPortalSession() {
-  const rawToken = (await cookies()).get(PORTAL_COOKIE)?.value;
+export async function getPortalSession(): Promise<PortalSessionContext | null> {
+  const cookieStore = await cookies();
+  const impersonationToken = cookieStore.get(PORTAL_IMPERSONATION_COOKIE)?.value;
+  if (impersonationToken) {
+    const payload = parseImpersonationToken(impersonationToken);
+    const adminSession = payload ? await auth() : null;
+    if (
+      payload &&
+      adminSession?.user.role === "ADMIN" &&
+      adminSession.user.id === payload.adminUserId
+    ) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: payload.customerId },
+        select: { id: true, name: true, email: true },
+      });
+      if (customer) {
+        return {
+          email: customer.email,
+          expiresAt: new Date(payload.expiresAt),
+          customerId: customer.id,
+          customerName: customer.name,
+          isImpersonating: true,
+        };
+      }
+    }
+  }
+
+  const rawToken = cookieStore.get(PORTAL_COOKIE)?.value;
   if (!rawToken) return null;
 
   const session = await prisma.portalSession.findUnique({ where: { id: sessionHash(rawToken) } });
@@ -242,7 +312,19 @@ export async function getPortalSession() {
     await prisma.portalSession.delete({ where: { id: session.id } }).catch(() => undefined);
     return null;
   }
-  return { email: session.email, expiresAt: session.expiresAt };
+  return {
+    email: session.email,
+    expiresAt: session.expiresAt,
+    customerId: null,
+    customerName: null,
+    isImpersonating: false,
+  };
+}
+
+export function portalCustomerWhere(session: PortalSessionContext) {
+  return session.customerId
+    ? { id: session.customerId }
+    : { email: { equals: session.email!, mode: "insensitive" as const } };
 }
 
 export async function requirePortalSession() {
@@ -263,6 +345,34 @@ export async function clearPortalSession(response: NextResponse, req: NextReques
     await prisma.portalSession.delete({ where: { id: sessionHash(rawToken) } }).catch(() => undefined);
   }
   response.cookies.set(PORTAL_COOKIE, "", {
+    httpOnly: true,
+    secure: usesSecurePortalCookie(req),
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  clearPortalImpersonationCookie(response, req);
+}
+
+export function setPortalImpersonationCookie(
+  response: NextResponse,
+  req: NextRequest,
+  customerId: string,
+  adminUserId: string,
+) {
+  const expiresAt = new Date(Date.now() + IMPERSONATION_VALID_MS);
+  const token = createImpersonationToken({ customerId, adminUserId, expiresAt: expiresAt.getTime() });
+  response.cookies.set(PORTAL_IMPERSONATION_COOKIE, token, {
+    httpOnly: true,
+    secure: usesSecurePortalCookie(req),
+    sameSite: "lax",
+    path: "/",
+    expires: expiresAt,
+  });
+}
+
+export function clearPortalImpersonationCookie(response: NextResponse, req: NextRequest) {
+  response.cookies.set(PORTAL_IMPERSONATION_COOKIE, "", {
     httpOnly: true,
     secure: usesSecurePortalCookie(req),
     sameSite: "lax",

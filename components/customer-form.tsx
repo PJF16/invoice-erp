@@ -239,10 +239,33 @@ export function CustomerForm() {
   );
 }
 
-export function CustomerRowActions({ customer }: { customer: CustomerData & { id: string } }) {
+export function CustomerRowActions({
+  customer,
+  canImpersonate = false,
+}: {
+  customer: CustomerData & { id: string };
+  canImpersonate?: boolean;
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [impersonating, setImpersonating] = useState(false);
+
+  async function handleImpersonate() {
+    setImpersonating(true);
+    const res = await fetch("/api/portal/impersonation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customerId: customer.id }),
+    });
+    if (res.ok) {
+      window.location.assign("/portal");
+      return;
+    }
+    setImpersonating(false);
+    const data = await res.json().catch(() => null);
+    alert(data?.error ?? "Kundensicht konnte nicht geöffnet werden");
+  }
 
   async function handleDelete() {
     if (!confirm(`Kunde „${customer.name}" wirklich löschen?`)) return;
@@ -274,6 +297,15 @@ export function CustomerRowActions({ customer }: { customer: CustomerData & { id
 
   return (
     <div className="inline-flex gap-1">
+      {canImpersonate && (
+        <button
+          onClick={handleImpersonate}
+          disabled={impersonating}
+          className="rounded-lg border border-violet-200 px-2.5 py-1 text-xs text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+        >
+          {impersonating ? "Öffne…" : "Als Kunde ansehen"}
+        </button>
+      )}
       {customer.uid && (
         <button
           onClick={handleVatCheck}

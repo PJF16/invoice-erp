@@ -2,17 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eur, formatDate, INVOICE_STATUS_LABELS } from "@/lib/format";
 import { TAX_NOTES, TAX_TREATMENT_LABELS } from "@/lib/invoices";
-import { requirePortalPageSession } from "@/lib/portal-auth";
+import { portalCustomerWhere, requirePortalPageSession } from "@/lib/portal-auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalInvoicePage({ params }: { params: Promise<{ id: string }> }) {
-  const [{ email }, { id }] = await Promise.all([requirePortalPageSession(), params]);
+  const [portalSession, { id }] = await Promise.all([requirePortalPageSession(), params]);
   const invoice = await prisma.invoice.findFirst({
     where: {
       id,
-      customer: { email: { equals: email, mode: "insensitive" } },
+      customer: portalCustomerWhere(portalSession),
       number: { not: null },
       status: { not: "DRAFT" },
     },

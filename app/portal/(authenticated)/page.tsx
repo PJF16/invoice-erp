@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { eur, formatDate, INTERVAL_LABELS, INVOICE_STATUS_LABELS } from "@/lib/format";
-import { requirePortalPageSession } from "@/lib/portal-auth";
+import { portalCustomerWhere, requirePortalPageSession } from "@/lib/portal-auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -19,13 +19,13 @@ function currentLinePrice(line: {
 }
 
 export default async function PortalOverviewPage() {
-  const { email } = await requirePortalPageSession();
-  const customerEmail = { equals: email, mode: "insensitive" as const };
+  const portalSession = await requirePortalPageSession();
+  const customerWhere = portalCustomerWhere(portalSession);
   const [customers, invoices, subscriptions] = await Promise.all([
-    prisma.customer.findMany({ where: { email: customerEmail }, select: { name: true } }),
+    prisma.customer.findMany({ where: customerWhere, select: { name: true } }),
     prisma.invoice.findMany({
       where: {
-        customer: { email: customerEmail },
+        customer: customerWhere,
         number: { not: null },
         status: { not: "DRAFT" },
       },
@@ -43,7 +43,7 @@ export default async function PortalOverviewPage() {
       },
     }),
     prisma.recurringInvoice.findMany({
-      where: { customer: { email: customerEmail } },
+      where: { customer: customerWhere },
       orderBy: [{ active: "desc" }, { name: "asc" }],
       include: { lines: { orderBy: { position: "asc" }, include: { softwareItem: true } } },
     }),

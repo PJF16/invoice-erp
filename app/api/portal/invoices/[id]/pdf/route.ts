@@ -1,17 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { handleApiError } from "@/lib/api-helpers";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
-import { requirePortalSession } from "@/lib/portal-auth";
+import { portalCustomerWhere, requirePortalSession } from "@/lib/portal-auth";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const [{ email }, { id }] = await Promise.all([requirePortalSession(), params]);
+    const [portalSession, { id }] = await Promise.all([requirePortalSession(), params]);
     const invoice = await prisma.invoice.findFirst({
       where: {
         id,
-        customer: { email: { equals: email, mode: "insensitive" } },
+        customer: portalCustomerWhere(portalSession),
         number: { not: null },
         status: { not: "DRAFT" },
       },

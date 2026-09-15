@@ -82,6 +82,10 @@ export const customerSchema = customerFields.superRefine((customer, ctx) => {
 
 export const customerPatchSchema = customerFields.partial();
 
+export const portalImpersonationSchema = z.object({
+  customerId: z.string().trim().min(1, "Kunde ist erforderlich"),
+});
+
 export function customerDisplayName(customer: { customerType: "BUSINESS" | "CONSUMER"; name: string; firstName?: string | null; lastName?: string | null }) {
   return customer.customerType === "CONSUMER"
     ? [customer.firstName, customer.lastName].map((part) => part?.trim()).filter(Boolean).join(" ")

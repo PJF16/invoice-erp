@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PortalLogoutButton } from "@/components/portal-logout-button";
+import { PortalImpersonationExit } from "@/components/portal-impersonation-exit";
 import { getPortalSession } from "@/lib/portal-auth";
 import { getSettings } from "@/lib/settings";
 
@@ -14,6 +15,16 @@ export default async function AuthenticatedPortalLayout({ children }: { children
 
   return (
     <div className="min-h-screen flex-1 bg-slate-50 text-slate-950">
+      {session.isImpersonating && (
+        <div className="bg-amber-300 px-4 py-2 text-amber-950 print:hidden">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 sm:px-2">
+            <p className="text-sm font-medium">
+              Sie sehen das Kundenportal als <strong>{session.customerName}</strong>.
+            </p>
+            <PortalImpersonationExit />
+          </div>
+        </div>
+      )}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-4 sm:px-6 lg:px-8">
           <Link href="/portal" className="flex min-w-0 items-center gap-3">
@@ -26,8 +37,10 @@ export default async function AuthenticatedPortalLayout({ children }: { children
             </span>
           </Link>
           <div className="flex items-center gap-4 sm:gap-6">
-            <span className="hidden max-w-56 truncate text-sm text-slate-500 sm:block">{session.email}</span>
-            <PortalLogoutButton />
+            <span className="hidden max-w-56 truncate text-sm text-slate-500 sm:block">
+              {session.email ?? session.customerName}
+            </span>
+            {!session.isImpersonating && <PortalLogoutButton />}
           </div>
         </div>
       </header>

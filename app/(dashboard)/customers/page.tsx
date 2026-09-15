@@ -1,17 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import { CustomerForm, CustomerRowActions } from "@/components/customer-form";
 import { TAX_TREATMENT_LABELS } from "@/lib/invoices";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function CustomersPage() {
-  const customers = await prisma.customer.findMany({
-    orderBy: { name: "asc" },
-    include: {
-      _count: { select: { invoices: true } },
-      vatVerifications: { orderBy: { checkedAt: "desc" }, take: 1 },
-    },
-  });
+  const [session, customers] = await Promise.all([
+    auth(),
+    prisma.customer.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        _count: { select: { invoices: true } },
+        vatVerifications: { orderBy: { checkedAt: "desc" }, take: 1 },
+      },
+    }),
+  ]);
 
   return (
     <div className="mx-auto max-w-[100rem]">
@@ -72,6 +76,7 @@ export default async function CustomersPage() {
                 <td className="px-4 py-3 text-right tabular-nums">{c._count.invoices}</td>
                 <td className="px-4 py-3 text-right">
                   <CustomerRowActions
+                    canImpersonate={session?.user.role === "ADMIN"}
                     customer={{
                       id: c.id,
                       customerNumber: c.customerNumber,
