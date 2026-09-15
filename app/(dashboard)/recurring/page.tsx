@@ -43,13 +43,14 @@ export default async function RecurringPage() {
               <th className="px-4 py-3 text-right">Netto (aktuell)</th>
               <th className="px-4 py-3">Auto-Versand</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Erzeugte Rechnungen</th>
               <th className="px-4 py-3 text-right">Aktionen</th>
             </tr>
           </thead>
           <tbody>
             {templates.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
                   Noch keine Vorlagen. Lege z.B. einen monatlichen Wartungsvertrag an.
                 </td>
               </tr>
@@ -66,7 +67,7 @@ export default async function RecurringPage() {
               return (
                 <tr key={t.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium">
-                    <Link href={`/recurring/${t.id}/edit`} className="hover:text-blue-700 hover:underline">
+                    <Link href={`/recurring/${t.id}`} className="hover:text-blue-700 hover:underline">
                       {t.name}
                     </Link>
                   </td>
@@ -87,6 +88,11 @@ export default async function RecurringPage() {
                     >
                       {t.active ? "Aktiv" : "Pausiert"}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    <Link href={`/recurring/${t.id}`} className="text-blue-700 hover:underline">
+                      {t._count.invoices}
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <RecurringRowActions id={t.id} name={t.name} />
