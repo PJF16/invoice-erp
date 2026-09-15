@@ -18,6 +18,11 @@ export type OfferInput = {
   lines: Omit<LineInput, "sourceMovementId">[];
 };
 
+export type FinalizeOfferInput = {
+  number?: string;
+  issueDate?: Date;
+};
+
 async function lockOffer(tx: Tx, offerId: string) {
   await tx.$queryRaw<Array<{ id: string }>>`
     SELECT "id" FROM "Offer" WHERE "id" = ${offerId} FOR UPDATE
@@ -134,7 +139,7 @@ export async function deleteDraftOffer(offerId: string) {
   });
 }
 
-export async function finalizeOffer(offerId: string) {
+export async function finalizeOffer(offerId: string, options: FinalizeOfferInput = {}) {
   return prisma.$transaction(async (tx) => {
     await lockOffer(tx, offerId);
     const offer = await tx.offer.findUnique({
@@ -143,6 +148,10 @@ export async function finalizeOffer(offerId: string) {
     });
     if (!offer) throw new ApiError(404, "Angebot nicht gefunden");
     if (offer.status !== "DRAFT") throw new ApiError(400, "Nur Entwürfe können finalisiert werden");
+    const issueDate = options.issueDate ?? offer.issueDate;
+    if (offer.validUntil < issueDate) {
+      throw new ApiError(400, "Gültig-bis-Datum darf nicht vor dem Angebotsdatum liegen");
+    }
     const supplyKinds = offer.lines.map((line) => line.supplyKind);
     if (supplyKinds.includes("GOODS") && !offer.deliveryDate) {
       throw new ApiError(409, "Für Warenpositionen ist ein voraussichtliches Lieferdatum erforderlich");
@@ -162,12 +171,13 @@ export async function finalizeOffer(offerId: string) {
     if (assessment.expectedTreatment && offer.taxTreatment !== assessment.expectedTreatment) {
       throw new ApiError(409, `Erwartete Steuerbehandlung: ${TAX_TREATMENT_LABELS[assessment.expectedTreatment]}`);
     }
-    const number = await assignOfferNumberTx(tx, offer.issueDate);
+    const number = options.number ?? await assignOfferNumberTx(tx, issueDate);
     const customer = offer.customer;
     return tx.offer.update({
       where: { id: offerId },
       data: {
         number,
+        issueDate,
         status: "OPEN",
         finalizedAt: new Date(),
         customerName: customer.name,

@@ -180,6 +180,11 @@ export const offerStatusSchema = z.object({
   status: z.enum(["OPEN", "ACCEPTED", "REJECTED"]),
 });
 
+export const finalizeOfferSchema = z.object({
+  number: z.string().trim().min(1, "Angebotsnummer ist erforderlich").max(100).optional(),
+  issueDate: dateString.optional(),
+});
+
 export const deliveryNoteSchema = z.object({
   customerId: z.string().min(1, "Kunde ist erforderlich"),
   issueDate: dateString.optional(),
