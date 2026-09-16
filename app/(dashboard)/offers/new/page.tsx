@@ -17,6 +17,8 @@ export default async function NewOfferPage() {
       <OfferForm
         data={data}
         initial={{
+          number: null,
+          status: "DRAFT",
           customerId: "",
           issueDate: toDateInput(issueDate),
           validUntil: toDateInput(validUntil),

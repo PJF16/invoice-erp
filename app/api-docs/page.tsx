@@ -49,7 +49,7 @@ export default function ApiDocsPage() {
 
       <section className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
         <h2 className="font-semibold">Wichtige Workflows</h2>
-        <p className="mt-1">Angebote und Rechnungen entstehen als Entwurf. Erst <code>POST …/finalize</code> vergibt eine Nummer und friert Kundendaten ein; bei Rechnungen wird dort Hardware gebucht. Zum Stornieren immer den Status <code>CANCELED</code> setzen – dadurch entsteht die gesetzlich korrekte Stornorechnung. Bestand niemals über Datenbankzugriffe verändern, sondern ausschließlich über Bewegungs-, Lieferschein- oder Rechnungsendpunkte.</p>
+        <p className="mt-1">Angebote und Rechnungen entstehen als Entwurf. Für Angebote kann bereits beim Erstellen eine eigene Nummer angegeben werden; andernfalls vergibt <code>POST …/finalize</code> die Nummer. Angebote lassen sich auch nach dem Finalisieren vollständig per <code>PATCH</code> ändern. Bei Rechnungen werden beim Finalisieren Kundendaten eingefroren und Hardware gebucht. Zum Stornieren immer den Status <code>CANCELED</code> setzen – dadurch entsteht die gesetzlich korrekte Stornorechnung. Bestand niemals über Datenbankzugriffe verändern, sondern ausschließlich über Bewegungs-, Lieferschein- oder Rechnungsendpunkte.</p>
       </section>
 
       {[...grouped.entries()].map(([tag, operations]) => (

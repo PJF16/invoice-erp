@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireModule, handleApiError } from "@/lib/api-helpers";
 import { offerSchema } from "@/lib/validation";
-import { deleteDraftOffer, updateDraftOffer } from "@/lib/offers";
+import { deleteDraftOffer, updateOffer } from "@/lib/offers";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
-    return NextResponse.json(await updateDraftOffer(id, parsed.data));
+    return NextResponse.json(await updateOffer(id, parsed.data));
   } catch (error) {
     return handleApiError(error);
   }

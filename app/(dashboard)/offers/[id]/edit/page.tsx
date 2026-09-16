@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { loadInvoiceFormData } from "@/lib/invoice-form-data";
 import { OfferForm } from "@/components/offer-form";
@@ -14,15 +14,21 @@ export default async function EditOfferPage({ params }: { params: Promise<{ id: 
     loadInvoiceFormData(),
   ]);
   if (!offer) notFound();
-  if (offer.status !== "DRAFT") redirect(`/offers/${id}`);
   return (
     <div className="mx-auto max-w-4xl">
       <Link href={`/offers/${id}`} className="text-sm text-gray-500 hover:text-gray-900">← Zurück zum Angebot</Link>
-      <h1 className="mt-2 mb-6 text-2xl font-semibold">Angebotsentwurf bearbeiten</h1>
+      <h1 className="mt-2 mb-6 text-2xl font-semibold">Angebot bearbeiten</h1>
+      {offer.status === "CONVERTED" && (
+        <p className="mb-6 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Änderungen an diesem Angebot wirken sich nicht auf die bereits daraus erstellte Rechnung aus.
+        </p>
+      )}
       <OfferForm
         data={data}
         initial={{
           id: offer.id,
+          number: offer.number,
+          status: offer.status,
           customerId: offer.customerId,
           issueDate: toDateInput(offer.issueDate),
           validUntil: toDateInput(offer.validUntil),

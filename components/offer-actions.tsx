@@ -43,10 +43,10 @@ export function OfferActions({ offer }: { offer: { id: string; status: string } 
         <a href={`/api/offers/${offer.id}/pdf`} target="_blank" className={`${button} border border-gray-300 hover:bg-gray-50`}>
           PDF {offer.status === "DRAFT" ? "(Vorschau)" : ""}
         </a>
+        <Link href={`/offers/${offer.id}/edit`} className={`${button} border border-gray-300 hover:bg-gray-50`}>Bearbeiten</Link>
         {offer.status === "DRAFT" && (
           <>
-            <Link href={`/offers/${offer.id}/edit`} className={`${button} border border-gray-300 hover:bg-gray-50`}>Bearbeiten</Link>
-            <button disabled={loading !== null} onClick={() => action("finalize", `/api/offers/${offer.id}/finalize`, {}, "Angebot finalisieren? Dabei wird die Angebotsnummer verbindlich vergeben.")} className={`${button} bg-blue-600 text-white hover:bg-blue-700`}>
+            <button disabled={loading !== null} onClick={() => action("finalize", `/api/offers/${offer.id}/finalize`, {}, "Angebot finalisieren? Falls noch keine Angebotsnummer eingetragen ist, wird sie jetzt automatisch vergeben.")} className={`${button} bg-blue-600 text-white hover:bg-blue-700`}>
               {loading === "finalize" ? "Finalisiere…" : "Finalisieren"}
             </button>
             <button disabled={loading !== null} onClick={() => action("delete", `/api/offers/${offer.id}`, "DELETE", "Angebotsentwurf wirklich löschen?")} className={`${button} border border-red-200 text-red-600 hover:bg-red-50`}>Löschen</button>

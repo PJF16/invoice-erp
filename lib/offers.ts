@@ -7,6 +7,7 @@ import type { Tx } from "@/lib/movements";
 import { assessTaxTreatment } from "@/lib/tax-rules";
 
 export type OfferInput = {
+  number?: string | null;
   customerId: string;
   issueDate: Date;
   validUntil: Date;
@@ -82,6 +83,7 @@ export async function createDraftOffer(input: OfferInput) {
     return tx.offer.create({
       data: {
         customerId: input.customerId,
+        number: input.number ?? null,
         issueDate: input.issueDate,
         validUntil: input.validUntil,
         deliveryDate: input.deliveryDate ?? null,
@@ -99,18 +101,25 @@ export async function createDraftOffer(input: OfferInput) {
   });
 }
 
-export async function updateDraftOffer(offerId: string, input: OfferInput) {
+export async function updateOffer(offerId: string, input: OfferInput) {
   return prisma.$transaction(async (tx) => {
     await lockOffer(tx, offerId);
-    const offer = await tx.offer.findUnique({ where: { id: offerId }, select: { status: true } });
+    const offer = await tx.offer.findUnique({ where: { id: offerId }, select: { status: true, number: true } });
     if (!offer) throw new ApiError(404, "Angebot nicht gefunden");
-    if (offer.status !== "DRAFT") throw new ApiError(400, "Nur Entwürfe können bearbeitet werden");
+    const number = input.number === undefined ? offer.number : input.number;
+    if (offer.status !== "DRAFT" && !number) {
+      throw new ApiError(400, "Finalisierte Angebote benötigen eine Angebotsnummer");
+    }
     const resolvedLines = await validateReferences(tx, input);
     const { netTotal, taxTotal, grossTotal, linesData } = totalsAndLines(input, resolvedLines);
+    const customer = offer.status === "DRAFT"
+      ? null
+      : await tx.customer.findUnique({ where: { id: input.customerId } });
     await tx.offerLine.deleteMany({ where: { offerId } });
     return tx.offer.update({
       where: { id: offerId },
       data: {
+        number,
         customerId: input.customerId,
         issueDate: input.issueDate,
         validUntil: input.validUntil,
@@ -122,6 +131,17 @@ export async function updateDraftOffer(offerId: string, input: OfferInput) {
         netTotal,
         taxTotal,
         grossTotal,
+        ...(customer ? {
+          customerName: customer.name,
+          customerAddress: [
+            customer.street,
+            `${customer.zip} ${customer.city}`.trim(),
+            customer.country,
+          ].filter(Boolean).join("\n"),
+          customerUid: customer.uid,
+          customerCountryCode: customer.countryCode,
+          customerType: customer.customerType,
+        } : {}),
         lines: { create: linesData },
       },
       include: { lines: true },
@@ -171,7 +191,7 @@ export async function finalizeOffer(offerId: string, options: FinalizeOfferInput
     if (assessment.expectedTreatment && offer.taxTreatment !== assessment.expectedTreatment) {
       throw new ApiError(409, `Erwartete Steuerbehandlung: ${TAX_TREATMENT_LABELS[assessment.expectedTreatment]}`);
     }
-    const number = options.number ?? await assignOfferNumberTx(tx, issueDate);
+    const number = options.number ?? offer.number ?? await assignOfferNumberTx(tx, issueDate);
     const customer = offer.customer;
     return tx.offer.update({
       where: { id: offerId },

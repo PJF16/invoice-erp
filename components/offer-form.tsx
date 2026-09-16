@@ -27,6 +27,8 @@ type OfferLine = {
 
 export type OfferInitial = {
   id?: string;
+  number: string | null;
+  status: string;
   customerId: string;
   issueDate: string;
   validUntil: string;
@@ -59,6 +61,7 @@ function newLine(): OfferLine {
 export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: OfferInitial }) {
   const router = useRouter();
   const isEditing = Boolean(initial.id);
+  const [number, setNumber] = useState(initial.number ?? "");
   const [customerId, setCustomerId] = useState(initial.customerId);
   const [issueDate, setIssueDate] = useState(initial.issueDate);
   const [validUntil, setValidUntil] = useState(initial.validUntil);
@@ -165,6 +168,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
       method: isEditing ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        number: number || null,
         customerId,
         issueDate,
         validUntil,
@@ -220,6 +224,17 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
               {taxAssessment.warnings.map((warning) => <div key={warning} className="mt-1 text-amber-800">⚠ {warning}</div>)}
             </div>
           )}
+          <div>
+            <label className={label}>Angebotsnummer{initial.status !== "DRAFT" ? " *" : ""}</label>
+            <input
+              value={number}
+              required={initial.status !== "DRAFT"}
+              maxLength={100}
+              placeholder="Wird sonst beim Finalisieren vergeben"
+              onChange={(event) => setNumber(event.target.value)}
+              className={`${input} mt-1`}
+            />
+          </div>
           <div>
             <label className={label}>Voraussichtliches Lieferdatum</label>
             <input type="date" value={deliveryDate} onChange={(event) => setDeliveryDate(event.target.value)} className={`${input} mt-1`} />
@@ -381,7 +396,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" onClick={() => router.back()} className="rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">Abbrechen</button>
-        <button type="submit" disabled={loading} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">{loading ? "Speichere…" : "Als Entwurf speichern"}</button>
+        <button type="submit" disabled={loading} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">{loading ? "Speichere…" : isEditing ? "Änderungen speichern" : "Als Entwurf speichern"}</button>
       </div>
     </form>
   );

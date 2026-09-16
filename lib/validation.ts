@@ -7,6 +7,14 @@ const optionalTrimmed = z
   .nullable()
   .optional();
 
+const optionalOfferNumber = z
+  .string()
+  .trim()
+  .max(100, "Angebotsnummer darf maximal 100 Zeichen lang sein")
+  .transform((v) => (v === "" ? null : v))
+  .nullable()
+  .optional();
+
 export const itemSchema = z.object({
   name: z.string().trim().min(1, "Name ist erforderlich"),
   sku: optionalTrimmed,
@@ -165,6 +173,7 @@ export const offerLineSchema = documentLineSchema
 
 export const offerSchema = z
   .object({
+    number: optionalOfferNumber,
     customerId: z.string().min(1, "Kunde ist erforderlich"),
     issueDate: dateString,
     validUntil: dateString,
@@ -178,7 +187,21 @@ export const offerSchema = z
   .refine((offer) => offer.validUntil >= offer.issueDate, {
     path: ["validUntil"],
     message: "Gültig-bis-Datum darf nicht vor dem Angebotsdatum liegen",
-  });
+  })
+  .refine(
+    (offer) => Boolean(offer.servicePeriodStart) === Boolean(offer.servicePeriodEnd),
+    {
+      path: ["servicePeriodEnd"],
+      message: "Der Leistungszeitraum benötigt ein Von- und ein Bis-Datum",
+    },
+  )
+  .refine(
+    (offer) => !offer.servicePeriodStart || !offer.servicePeriodEnd || offer.servicePeriodEnd >= offer.servicePeriodStart,
+    {
+      path: ["servicePeriodEnd"],
+      message: "Das Ende des Leistungszeitraums darf nicht vor dem Beginn liegen",
+    },
+  );
 
 export const offerStatusSchema = z.object({
   status: z.enum(["OPEN", "ACCEPTED", "REJECTED"]),
