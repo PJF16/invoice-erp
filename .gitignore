@@ -11,7 +11,11 @@
 !.yarn/versions
 
 # testing
-/coverage
+/coverage/
+
+# local test and tool caches
+/.cache/
+/.eslintcache
 
 # next.js
 /.next/
@@ -22,7 +26,14 @@
 
 # misc
 .DS_Store
+Thumbs.db
 *.pem
+*.swp
+*.swo
+
+# local editor settings
+/.idea/
+/.vscode/
 
 # debug
 npm-debug.log*
@@ -39,6 +50,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# generated work artifacts (for example from ChatGPT Work)
+/tmp/
+/output/
 
 !.env.example
 
