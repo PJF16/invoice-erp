@@ -8,6 +8,8 @@ import type { InvoiceFormData } from "@/components/invoice-form";
 import { eur, TAX_TREATMENT_OPTIONS } from "@/lib/format";
 import { assessTaxTreatment, SUPPLY_KIND_OPTIONS } from "@/lib/tax-rules";
 import type { SupplyKind } from "@/lib/generated/prisma/enums";
+import { DecimalInput } from "@/components/localized-inputs";
+import { formatLocalizedDateInput } from "@/lib/localized-input";
 
 type LineType = "FREE" | "SOFTWARE" | "HARDWARE";
 
@@ -63,11 +65,11 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
   const isEditing = Boolean(initial.id);
   const [number, setNumber] = useState(initial.number ?? "");
   const [customerId, setCustomerId] = useState(initial.customerId);
-  const [issueDate, setIssueDate] = useState(initial.issueDate);
-  const [validUntil, setValidUntil] = useState(initial.validUntil);
-  const [deliveryDate, setDeliveryDate] = useState(initial.deliveryDate ?? "");
-  const [periodStart, setPeriodStart] = useState(initial.servicePeriodStart ?? "");
-  const [periodEnd, setPeriodEnd] = useState(initial.servicePeriodEnd ?? "");
+  const [issueDate, setIssueDate] = useState(formatLocalizedDateInput(initial.issueDate));
+  const [validUntil, setValidUntil] = useState(formatLocalizedDateInput(initial.validUntil));
+  const [deliveryDate, setDeliveryDate] = useState(initial.deliveryDate ? formatLocalizedDateInput(initial.deliveryDate) : "");
+  const [periodStart, setPeriodStart] = useState(initial.servicePeriodStart ? formatLocalizedDateInput(initial.servicePeriodStart) : "");
+  const [periodEnd, setPeriodEnd] = useState(initial.servicePeriodEnd ? formatLocalizedDateInput(initial.servicePeriodEnd) : "");
   const [taxTreatment, setTaxTreatment] = useState(initial.taxTreatment);
   const [notes, setNotes] = useState(initial.notes ?? "");
   const [lines, setLines] = useState<OfferLine[]>(
@@ -237,25 +239,25 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
           </div>
           <div>
             <label className={label}>Voraussichtliches Lieferdatum</label>
-            <input type="date" value={deliveryDate} onChange={(event) => setDeliveryDate(event.target.value)} className={`${input} mt-1`} />
+            <input type="text" inputMode="numeric" placeholder="TT.MM.JJJJ" value={deliveryDate} onChange={(event) => setDeliveryDate(event.target.value)} className={`${input} mt-1`} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={label}>Leistung von</label>
-              <input type="date" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} className={`${input} mt-1`} />
+              <input type="text" inputMode="numeric" placeholder="TT.MM.JJJJ" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} className={`${input} mt-1`} />
             </div>
             <div>
               <label className={label}>bis</label>
-              <input type="date" value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} className={`${input} mt-1`} />
+              <input type="text" inputMode="numeric" placeholder="TT.MM.JJJJ" value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} className={`${input} mt-1`} />
             </div>
           </div>
           <div>
             <label className={label}>Angebotsdatum *</label>
-            <input type="date" required value={issueDate} onChange={(event) => setIssueDate(event.target.value)} className={`${input} mt-1`} />
+            <input type="text" inputMode="numeric" placeholder="TT.MM.JJJJ" required value={issueDate} onChange={(event) => setIssueDate(event.target.value)} className={`${input} mt-1`} />
           </div>
           <div>
             <label className={label}>Gültig bis *</label>
-            <input type="date" required min={issueDate} value={validUntil} onChange={(event) => setValidUntil(event.target.value)} className={`${input} mt-1`} />
+            <input type="text" inputMode="numeric" placeholder="TT.MM.JJJJ" required value={validUntil} onChange={(event) => setValidUntil(event.target.value)} className={`${input} mt-1`} />
           </div>
           <div className="sm:col-span-2">
             <label className={label}>Steuerbehandlung</label>
@@ -340,7 +342,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
                   </div>
                   <div className="lg:col-span-2">
                     <label className={label}>Menge *</label>
-                    <input type="number" min={line.type === "HARDWARE" ? 1 : 0.01} step={line.type === "HARDWARE" ? 1 : 0.01} required value={line.quantity} onChange={(event) => updateLine(line.key, { quantity: Number(event.target.value) })} className={`${input} mt-1`} />
+                    <DecimalInput min={line.type === "HARDWARE" ? 1 : 0.01} required value={line.quantity} onValueChange={(quantity) => updateLine(line.key, { quantity })} integer={line.type === "HARDWARE"} className={`${input} mt-1`} />
                   </div>
                   <div className="lg:col-span-1">
                     <label className={label}>Einheit</label>
@@ -348,7 +350,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
                   </div>
                   <div className="lg:col-span-2">
                     <label className={label}>Einzelpreis € *</label>
-                    <input type="number" min={0} step="0.01" required value={line.unitPrice} onChange={(event) => updateLine(line.key, { unitPrice: Number(event.target.value) })} className={`${input} mt-1`} />
+                    <DecimalInput min={0} required value={line.unitPrice} onValueChange={(unitPrice) => updateLine(line.key, { unitPrice })} className={`${input} mt-1`} />
                   </div>
                   <div className="lg:col-span-2">
                     <label className={label}>Leistungsart</label>

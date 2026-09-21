@@ -7,6 +7,8 @@ import { CustomerSelect } from "@/components/customer-select";
 import { SoftwareItemSelect } from "@/components/software-item-select";
 import { assessTaxTreatment, SUPPLY_KIND_OPTIONS } from "@/lib/tax-rules";
 import type { CustomerType, SupplyKind } from "@/lib/generated/prisma/enums";
+import { DecimalInput } from "@/components/localized-inputs";
+import { formatLocalizedDateInput, normalizeDateInput } from "@/lib/localized-input";
 
 export type InvoiceFormData = {
   customers: {
@@ -84,10 +86,12 @@ function newLine(): Line {
 }
 
 function addDaysToDateInput(value: string, days: number) {
-  const [year, month, day] = value.split("-").map(Number);
+  const normalized = normalizeDateInput(value);
+  if (!normalized) return "";
+  const [year, month, day] = normalized.split("-").map(Number);
   const date = new Date(year, month - 1, day);
   date.setDate(date.getDate() + days);
-  return toDateInput(date);
+  return formatLocalizedDateInput(toDateInput(date));
 }
 
 export function InvoiceForm({
@@ -105,17 +109,17 @@ export function InvoiceForm({
   const isEditing = Boolean(initial?.id);
   const [customerId, setCustomerId] = useState(initial?.customerId ?? "");
   const [taxTreatment, setTaxTreatment] = useState(initial?.taxTreatment ?? "STANDARD");
-  const [issueDate, setIssueDate] = useState(() => initial?.issueDate ?? toDateInput(new Date()));
+  const [issueDate, setIssueDate] = useState(() => formatLocalizedDateInput(initial?.issueDate ?? toDateInput(new Date())));
   const [dueDate, setDueDate] = useState(() => {
-    if (initial?.dueDate) return initial.dueDate;
-    if (defaultDueDate) return defaultDueDate;
+    if (initial?.dueDate) return formatLocalizedDateInput(initial.dueDate);
+    if (defaultDueDate) return formatLocalizedDateInput(defaultDueDate);
     const date = new Date();
     date.setDate(date.getDate() + 14);
-    return toDateInput(date);
+    return formatLocalizedDateInput(toDateInput(date));
   });
-  const [deliveryDate, setDeliveryDate] = useState(initial?.deliveryDate ?? "");
-  const [periodStart, setPeriodStart] = useState(initial?.servicePeriodStart ?? "");
-  const [periodEnd, setPeriodEnd] = useState(initial?.servicePeriodEnd ?? "");
+  const [deliveryDate, setDeliveryDate] = useState(initial?.deliveryDate ? formatLocalizedDateInput(initial.deliveryDate) : "");
+  const [periodStart, setPeriodStart] = useState(initial?.servicePeriodStart ? formatLocalizedDateInput(initial.servicePeriodStart) : "");
+  const [periodEnd, setPeriodEnd] = useState(initial?.servicePeriodEnd ? formatLocalizedDateInput(initial.servicePeriodEnd) : "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [lines, setLines] = useState<Line[]>(
     initial
@@ -189,7 +193,7 @@ export function InvoiceForm({
 
   function changeIssueDate(value: string) {
     setIssueDate(value);
-    if (!value) return;
+    if (!normalizeDateInput(value)) return;
     const customer = data.customers.find((entry) => entry.id === customerId);
     setDueDate(addDaysToDateInput(value, customer?.paymentDays ?? defaultPaymentDays));
   }
@@ -296,11 +300,11 @@ export function InvoiceForm({
           </div>
           <div>
             <label className={label}>Rechnungsdatum *</label>
-            <input type="date" required value={issueDate} onChange={(e) => changeIssueDate(e.target.value)} className={`${input} mt-1`} />
+            <input type="text" inputMode="numeric" placeholder="TT.MM.JJJJ" required value={issueDate} onChange={(e) => changeIssueDate(e.target.value)} className={`${input} mt-1`} />
           </div>
           <div>
             <label className={label}>Fällig am *</label>
-            <input type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={`${input} mt-1`} />
+            <input type="text" inputMode="numeric" placeholder="TT.MM.JJJJ" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={`${input} mt-1`} />
             {customerId && (
               <p className="mt-1 text-xs text-gray-500">
                 Zahlungsziel: {data.customers.find((entry) => entry.id === customerId)?.paymentDays ?? defaultPaymentDays} Tage
@@ -311,16 +315,16 @@ export function InvoiceForm({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={label}>Leistung von</label>
-              <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} className={`${input} mt-1`} />
+              <input type="text" inputMode="numeric" placeholder="TT.MM.JJJJ" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} className={`${input} mt-1`} />
             </div>
             <div>
               <label className={label}>bis</label>
-              <input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} className={`${input} mt-1`} />
+              <input type="text" inputMode="numeric" placeholder="TT.MM.JJJJ" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} className={`${input} mt-1`} />
             </div>
           </div>
           <div>
             <label className={label}>Lieferdatum (Waren)</label>
-            <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} className={`${input} mt-1`} />
+            <input type="text" inputMode="numeric" placeholder="TT.MM.JJJJ" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} className={`${input} mt-1`} />
           </div>
           {taxAssessment && (
             <div className="lg:col-span-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">
@@ -453,14 +457,13 @@ export function InvoiceForm({
                   </div>
                   <div>
                     <label className={label}>Menge *</label>
-                    <input
-                      type="number"
+                    <DecimalInput
                       min={line.type === "HARDWARE" ? 1 : 0.01}
-                      step={line.type === "HARDWARE" ? 1 : 0.01}
                       required
                       disabled={Boolean(line.sourceMovementId || line.sourceDeliveryNoteLineId)}
                       value={line.quantity}
-                      onChange={(e) => updateLine(line.key, { quantity: Number(e.target.value) })}
+                      onValueChange={(quantity) => updateLine(line.key, { quantity })}
+                      integer={line.type === "HARDWARE"}
                       className={`${input} mt-1 disabled:bg-gray-100 disabled:text-gray-500`}
                     />
                   </div>
@@ -474,13 +477,11 @@ export function InvoiceForm({
                   </div>
                   <div>
                     <label className={label}>Einzelpreis € *</label>
-                    <input
-                      type="number"
+                    <DecimalInput
                       min={0}
-                      step="0.01"
                       required
                       value={line.unitPrice}
-                      onChange={(e) => updateLine(line.key, { unitPrice: Number(e.target.value) })}
+                      onValueChange={(unitPrice) => updateLine(line.key, { unitPrice })}
                       className={`${input} mt-1`}
                     />
                   </div>

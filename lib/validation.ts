@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeDateInput } from "@/lib/localized-input";
 
 const optionalTrimmed = z
   .string()
@@ -57,7 +58,13 @@ const supplyKind = z.enum(["GOODS", "SERVICE", "ELECTRONIC_SERVICE"]);
 const softwareSupplyKind = z.enum(["SERVICE", "ELECTRONIC_SERVICE"]);
 const taxRate = z.union([z.literal(0), z.literal(10), z.literal(13), z.literal(20)]);
 const money = z.number().min(0).max(99_999_999);
-const dateString = z.iso.date().or(z.iso.datetime()).transform((s) => new Date(s));
+const dateString = z.string().transform((value, ctx) => {
+  const normalized = normalizeDateInput(value);
+  if (normalized) return new Date(normalized);
+  if (z.iso.datetime().safeParse(value).success) return new Date(value);
+  ctx.addIssue({ code: "custom", message: "Ungültiges Datum. Bitte TT.MM.JJJJ verwenden." });
+  return z.NEVER;
+});
 
 const customerFields = z.object({
   customerNumber: optionalTrimmed,
