@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { generateInternalBarcode } from "@/lib/barcode";
 
-type ItemData = {
+export type ItemData = {
   id?: string;
   name: string;
   sku: string | null;
@@ -13,12 +14,14 @@ type ItemData = {
   description: string | null;
 };
 
-function ItemDialog({
+export function ItemDialog({
   item,
   onClose,
+  onSaved,
 }: {
   item: ItemData | null;
   onClose: () => void;
+  onSaved?: (item: ItemData & { id: string }) => void;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -44,15 +47,17 @@ function ItemDialog({
     });
     setLoading(false);
     if (res.ok) {
+      const savedItem = await res.json() as ItemData & { id: string };
+      onSaved?.(savedItem);
       onClose();
-      router.refresh();
+      if (!onSaved) router.refresh();
     } else {
       const data = await res.json().catch(() => null);
       setError(data?.error ?? "Speichern fehlgeschlagen");
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
@@ -136,7 +141,8 @@ function ItemDialog({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

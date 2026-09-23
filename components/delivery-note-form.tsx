@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CustomerSelect, type CustomerSelectOption } from "@/components/customer-select";
 import { ItemSelect } from "@/components/item-select";
+import { ItemDialog } from "@/components/item-form";
 
 type ItemOption = {
   id: string;
@@ -36,7 +37,9 @@ export function DeliveryNoteForm({
   const [distributorReference, setDistributorReference] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [notes, setNotes] = useState("");
+  const [availableItems, setAvailableItems] = useState(items);
   const [lines, setLines] = useState<Line[]>([newLine()]);
+  const [newItemLineKey, setNewItemLineKey] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +48,7 @@ export function DeliveryNoteForm({
   }
 
   function selectItem(line: Line, itemId: string) {
-    const item = items.find((entry) => entry.id === itemId);
+    const item = availableItems.find((entry) => entry.id === itemId);
     const preferredWarehouse = item?.stocks.find((stock) => stock.quantity > 0)?.warehouseId ?? "";
     updateLine(line.key, { itemId, warehouseId: preferredWarehouse });
   }
@@ -131,13 +134,22 @@ export function DeliveryNoteForm({
         </div>
         <div className="space-y-3">
           {lines.map((line, index) => {
-            const item = items.find((entry) => entry.id === line.itemId);
+            const item = availableItems.find((entry) => entry.id === line.itemId);
             const stock = item?.stocks.find((entry) => entry.warehouseId === line.warehouseId)?.quantity ?? 0;
             return (
               <div key={line.key} className="grid gap-3 rounded-lg border border-gray-200 p-4 sm:grid-cols-12">
                 <div className="sm:col-span-5">
                   <label className={label}>Artikel {index + 1} *</label>
-                  <ItemSelect items={items} value={line.itemId} onValueChange={(itemId) => selectItem(line, itemId)} required className="mt-1" />
+                  <ItemSelect key={`${line.key}:${line.itemId}`} items={availableItems} value={line.itemId} onValueChange={(itemId) => selectItem(line, itemId)} required className="mt-1" />
+                  {deliveryMethod === "DISTRIBUTOR_DIRECT" && (
+                    <button
+                      type="button"
+                      onClick={() => setNewItemLineKey(line.key)}
+                      className="mt-2 text-xs font-medium text-blue-700 hover:underline"
+                    >
+                      + Artikel direkt anlegen
+                    </button>
+                  )}
                 </div>
                 {deliveryMethod === "STOCK" ? <div className="sm:col-span-4">
                   <label className={label}>Lager *</label>
@@ -170,6 +182,17 @@ export function DeliveryNoteForm({
         <button type="button" onClick={() => router.back()} className="rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">Abbrechen</button>
         <button type="submit" disabled={loading} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">{loading ? "Erstelle…" : deliveryMethod === "STOCK" ? "Lieferschein erstellen & ausbuchen" : "Direktlieferung protokollieren"}</button>
       </div>
+      {newItemLineKey !== null && (
+        <ItemDialog
+          item={null}
+          onClose={() => setNewItemLineKey(null)}
+          onSaved={(savedItem) => {
+            const createdItem: ItemOption = { id: savedItem.id, name: savedItem.name, sku: savedItem.sku, stocks: [] };
+            setAvailableItems((current) => [...current.filter((entry) => entry.id !== createdItem.id), createdItem]);
+            updateLine(newItemLineKey, { itemId: createdItem.id, warehouseId: "" });
+          }}
+        />
+      )}
     </form>
   );
 }
