@@ -110,6 +110,7 @@ export const openApiDocument = {
     }),
     "/api/delivery-notes/{id}": path({ get: operation("Lieferscheine", "Lieferscheindetails abrufen", { parameters: [id] }) }),
     "/api/delivery-notes/{id}/pdf": path({ get: operation("Lieferscheine", "Lieferschein als PDF herunterladen", { parameters: [id], binary: "application/pdf" }) }),
+    "/api/delivery-notes/{id}/send": path({ post: operation("Lieferscheine", "Lieferschein per E-Mail senden", { parameters: [id] }) }),
     "/api/delivery-notes/{id}/cancel": path({ post: operation("Lieferscheine", "Lieferschein vollständig oder teilweise stornieren", { parameters: [id], body: "DeliveryCancellationInput" }) }),
     "/api/delivery-note-lines/{id}/billing-status": path({ patch: operation("Lieferscheine", "Abrechnungsstatus einer Lieferscheinposition ändern", { parameters: [id], body: "BillingStatusInput" }) }),
     "/api/software-items": path({

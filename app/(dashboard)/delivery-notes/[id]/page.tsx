@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/format";
 import { auth } from "@/lib/auth";
 import { hasModule } from "@/lib/permissions";
 import { CancelDeliveryNoteButton } from "@/components/cancel-delivery-note-button";
+import { DeliveryNoteEmailButton } from "@/components/delivery-note-email-button";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export default async function DeliveryNoteDetailPage({ params }: { params: Promi
     prisma.deliveryNote.findUnique({
       where: { id },
       include: {
+        customer: { select: { email: true } },
         createdBy: { select: { name: true } },
         canceledBy: { select: { name: true } },
         cancellations: {
@@ -36,10 +38,11 @@ export default async function DeliveryNoteDetailPage({ params }: { params: Promi
     <div className="mx-auto max-w-4xl">
       <Link href="/delivery-notes" className="text-sm text-gray-500 hover:text-gray-900">← Zurück zu den Lieferscheinen</Link>
       <div className="mt-2 mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div><div className="flex items-center gap-2"><h1 className="text-2xl font-semibold">Lieferschein {note.number}</h1>{note.status === "CANCELED" ? <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">Storniert</span> : canceledQuantity > 0 ? <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Teilweise storniert</span> : null}</div><p className="mt-1 text-sm text-gray-500">{note.customerName} · {formatDate(note.issueDate)} · erstellt von {note.createdBy.name}</p></div>
+        <div><div className="flex items-center gap-2"><h1 className="text-2xl font-semibold">Lieferschein {note.number}</h1>{note.status === "CANCELED" ? <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">Storniert</span> : canceledQuantity > 0 ? <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Teilweise storniert</span> : null}</div><p className="mt-1 text-sm text-gray-500">{note.customerName} · {formatDate(note.issueDate)} · erstellt von {note.createdBy.name}{note.sentAt && <> · versendet {formatDate(note.sentAt)}</>}</p></div>
         <div className="flex flex-wrap gap-2">
           {canCreateInvoice && note.status === "ACTIVE" && pendingCount > 0 && <Link href={`/invoices/new?lieferscheine=${note.id}`} className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">{pendingCount === note.lines.length ? "In Rechnung übernehmen" : `${pendingCount} offene Position${pendingCount === 1 ? "" : "en"} übernehmen`}</Link>}
           <a href={`/api/delivery-notes/${note.id}/pdf`} target="_blank" className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50">PDF öffnen</a>
+          {note.status === "ACTIVE" && <DeliveryNoteEmailButton deliveryNoteId={note.id} customerEmail={note.customer.email} previouslySent={Boolean(note.sentAt)} />}
           {note.status === "ACTIVE" && cancelableLines.length > 0 && <CancelDeliveryNoteButton endpoint={`/api/delivery-notes/${note.id}/cancel`} lines={cancelableLines} />}
         </div>
       </div>

@@ -11,7 +11,10 @@ export default async function MailMonitoringPage() {
     prisma.mailEvent.findMany({
       orderBy: { createdAt: "desc" },
       take: 200,
-      include: { invoice: { select: { id: true, number: true } } },
+      include: {
+        invoice: { select: { id: true, number: true } },
+        deliveryNote: { select: { id: true, number: true } },
+      },
     }),
     prisma.mailEvent.count({ where: { createdAt: { gte: since }, status: "ACCEPTED" } }),
     prisma.mailEvent.count({
@@ -76,6 +79,10 @@ export default async function MailMonitoringPage() {
                       {event.invoice ? (
                         <Link href={`/invoices/${event.invoice.id}`} className="text-blue-700 hover:underline">
                           {MAIL_KIND_LABELS[event.kind]} {event.invoice.number}
+                        </Link>
+                      ) : event.deliveryNote ? (
+                        <Link href={`/delivery-notes/${event.deliveryNote.id}`} className="text-blue-700 hover:underline">
+                          {MAIL_KIND_LABELS[event.kind]} {event.deliveryNote.number}
                         </Link>
                       ) : MAIL_KIND_LABELS[event.kind]}
                     </td>

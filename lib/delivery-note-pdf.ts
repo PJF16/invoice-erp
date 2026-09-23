@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { renderPdfMetaRows } from "@/lib/pdf-meta";
 import type { Prisma, CompanySettings } from "@/lib/generated/prisma/client";
 
 type DeliveryNoteWithLines = Prisma.DeliveryNoteGetPayload<{
@@ -28,14 +29,19 @@ export async function renderDeliveryNotePdf(note: DeliveryNoteWithLines, setting
     if (contact) doc.text(contact);
     doc.fillColor("#000000");
 
+    const recipientX = 55;
+    const recipientWidth = 245;
     doc.moveDown(2.5);
-    doc.fontSize(8).fillColor("#888888").text(`${settings.name} · ${settings.street} · ${settings.zip} ${settings.city}`);
+    doc.fontSize(8).fillColor("#888888").text(`${settings.name} · ${settings.street} · ${settings.zip} ${settings.city}`, {
+      width: recipientWidth,
+    });
     doc.fillColor("#000000").fontSize(11).moveDown(0.4);
-    doc.font("Helvetica-Bold").text(note.customerName);
-    doc.font("Helvetica").text(note.customerAddress);
-    if (note.customerUid) doc.text(`UID: ${note.customerUid}`);
+    const recipientY = doc.y;
+    doc.font("Helvetica-Bold").text(note.customerName, recipientX, recipientY, { width: recipientWidth });
+    doc.font("Helvetica").text(note.customerAddress, recipientX, doc.y, { width: recipientWidth });
+    if (note.customerUid) doc.text(`UID: ${note.customerUid}`, recipientX, doc.y, { width: recipientWidth });
+    const recipientBottom = doc.y;
 
-    const metaY = doc.y - 55;
     const meta: [string, string][] = [
       ["Lieferscheinnummer:", note.number],
       ["Lieferdatum:", dateFmt.format(note.issueDate)],
@@ -44,16 +50,14 @@ export async function renderDeliveryNotePdf(note: DeliveryNoteWithLines, setting
     if (note.distributor) meta.push(["Distributor:", note.distributor]);
     if (note.distributorReference) meta.push(["Referenz:", note.distributorReference]);
     if (note.trackingNumber) meta.push(["Tracking:", note.trackingNumber]);
-    let y = metaY;
-    doc.fontSize(10);
-    for (const [label, value] of meta) {
-      doc.text(label, 320, y, { width: 115 });
-      doc.font("Helvetica-Bold").text(value, 435, y, { width: 115, align: "right" });
-      doc.font("Helvetica");
-      y += 15;
-    }
+    const metaBottom = renderPdfMetaRows(doc, meta, {
+      y: recipientY,
+      labelWidth: 115,
+      valueX: 435,
+      valueWidth: 115,
+    });
 
-    doc.text("", 55, Math.max(doc.y, y) + 30);
+    doc.text("", 55, Math.max(recipientBottom, metaBottom) + 30);
     doc.fontSize(14).font("Helvetica-Bold").text(`Lieferschein ${note.number}`);
     if (note.status === "CANCELED") doc.moveDown(0.3).fillColor("#b91c1c").fontSize(12).text("STORNIERT").fillColor("#000000");
     else if (canceledQuantity > 0) doc.moveDown(0.3).fillColor("#b45309").fontSize(12).text("TEILWEISE STORNIERT").fillColor("#000000");

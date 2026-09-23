@@ -140,6 +140,7 @@ enum PaymentMethod {
 
 enum MailKind {
   INVOICE
+  DELIVERY_NOTE
   REMINDER
   EXPORT
   PORTAL_LOGIN
@@ -408,6 +409,8 @@ model MailEvent {
   subject       String
   invoice       Invoice?           @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   invoiceId     String?
+  deliveryNote  DeliveryNote?      @relation(fields: [deliveryNoteId], references: [id], onDelete: SetNull)
+  deliveryNoteId String?
   messageId     String?
   accepted      String[]           @default([])
   rejected      String[]           @default([])
@@ -421,6 +424,7 @@ model MailEvent {
   @@index([createdAt])
   @@index([status, createdAt])
   @@index([invoiceId, createdAt])
+  @@index([deliveryNoteId, createdAt])
 }
 
 model Offer {
@@ -493,11 +497,13 @@ model DeliveryNote {
   canceledBy           User?                      @relation("CanceledDeliveryNotes", fields: [canceledById], references: [id])
   canceledById         String?
   notes                String?
+  sentAt               DateTime?
   createdAt            DateTime                   @default(now())
   createdBy            User                       @relation("CreatedDeliveryNotes", fields: [createdById], references: [id])
   createdById          String
   lines                DeliveryNoteLine[]
   cancellations        DeliveryNoteCancellation[]
+  mailEvents           MailEvent[]
 
   @@index([customerId, issueDate])
 }

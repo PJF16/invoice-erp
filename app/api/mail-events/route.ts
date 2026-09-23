@@ -4,7 +4,7 @@ import { getPagination, handleApiError, requireModule } from "@/lib/api-helpers"
 import type { MailKind, MailStatus } from "@/lib/generated/prisma/enums";
 
 const statuses = new Set<MailStatus>(["PENDING", "SIMULATED", "ACCEPTED", "PARTIALLY_REJECTED", "REJECTED", "FAILED"]);
-const kinds = new Set<MailKind>(["INVOICE", "REMINDER", "EXPORT", "PORTAL_LOGIN"]);
+const kinds = new Set<MailKind>(["INVOICE", "DELIVERY_NOTE", "REMINDER", "EXPORT", "PORTAL_LOGIN"]);
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
       ...getPagination(req.nextUrl.searchParams, { limit: 200, max: 500 }),
-      include: { invoice: { select: { id: true, number: true } } },
+      include: {
+        invoice: { select: { id: true, number: true } },
+        deliveryNote: { select: { id: true, number: true } },
+      },
     }));
   } catch (error) {
     return handleApiError(error);

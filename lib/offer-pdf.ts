@@ -2,6 +2,7 @@ import PDFDocument from "pdfkit";
 import { computeTotals, TAX_NOTES } from "@/lib/invoices";
 import { formatTaxRate } from "@/lib/format";
 import { renderPdfLineDescription } from "@/lib/pdf-line-description";
+import { renderPdfMetaRows } from "@/lib/pdf-meta";
 import type { Prisma, CompanySettings } from "@/lib/generated/prisma/client";
 
 type OfferWithLines = Prisma.OfferGetPayload<{ include: { lines: true; customer: true } }>;
@@ -50,15 +51,9 @@ export async function renderOfferPdf(offer: OfferWithLines, settings: CompanySet
     if (offer.servicePeriodStart && offer.servicePeriodEnd) {
       meta.push(["Leistungszeitraum:", `${dateFmt.format(offer.servicePeriodStart)} – ${dateFmt.format(offer.servicePeriodEnd)}`]);
     }
-    let y = metaY;
-    for (const [label, value] of meta) {
-      doc.text(label, 320, y, { width: 110 });
-      doc.font("Helvetica-Bold").text(value, 430, y, { width: 120, align: "right" });
-      doc.font("Helvetica");
-      y += 15;
-    }
+    const metaBottom = renderPdfMetaRows(doc, meta, { y: metaY });
 
-    doc.text("", 55, Math.max(recipientBottom, y) + 30);
+    doc.text("", 55, Math.max(recipientBottom, metaBottom) + 30);
     doc.fontSize(14).font("Helvetica-Bold").text(`Angebot ${offer.number ?? "(Entwurf)"}`);
     doc.moveDown(0.8);
 

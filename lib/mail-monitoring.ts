@@ -11,6 +11,7 @@ export const MAIL_STATUS_LABELS: Record<MailStatus, { label: string; className: 
 
 export const MAIL_KIND_LABELS: Record<MailKind, string> = {
   INVOICE: "Rechnung",
+  DELIVERY_NOTE: "Lieferschein",
   REMINDER: "Zahlungserinnerung",
   EXPORT: "Belegexport",
   PORTAL_LOGIN: "Portal-Anmeldung",

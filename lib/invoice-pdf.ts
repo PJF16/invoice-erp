@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { computeTotals, TAX_NOTES } from "@/lib/invoices";
 import { formatTaxRate } from "@/lib/format";
 import { renderPdfLineDescription } from "@/lib/pdf-line-description";
+import { renderPdfMetaRows } from "@/lib/pdf-meta";
 import type { Prisma, CompanySettings } from "@/lib/generated/prisma/client";
 
 type InvoiceWithLines = Prisma.InvoiceGetPayload<{ include: { lines: true; customer: true } }>;
@@ -94,17 +95,11 @@ export async function renderInvoicePdf(
     if (invoice.deliveryDate) {
       meta.push(["Lieferdatum:", dateFmt.format(invoice.deliveryDate)]);
     }
-    let y = metaY;
-    for (const [label, value] of meta) {
-      doc.text(label, 320, y, { width: 110 });
-      doc.font("Helvetica-Bold").text(value, 430, y, { width: 120, align: "right" });
-      doc.font("Helvetica");
-      y += 15;
-    }
+    const metaBottom = renderPdfMetaRows(doc, meta, { y: metaY });
 
     // Titel
     const docTitle = invoice.type === "CREDIT_NOTE" ? "Stornorechnung" : "Rechnung";
-    doc.text("", 55, Math.max(recipientBottom, y) + 30);
+    doc.text("", 55, Math.max(recipientBottom, metaBottom) + 30);
     doc.fontSize(14).font("Helvetica-Bold").text(`${docTitle} ${invoice.number ?? "(Entwurf)"}`);
     doc.moveDown(0.8);
 
