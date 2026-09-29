@@ -4,6 +4,8 @@ import { type ReactNode, useId, useMemo, useRef, useState } from "react";
 
 type Props<T> = {
   options: T[];
+  id?: string;
+  label?: string;
   value: string;
   onValueChange: (value: string) => void;
   getValue: (option: T) => string;
@@ -23,6 +25,8 @@ type Props<T> = {
 
 export function SearchSelect<T>({
   options,
+  id,
+  label,
   value,
   onValueChange,
   getValue,
@@ -43,7 +47,9 @@ export function SearchSelect<T>({
   const inputRef = useRef<HTMLInputElement>(null);
   const selectedOption = options.find((option) => getValue(option) === value);
   const selectedLabel = selectedOption ? getLabel(selectedOption) : "";
-  const [query, setQuery] = useState(selectedLabel);
+  const [search, setSearch] = useState<string | null>(null);
+  const query = search ?? selectedLabel;
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [open, setOpen] = useState(false);
 
   const matches = useMemo(() => {
@@ -55,9 +61,9 @@ export function SearchSelect<T>({
   }, [getSearchText, options, query, selectedLabel, selectedOption]);
 
   function select(nextValue: string) {
-    const option = options.find((entry) => getValue(entry) === nextValue);
     onValueChange(nextValue);
-    setQuery(option ? getLabel(option) : "");
+    setSearch(null);
+    setActiveIndex(-1);
     setOpen(false);
   }
 
@@ -67,7 +73,7 @@ export function SearchSelect<T>({
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
           setOpen(false);
-          setQuery(selectedLabel);
+          setSearch(null);
         }
       }}
     >
@@ -75,6 +81,9 @@ export function SearchSelect<T>({
       <div className="relative">
         <input
           ref={inputRef}
+          id={id}
+          aria-label={label ?? placeholder}
+          aria-activedescendant={open && activeIndex >= 0 && matches[activeIndex] ? `${listId}-${activeIndex}` : undefined}
           type="search"
           value={query}
           disabled={disabled}
@@ -94,18 +103,26 @@ export function SearchSelect<T>({
             requestAnimationFrame(() => input.select());
           }}
           onChange={(event) => {
-            setQuery(event.target.value);
+            setSearch(event.target.value);
+            setActiveIndex(-1);
             if (value) onValueChange("");
             setOpen(true);
           }}
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               setOpen(false);
-              setQuery(selectedLabel);
+              setSearch(null);
               event.currentTarget.blur();
-            } else if (event.key === "Enter" && open && matches.length === 1) {
+            } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+              event.preventDefault(); setOpen(true);
+              if (!matches.length) return;
+              const next = event.key === "ArrowDown" ? (activeIndex + 1) % matches.length : (activeIndex <= 0 ? matches.length - 1 : activeIndex - 1);
+              setActiveIndex(next);
+              document.getElementById(`${listId}-${next}`)?.scrollIntoView({ block: "nearest" });
+            } else if (event.key === "Enter" && open) {
               event.preventDefault();
-              select(getValue(matches[0]));
+              const option = matches[activeIndex] ?? (matches.length === 1 ? matches[0] : undefined);
+              if (option) select(getValue(option));
             }
           }}
           className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-9 text-sm disabled:bg-gray-100 disabled:text-gray-500"
@@ -150,11 +167,13 @@ export function SearchSelect<T>({
           {matches.length === 0 ? (
             <p className="px-3 py-2 text-sm text-gray-500">{noResultsLabel}</p>
           ) : (
-            matches.map((option) => {
+            matches.map((option, index) => {
               const optionValue = getValue(option);
               return (
                 <button
                   key={optionValue}
+                  id={`${listId}-${index}`}
+                  tabIndex={-1}
                   type="button"
                   role="option"
                   aria-selected={optionValue === value}
@@ -167,7 +186,7 @@ export function SearchSelect<T>({
                     if (event.detail === 0) select(optionValue);
                   }}
                   className={`block w-full px-3 py-2 text-left text-sm hover:bg-blue-50 ${
-                    optionValue === value ? "bg-blue-50 text-blue-700" : ""
+                    optionValue === value || index === activeIndex ? "bg-blue-50 text-blue-700" : ""
                   }`}
                 >
                   {renderOption(option)}

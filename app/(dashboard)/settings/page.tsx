@@ -1,3 +1,4 @@
+import { SettingsWorkspace } from "@/components/settings-workspace";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getSettings, publicSmtpSettings } from "@/lib/settings";
@@ -27,7 +28,7 @@ export default async function SettingsPage() {
       <p className="mb-6 text-sm text-gray-500">
         Firmendaten, Nummernkreise, E-Mail-Versand und automatische Backups.
       </p>
-      <SettingsForm
+      <SettingsWorkspace general={<SettingsForm
         settings={{
           name: settings.name,
           street: settings.street,
@@ -64,7 +65,7 @@ export default async function SettingsPage() {
           lastDeliveryNoteSeq: settings.lastDeliveryNoteSeq,
         }}
       />
-      <SmtpSettingsForm settings={publicSmtpSettings(settings)} />
+      } smtp={<SmtpSettingsForm settings={publicSmtpSettings(settings)} />} backup={
       <BackupSettingsForm
         settings={{
           enabled: backupSettings.enabled,
@@ -84,7 +85,7 @@ export default async function SettingsPage() {
           lastError: backupSettings.lastError,
           running: backupSettings.running,
         }}
-      />
+      />} />
     </div>
   );
 }

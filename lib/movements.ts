@@ -30,6 +30,7 @@ export async function bookMovementTx(tx: Tx, input: BookMovementInput) {
   const { itemId, warehouseId, type, quantity, userId, customerId, billingStatus, supplier, note } =
     input;
 
+  if (!Number.isInteger(quantity) || quantity < 0) throw new ApiError(400, "Menge muss eine nichtnegative ganze Zahl sein");
   if (type !== "ADJUST" && quantity <= 0) {
     throw new ApiError(400, "Menge muss größer als 0 sein");
   }
@@ -47,6 +48,8 @@ export async function bookMovementTx(tx: Tx, input: BookMovementInput) {
       if (!customer) throw new ApiError(404, "Kunde nicht gefunden");
     }
 
+    // Sperrt auch dann zuverlässig, wenn für dieses Paar noch keine Stock-Zeile existiert.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${JSON.stringify([itemId, warehouseId])}, 0))`;
     const stock = await tx.stock.upsert({
       where: { itemId_warehouseId: { itemId, warehouseId } },
       update: {},
@@ -101,6 +104,7 @@ export async function bookMovementTx(tx: Tx, input: BookMovementInput) {
 
 export async function cancelCustomerHandover(movementId: string, userId: string, reason: string) {
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Movement" WHERE "id" = ${movementId} FOR UPDATE`;
     const movement = await tx.movement.findUnique({
       where: { id: movementId },
       include: { invoiceLine: true, deliveryNoteLine: true },

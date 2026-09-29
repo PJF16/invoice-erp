@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
 import { bookMovementTx, type Tx } from "@/lib/movements";
 import { getSettings } from "@/lib/settings";
+import { lockInvoice } from "@/lib/locks";
 import { assignInvoiceNumberTx } from "@/lib/document-numbers";
 import type { SupplyKind, TaxTreatment } from "@/lib/generated/prisma/enums";
 import { assessTaxTreatment } from "@/lib/tax-rules";
@@ -75,13 +76,9 @@ type CreateInvoiceInput = {
   notes?: string | null;
   lines: LineInput[];
   recurringInvoiceId?: string | null;
+  recurringPeriod?: Date;
+  recurringAutoSend?: boolean;
 };
-
-async function lockInvoice(tx: Tx, invoiceId: string) {
-  await tx.$queryRaw<Array<{ id: string }>>`
-    SELECT "id" FROM "Invoice" WHERE "id" = ${invoiceId} FOR UPDATE
-  `;
-}
 
 async function validateSourceMovements(tx: Tx, input: CreateInvoiceInput) {
   const sourceIds = input.lines
@@ -202,15 +199,18 @@ async function resolveReferencedSupplyKinds(tx: Tx, lines: LineInput[]): Promise
 }
 
 export async function createDraftInvoice(input: CreateInvoiceInput) {
+  return prisma.$transaction((tx) => createDraftInvoiceTx(tx, input));
+}
+
+export async function createDraftInvoiceTx(tx: Tx, input: CreateInvoiceInput) {
   if (input.lines.length === 0) throw new ApiError(400, "Mindestens eine Position ist erforderlich");
 
   // Skonto aus den Firmeneinstellungen einfrieren — außer bei automatisch aus
   // Vorlagen erzeugten (wiederkehrenden) Rechnungen.
-  const settings = input.recurringInvoiceId ? null : await getSettings();
+  const settings = input.recurringInvoiceId ? null : await getSettings(tx);
   const skontoPercent = settings?.skontoPercent ?? 0;
   const skontoDays = settings?.skontoDays ?? 0;
 
-  return prisma.$transaction(async (tx) => {
     const resolvedLines = await resolveReferencedSupplyKinds(tx, input.lines);
     const { lines, netTotal, taxTotal, grossTotal } = computeTotals(resolvedLines, input.taxTreatment);
     const sourceIds = await validateSourceMovements(tx, input);
@@ -230,6 +230,8 @@ export async function createDraftInvoice(input: CreateInvoiceInput) {
         taxTreatment: input.taxTreatment,
         notes: input.notes ?? null,
         recurringInvoiceId: input.recurringInvoiceId ?? null,
+        recurringPeriod: input.recurringPeriod ?? null,
+        recurringDeliveryState: input.recurringAutoSend ? "PENDING" : null,
         netTotal,
         taxTotal,
         grossTotal,
@@ -240,7 +242,6 @@ export async function createDraftInvoice(input: CreateInvoiceInput) {
       include: { lines: true },
     });
     return invoice;
-  });
 }
 
 export async function updateDraftInvoice(invoiceId: string, input: CreateInvoiceInput) {
@@ -339,7 +340,15 @@ export async function finalizeInvoice(
   userId: string,
   options: { acknowledgeUidWarning?: boolean; uidCheckOverrideReason?: string | null } = {},
 ) {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction((tx) => finalizeInvoiceTx(tx, invoiceId, userId, options));
+}
+
+export async function finalizeInvoiceTx(
+  tx: Tx,
+  invoiceId: string,
+  userId: string,
+  options: { acknowledgeUidWarning?: boolean; uidCheckOverrideReason?: string | null } = {},
+) {
     await lockInvoice(tx, invoiceId);
     const invoice = await tx.invoice.findUnique({
       where: { id: invoiceId },
@@ -348,6 +357,10 @@ export async function finalizeInvoice(
     if (!invoice) throw new ApiError(404, "Rechnung nicht gefunden");
     if (invoice.status !== "DRAFT") throw new ApiError(400, "Nur Entwürfe können finalisiert werden");
 
+    if (invoice.dueDate < invoice.issueDate) throw new ApiError(400, "Fälligkeit darf nicht vor dem Rechnungsdatum liegen");
+    if (invoice.servicePeriodStart && invoice.servicePeriodEnd && invoice.servicePeriodEnd < invoice.servicePeriodStart) {
+      throw new ApiError(400, "Das Ende des Leistungszeitraums darf nicht vor dem Beginn liegen");
+    }
     const supplyKinds = invoice.lines.map((line) => line.supplyKind);
     const hasGoods = supplyKinds.includes("GOODS");
     const hasServices = supplyKinds.some((kind) => kind === "SERVICE" || kind === "ELECTRONIC_SERVICE");
@@ -448,7 +461,6 @@ export async function finalizeInvoice(
       },
       include: { lines: true, customer: true },
     });
-  });
 }
 
 /**
@@ -502,6 +514,17 @@ export async function createStornoInvoice(invoiceId: string, userId: string) {
       }
     }
 
+    // Aktive eindeutige Zuordnung freigeben, Herkunft am Original als Historie bewahren.
+    for (const line of invoice.lines) {
+      if (line.sourceDeliveryNoteLineId || (line.sourceMovementId && !line.stockBookedByInvoice)) {
+        await tx.invoiceLine.update({ where: { id: line.id }, data: {
+          historicalSourceMovementId: line.sourceMovementId,
+          historicalSourceDeliveryNoteLineId: line.sourceDeliveryNoteLineId,
+          sourceMovementId: null,
+          sourceDeliveryNoteLineId: null,
+        } });
+      }
+    }
     const storno = await tx.invoice.create({
       data: {
         number,

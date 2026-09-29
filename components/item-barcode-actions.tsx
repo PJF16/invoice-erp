@@ -1,5 +1,7 @@
 "use client";
 
+import { safeFetch as fetch } from "@/lib/client-fetch";
+
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";

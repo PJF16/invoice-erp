@@ -1,3 +1,7 @@
+import { DocumentFilters } from "@/components/document-filters";
+import { ListPagination } from "@/components/list-pagination";
+import { readListQuery, type ListParams } from "@/lib/list-query";
+import type { Prisma } from "@/lib/generated/prisma/client";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/format";
@@ -7,13 +11,19 @@ import { hasModule } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
-export default async function DeliveryNotesPage({ searchParams }: { searchParams: Promise<{ kunde?: string }> }) {
-  const { kunde } = await searchParams;
+export default async function DeliveryNotesPage({ searchParams }: { searchParams: Promise<ListParams> }) {
+  const params = await searchParams;
+  const { kunde } = params;
+  const query = readListQuery(params);
+  const where: Prisma.DeliveryNoteWhereInput = { customerId: kunde || undefined, issueDate: query.dateRange,
+    ...(query.q ? { OR: [{ number: { contains: query.q, mode: "insensitive" } }, { customerName: { contains: query.q, mode: "insensitive" } }] } : {}) };
+  const pagination = query.pagination(await prisma.deliveryNote.count({ where }));
+  const orderBy: Prisma.DeliveryNoteOrderByWithRelationInput = query.sort === "number" ? { number: "asc" } : { issueDate: query.sort === "date_asc" ? "asc" : "desc" };
   const [notes, customers, session] = await Promise.all([
     prisma.deliveryNote.findMany({
-      where: { customerId: kunde || undefined },
-      orderBy: { createdAt: "desc" },
-      take: 300,
+      where,
+      orderBy: [orderBy, { id: "desc" }],
+      take: pagination.take, skip: pagination.skip,
       include: {
         _count: { select: { lines: true } },
         createdBy: { select: { name: true } },
@@ -27,15 +37,12 @@ export default async function DeliveryNotesPage({ searchParams }: { searchParams
   return (
     <div className="mx-auto max-w-[100rem]">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div><h1 className="text-2xl font-semibold">Lieferscheine</h1><p className="text-sm text-gray-500">{notes.length} Lieferscheine im aktuellen Filter</p></div>
+        <div><h1 className="text-2xl font-semibold">Lieferscheine</h1><p className="text-sm text-gray-500">{pagination.total} Lieferscheine im aktuellen Filter</p></div>
         <div className="flex flex-wrap gap-2">
-          <form method="GET" className="flex gap-2">
-            <CustomerSelect customers={customers} name="kunde" defaultValue={kunde ?? ""} emptyLabel="Alle Kunden" className="w-64" />
-            <button type="submit" className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">Filtern</button>
-          </form>
           <Link href="/delivery-notes/new" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">+ Neuer Lieferschein</Link>
         </div>
       </div>
+      <DocumentFilters params={params}><div><p className="mb-1 text-sm font-medium">Kunde</p><CustomerSelect customers={customers} name="kunde" defaultValue={kunde ?? ""} emptyLabel="Alle Kunden" /></div></DocumentFilters>
       <form action="/invoices/new" method="GET">
         {canCreateInvoice && (
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
@@ -44,7 +51,7 @@ export default async function DeliveryNotesPage({ searchParams }: { searchParams
           </div>
         )}
         <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[42rem] text-sm">
             <thead><tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">{canCreateInvoice && <th className="w-10 px-3 py-3"><span className="sr-only">Auswahl</span></th>}<th className="px-4 py-3">Nummer</th><th className="px-4 py-3">Kunde</th><th className="px-4 py-3">Lieferdatum</th><th className="px-4 py-3">Lieferweg</th><th className="px-4 py-3 text-right">Positionen</th><th className="px-4 py-3">Verrechnung</th><th className="px-4 py-3">Erstellt von</th>{canCreateInvoice && <th className="px-4 py-3 text-right">Aktion</th>}</tr></thead>
             <tbody>
               {notes.length === 0 && <tr><td colSpan={canCreateInvoice ? 9 : 7} className="px-4 py-10 text-center text-gray-500">Keine Lieferscheine gefunden.</td></tr>}
@@ -57,6 +64,7 @@ export default async function DeliveryNotesPage({ searchParams }: { searchParams
           </table>
         </div>
       </form>
+      <ListPagination {...pagination} params={params} />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { safeFetch as fetch } from "@/lib/client-fetch";
+
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";

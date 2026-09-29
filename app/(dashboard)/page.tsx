@@ -1,3 +1,7 @@
+import { auth } from "@/lib/auth";
+import { hasModule } from "@/lib/permissions";
+import { redirect } from "next/navigation";
+import { openAmount } from "@/lib/payments";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { eur, INVOICE_STATUS_LABELS } from "@/lib/format";
@@ -9,6 +13,18 @@ export const dynamic = "force-dynamic";
 const monthFmt = new Intl.DateTimeFormat("de-AT", { month: "short" });
 
 export default async function DashboardPage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  const canStock = hasModule(session.user, "STOCK");
+  if (!hasModule(session.user, "INVOICES")) {
+    const [items, movements] = canStock ? await Promise.all([prisma.item.count(), prisma.movement.count()]) : [0, 0];
+    return <div className="mx-auto max-w-5xl"><h1 className="mb-6 text-2xl font-semibold">Dashboard</h1>
+      {canStock ? <div className="grid gap-4 sm:grid-cols-2">
+        <Link href="/stock" className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"><p className="text-sm text-gray-500">Bestand verwalten</p><p className="mt-2 text-2xl font-semibold">{items} Artikel</p></Link>
+        <Link href="/movements" className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"><p className="text-sm text-gray-500">Bewegungshistorie</p><p className="mt-2 text-2xl font-semibold">{movements} Buchungen</p></Link>
+      </div> : <p className="rounded-xl border border-gray-200 bg-white p-6">Für dein Konto sind noch keine Module freigeschaltet. Bitte wende dich an die Administration.</p>}
+    </div>;
+  }
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfYear = new Date(now.getFullYear(), 0, 1);
@@ -24,7 +40,7 @@ export default async function DashboardPage() {
     number: { not: null },
   };
 
-  const [monthAgg, openInvoices, overdue, revenueInvoices, yearInvoices, latest, itemCount, movementsToday, mailTotal, mailProblems, latestMailProblems] =
+  const [monthAgg, openInvoices, overdue, revenueInvoices, yearInvoices, latest, itemCount, movementsToday, mailTotal, mailProblems, latestMailProblems, overdueAggregate] =
     await Promise.all([
       prisma.invoice.aggregate({
         where: { ...revenueWhere, issueDate: { gte: startOfMonth } },
@@ -54,8 +70,8 @@ export default async function DashboardPage() {
         take: 6,
         include: { customer: { select: { name: true } } },
       }),
-      prisma.item.count(),
-      prisma.movement.count({ where: { createdAt: { gte: startOfToday } } }),
+      canStock ? prisma.item.count() : Promise.resolve(0),
+      canStock ? prisma.movement.count({ where: { createdAt: { gte: startOfToday } } }) : Promise.resolve(0),
       prisma.mailEvent.count({ where: { createdAt: { gte: mailSince } } }),
       prisma.mailEvent.count({
         where: {
@@ -71,9 +87,10 @@ export default async function DashboardPage() {
         orderBy: { createdAt: "desc" },
         take: 3,
       }),
+      prisma.invoice.aggregate({ where: overdueWhere(), _count: { _all: true }, _sum: { grossTotal: true, paidTotal: true, skontoGranted: true } }),
     ]);
 
-  const overdueSum = overdue.reduce((sum, i) => sum + Number(i.grossTotal), 0);
+  const overdueSum = openAmount({ grossTotal: overdueAggregate._sum.grossTotal ?? 0, paidTotal: overdueAggregate._sum.paidTotal ?? 0, skontoGranted: overdueAggregate._sum.skontoGranted ?? 0 });
   const openSum = openInvoices.reduce(
     (sum, i) => sum + (Number(i.grossTotal) - Number(i.paidTotal) - Number(i.skontoGranted)),
     0,
@@ -109,7 +126,7 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-5xl">
       <h1 className="mb-6 text-2xl font-semibold">Dashboard</h1>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-4 sm:grid-cols-2 ${canStock ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
         <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
             Umsatz {monthFmt.format(now)} (netto)
@@ -136,14 +153,14 @@ export default async function DashboardPage() {
             {eur.format(overdueSum)}
           </p>
           <p className="text-xs text-gray-500">
-            {overdue.length > 0 ? `${overdue.length} Rechnung(en) → Mahnwesen` : "Nichts überfällig"}
+            {overdue.length > 0 ? `${overdueAggregate._count._all} Rechnung(en) → Mahnwesen` : "Nichts überfällig"}
           </p>
         </Link>
-        <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        {canStock && <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Lager</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">{itemCount}</p>
           <p className="text-xs text-gray-500">Artikel · {movementsToday} Bewegungen heute</p>
-        </div>
+        </div>}
       </div>
 
       <Link
@@ -283,7 +300,7 @@ export default async function DashboardPage() {
                     </Link>
                   </td>
                   <td className="truncate px-2 py-2.5 text-gray-500" title={inv.customerName || inv.customer.name}>{inv.customerName || inv.customer.name}</td>
-                  <td className="w-1/4 truncate px-2 py-2.5 text-right tabular-nums" title={eur.format(Number(inv.grossTotal))}>{eur.format(Number(inv.grossTotal))}</td>
+                  <td className="w-1/4 truncate px-2 py-2.5 text-right tabular-nums" title={eur.format(openAmount(inv))}>{eur.format(openAmount(inv))}</td>
                   <td className="w-1/4 truncate px-5 py-2.5 text-right text-xs font-medium text-red-600">
                     {daysOverdue(inv.dueDate)} Tage
                   </td>

@@ -1,3 +1,4 @@
+import { openAmount } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-helpers";
 import { getSettings, isSmtpConfigured } from "@/lib/settings";
@@ -49,7 +50,7 @@ export async function sendReminderEmail(invoiceId: string) {
     nummer: invoice.number,
     kunde: invoice.customerName || invoice.customer.name,
     datum: dateFmt.format(invoice.issueDate),
-    betrag: eur.format(Number(invoice.grossTotal)),
+    betrag: eur.format(Math.max(0, openAmount(invoice))),
     tage: String(daysOverdue(invoice.dueDate)),
   };
 

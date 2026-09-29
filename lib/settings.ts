@@ -2,8 +2,8 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 import { prisma } from "@/lib/prisma";
 import type { CompanySettings } from "@/lib/generated/prisma/client";
 
-export async function getSettings() {
-  return prisma.companySettings.upsert({
+export async function getSettings(client: Pick<typeof prisma, "companySettings"> = prisma) {
+  return client.companySettings.upsert({
     where: { id: "singleton" },
     update: {},
     create: { id: "singleton" },

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { lockInvoice } from "@/lib/locks";
 import { ApiError } from "@/lib/api-helpers";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { PaymentMethod } from "@/lib/generated/prisma/enums";
@@ -72,81 +73,68 @@ type PaymentInput = {
   bankTransactionId?: string;
 };
 
-/** Erfasst eine Zahlung zu einer finalisierten Rechnung und aktualisiert den Bezahlt-Status. */
+async function payableInvoice(tx: Tx, invoiceId: string) {
+  const invoice = await tx.invoice.findUnique({ where: { id: invoiceId } });
+  if (!invoice) throw new ApiError(404, "Rechnung nicht gefunden");
+  if (invoice.type !== "INVOICE") throw new ApiError(400, "Für Stornorechnungen können keine Zahlungen erfasst werden");
+  if (!invoice.number || invoice.status === "DRAFT") throw new ApiError(400, "Zahlungen können nur für finalisierte Rechnungen erfasst werden");
+  if (invoice.status === "CANCELED") throw new ApiError(400, "Für stornierte Rechnungen können keine Zahlungen geändert werden");
+  return invoice;
+}
+
+async function recordPaymentTx(tx: Tx, invoiceId: string, input: PaymentInput, userId: string) {
+  const invoice = await payableInvoice(tx, invoiceId);
+  if (!Number.isFinite(input.amount) || input.amount <= 0) throw new ApiError(400, "Betrag muss größer als 0 sein");
+  if (input.grantSkonto !== undefined) {
+    const skonto = input.grantSkonto ? skontoAmount(invoice) : 0;
+    if (input.grantSkonto && skonto <= 0) throw new ApiError(400, "Für diese Rechnung ist kein Skonto hinterlegt");
+    await tx.invoice.update({ where: { id: invoiceId }, data: { skontoGranted: skonto } });
+  }
+  await tx.payment.create({ data: {
+    invoiceId, amount: input.amount, date: input.date, method: input.method,
+    reference: input.reference ?? null, note: input.note ?? null, userId,
+    bankTransactionId: input.bankTransactionId,
+  } });
+  return recomputeInvoiceSettlement(tx, invoiceId);
+}
+
+/** Zahlung und Saldo unter derselben Sperre wie Finalisierung und Storno. */
 export async function recordPayment(invoiceId: string, input: PaymentInput, userId: string) {
   return prisma.$transaction(async (tx) => {
-    const invoice = await tx.invoice.findUnique({ where: { id: invoiceId } });
-    if (!invoice) throw new ApiError(404, "Rechnung nicht gefunden");
-    if (invoice.type !== "INVOICE") {
-      throw new ApiError(400, "Für Stornorechnungen können keine Zahlungen erfasst werden");
-    }
-    if (!invoice.number || invoice.status === "DRAFT") {
-      throw new ApiError(400, "Zahlungen können nur für finalisierte Rechnungen erfasst werden");
-    }
-    if (invoice.status === "CANCELED") {
-      throw new ApiError(400, "Für stornierte Rechnungen können keine Zahlungen erfasst werden");
-    }
-
-    if (input.grantSkonto !== undefined) {
-      const skonto = input.grantSkonto ? skontoAmount(invoice) : 0;
-      if (input.grantSkonto && skonto <= 0) {
-        throw new ApiError(400, "Für diese Rechnung ist kein Skonto hinterlegt");
-      }
-      await tx.invoice.update({ where: { id: invoiceId }, data: { skontoGranted: skonto } });
-    }
-
-    await tx.payment.create({
-      data: {
-        invoiceId,
-        amount: input.amount,
-        date: input.date,
-        method: input.method,
-        reference: input.reference ?? null,
-        note: input.note ?? null,
-        userId,
-        bankTransactionId: input.bankTransactionId,
-      },
-    });
-
-    return recomputeInvoiceSettlement(tx, invoiceId);
+    await lockInvoice(tx, invoiceId);
+    return recordPaymentTx(tx, invoiceId, input, userId);
   });
 }
 
-/** Löscht eine Zahlung und aktualisiert den Bezahlt-Status; gewährtes Skonto entfällt mit der letzten Zahlung. */
 export async function deletePayment(paymentId: string) {
   return prisma.$transaction(async (tx) => {
     const payment = await tx.payment.findUnique({ where: { id: paymentId } });
     if (!payment) throw new ApiError(404, "Zahlung nicht gefunden");
-
+    await lockInvoice(tx, payment.invoiceId);
+    await payableInvoice(tx, payment.invoiceId);
     await tx.payment.delete({ where: { id: paymentId } });
-
     const remaining = await tx.payment.count({ where: { invoiceId: payment.invoiceId } });
-    if (remaining === 0) {
-      await tx.invoice.update({ where: { id: payment.invoiceId }, data: { skontoGranted: 0 } });
-    }
-
+    if (remaining === 0) await tx.invoice.update({ where: { id: payment.invoiceId }, data: { skontoGranted: 0 } });
     return recomputeInvoiceSettlement(tx, payment.invoiceId);
   });
 }
 
-/** Bucht den offenen Restbetrag als Zahlung ein (für „Als bezahlt markieren"). */
+/** Wiederholte gleichzeitige Aufrufe begleichen nur den tatsächlich offenen Rest. */
 export async function settleFully(invoiceId: string, userId: string) {
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
-  if (!invoice) throw new ApiError(404, "Rechnung nicht gefunden");
-  const remaining = openAmount(invoice);
-  if (remaining <= 0) {
-    return prisma.$transaction((tx) => recomputeInvoiceSettlement(tx, invoiceId));
-  }
-  return recordPayment(
-    invoiceId,
-    { amount: remaining, date: new Date(), method: "BANK_TRANSFER" },
-    userId,
-  );
+  return prisma.$transaction(async (tx) => {
+    await lockInvoice(tx, invoiceId);
+    await payableInvoice(tx, invoiceId);
+    const invoice = await recomputeInvoiceSettlement(tx, invoiceId);
+    const remaining = openAmount(invoice);
+    if (remaining <= 0) return invoice;
+    return recordPaymentTx(tx, invoiceId, { amount: remaining, date: new Date(), method: "BANK_TRANSFER" }, userId);
+  });
 }
 
-/** Entfernt alle Zahlungen und setzt die Rechnung auf offen (für „Bezahlt-Status zurücksetzen"). */
 export async function clearPayments(invoiceId: string) {
   return prisma.$transaction(async (tx) => {
+    await lockInvoice(tx, invoiceId);
+    await payableInvoice(tx, invoiceId);
     await tx.payment.deleteMany({ where: { invoiceId } });
     await tx.invoice.update({ where: { id: invoiceId }, data: { skontoGranted: 0 } });
     return recomputeInvoiceSettlement(tx, invoiceId);

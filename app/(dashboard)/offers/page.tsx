@@ -1,3 +1,7 @@
+import { DocumentFilters } from "@/components/document-filters";
+import { ListPagination } from "@/components/list-pagination";
+import { readListQuery, type ListParams } from "@/lib/list-query";
+import type { Prisma } from "@/lib/generated/prisma/client";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { eur, formatDate, OFFER_STATUS_LABELS } from "@/lib/format";
@@ -14,35 +18,31 @@ const statuses: { value: OfferStatus | "ALL"; label: string }[] = [
   { value: "CONVERTED", label: "In Rechnung" },
 ];
 
-export default async function OffersPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  const { status: rawStatus } = await searchParams;
+export default async function OffersPage({ searchParams }: { searchParams: Promise<ListParams> }) {
+  const params = await searchParams;
+  const { status: rawStatus } = params;
+  const query = readListQuery(params);
   const status = statuses.some((entry) => entry.value === rawStatus) ? rawStatus as OfferStatus | "ALL" : "ALL";
-  const offers = await prisma.offer.findMany({
-    where: status === "ALL" ? undefined : { status },
-    orderBy: { createdAt: "desc" },
-    take: 300,
-    include: { customer: { select: { name: true } } },
-  });
+  const where: Prisma.OfferWhereInput = { status: status === "ALL" ? undefined : status, issueDate: query.dateRange,
+    ...(query.q ? { OR: [{ number: { contains: query.q, mode: "insensitive" } }, { customerName: { contains: query.q, mode: "insensitive" } }, { customer: { name: { contains: query.q, mode: "insensitive" } } }] } : {}) };
+  const pagination = query.pagination(await prisma.offer.count({ where }));
+  const orderBy: Prisma.OfferOrderByWithRelationInput = query.sort === "number" ? { number: "asc" } : query.sort === "amount_desc" ? { grossTotal: "desc" } : { issueDate: query.sort === "date_asc" ? "asc" : "desc" };
+  const offers = await prisma.offer.findMany({ where, orderBy: [orderBy, { id: "desc" }], take: pagination.take, skip: pagination.skip, include: { customer: { select: { name: true } } } });
   const now = new Date();
   return (
     <div className="mx-auto max-w-[100rem]">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Angebote</h1>
-          <p className="text-sm text-gray-500">{offers.length} Angebote im aktuellen Filter</p>
+          <p className="text-sm text-gray-500">{pagination.total} Angebote im aktuellen Filter</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <form method="GET">
-            <select name="status" defaultValue={status} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">
-              {statuses.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
-            </select>
-            <button type="submit" className="ml-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">Filtern</button>
-          </form>
           <Link href="/offers/new" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">+ Neues Angebot</Link>
         </div>
       </div>
+      <DocumentFilters params={params} amounts><label className="text-sm font-medium">Status<select name="status" defaultValue={status} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">{statuses.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}</select></label></DocumentFilters>
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[42rem] text-sm">
           <thead><tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
             <th className="px-4 py-3">Nummer</th><th className="px-4 py-3">Kunde</th><th className="px-4 py-3">Datum</th><th className="px-4 py-3">Gültig bis</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Summe</th>
           </tr></thead>
@@ -63,6 +63,7 @@ export default async function OffersPage({ searchParams }: { searchParams: Promi
           </tbody>
         </table>
       </div>
+      <ListPagination {...pagination} params={params} />
     </div>
   );
 }

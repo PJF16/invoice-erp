@@ -1,5 +1,8 @@
 "use client";
 
+import { safeFetch as fetch } from "@/lib/client-fetch";
+
+import { useSettingsSection } from "@/components/settings-workspace";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -41,6 +44,7 @@ type Settings = {
 
 export function SettingsForm({ settings }: { settings: Settings }) {
   const router = useRouter();
+  const { section, selectSection } = useSettingsSection();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -123,8 +127,12 @@ export function SettingsForm({ settings }: { settings: Settings }) {
   ).padStart(3, "0")}`;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <form onSubmit={handleSubmit} onChange={() => setSaved(false)} onInvalidCapture={(event) => {
+      const control = event.target as HTMLInputElement;
+      const target = control.closest<HTMLElement>("[data-settings-section]")?.dataset.settingsSection;
+      if (target && target !== section) { event.preventDefault(); selectSection(target); requestAnimationFrame(() => control.focus()); }
+    }} className="space-y-6">
+      <section data-settings-section="company" hidden={section !== "company"} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-sm font-semibold">Firmendaten (Rechnungskopf)</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -162,7 +170,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         </div>
       </section>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section data-settings-section="bank" hidden={section !== "bank"} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-sm font-semibold">Bankverbindung</h2>
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
@@ -180,7 +188,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         </div>
       </section>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section data-settings-section="documents" hidden={section !== "documents"} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-sm font-semibold">Belegnummern &amp; Rechnungen</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           {invoiceNumberCycle === "CUSTOM" ? (
@@ -229,7 +237,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
                 min={1}
                 max={2_147_483_646}
                 step={1}
-                required
+                required={section === "documents"}
                 value={nextInvoiceNumber}
                 onChange={(event) => {
                   setNextInvoiceNumber(Number(event.target.value));
@@ -273,7 +281,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         </div>
       </section>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section data-settings-section="mail" hidden={section !== "mail"} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-sm font-semibold">E-Mail-Vorlagen</h2>
         <div className="grid gap-4">
           <div>
@@ -291,7 +299,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         </div>
       </section>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section data-settings-section="reminders" hidden={section !== "reminders"} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-sm font-semibold">Mahnwesen</h2>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="autoReminders" defaultChecked={settings.autoReminders} />
@@ -323,15 +331,15 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         </div>
       </section>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {saved && <p className="text-sm text-green-700">Gespeichert.</p>}
+      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+      {saved && <p role="status" className="text-sm text-green-700">Firmendaten, Beleg- und Vorlageneinstellungen gespeichert.</p>}
       <div className="flex justify-end">
         <button
           type="submit"
           disabled={loading}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {loading ? "Speichere…" : "Speichern"}
+          {loading ? "Speichere…" : "Allgemeine Einstellungen speichern"}
         </button>
       </div>
     </form>

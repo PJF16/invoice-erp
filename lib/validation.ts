@@ -172,6 +172,10 @@ export const invoiceSchema = z.object({
   taxTreatment: taxTreatment.default("STANDARD"),
   notes: optionalTrimmed,
   lines: z.array(invoiceLineSchema).min(1, "Mindestens eine Position ist erforderlich"),
+}).superRefine((invoice, ctx) => {
+  if (invoice.dueDate < invoice.issueDate) ctx.addIssue({ code: "custom", path: ["dueDate"], message: "Fälligkeit darf nicht vor dem Rechnungsdatum liegen" });
+  if (Boolean(invoice.servicePeriodStart) !== Boolean(invoice.servicePeriodEnd)) ctx.addIssue({ code: "custom", path: ["servicePeriodEnd"], message: "Der Leistungszeitraum benötigt ein Von- und ein Bis-Datum" });
+  if (invoice.servicePeriodStart && invoice.servicePeriodEnd && invoice.servicePeriodEnd < invoice.servicePeriodStart) ctx.addIssue({ code: "custom", path: ["servicePeriodEnd"], message: "Das Ende des Leistungszeitraums darf nicht vor dem Beginn liegen" });
 });
 
 export const offerLineSchema = documentLineSchema

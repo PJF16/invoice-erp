@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { eur, formatDate, INTERVAL_LABELS, INVOICE_STATUS_LABELS } from "@/lib/format";
+import { RECURRING_DELIVERY_LABELS } from "@/lib/recurring-delivery-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export default async function RecurringDetailPage({ params }: { params: Promise<
           issueDate: true,
           dueDate: true,
           grossTotal: true,
+          recurringDeliveryState: true,
         },
       },
     },
@@ -71,7 +73,7 @@ export default async function RecurringDetailPage({ params }: { params: Promise<
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[46rem] text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
               <th className="px-4 py-3">Nummer</th>
@@ -79,12 +81,13 @@ export default async function RecurringDetailPage({ params }: { params: Promise<
               <th className="px-4 py-3">Fällig</th>
               <th className="px-4 py-3 text-right">Brutto</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">E-Mail</th>
             </tr>
           </thead>
           <tbody>
             {template.invoices.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                   Aus dieser Vorlage wurden noch keine Rechnungen erstellt.
                 </td>
               </tr>
@@ -107,6 +110,13 @@ export default async function RecurringDetailPage({ params }: { params: Promise<
                     <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${badge.className}`}>
                       {badge.label}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {invoice.recurringDeliveryState ? (
+                      <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${RECURRING_DELIVERY_LABELS[invoice.recurringDeliveryState].className}`}>
+                        {RECURRING_DELIVERY_LABELS[invoice.recurringDeliveryState].label}
+                      </span>
+                    ) : <span className="text-gray-400">Manuell</span>}
                   </td>
                 </tr>
               );

@@ -196,8 +196,8 @@ export async function sendMonitoredMail(context: MonitoredMailContext, options: 
     },
   });
 
-  if (status === "REJECTED") {
-    throw new ApiError(502, "Der Mailserver hat alle Empfänger abgelehnt.");
+  if (status === "REJECTED" || status === "PARTIALLY_REJECTED") {
+    throw new ApiError(502, status === "REJECTED" ? "Der Mailserver hat alle Empfänger abgelehnt." : "Der Mailserver hat Empfänger teilweise abgelehnt. Bitte den Versandstatus prüfen.");
   }
   return result;
 }

@@ -6,14 +6,22 @@ import { RecurringRowActions } from "@/components/recurring-actions";
 export const dynamic = "force-dynamic";
 
 export default async function RecurringPage() {
-  const templates = await prisma.recurringInvoice.findMany({
-    orderBy: { name: "asc" },
-    include: {
-      customer: { select: { name: true, email: true } },
-      lines: { include: { softwareItem: true } },
-      _count: { select: { invoices: true } },
-    },
-  });
+  const [templates, deliveryIssues] = await Promise.all([
+    prisma.recurringInvoice.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        customer: { select: { name: true, email: true } },
+        lines: { include: { softwareItem: true } },
+        _count: { select: { invoices: true } },
+      },
+    }),
+    prisma.invoice.groupBy({
+      by: ["recurringInvoiceId"],
+      where: { recurringInvoiceId: { not: null }, recurringDeliveryState: { in: ["FAILED", "REVIEW"] } },
+      _count: { _all: true },
+    }),
+  ]);
+  const issueCount = new Map(deliveryIssues.map((entry) => [entry.recurringInvoiceId, entry._count._all]));
 
   return (
     <div className="mx-auto max-w-[100rem]">
@@ -21,7 +29,7 @@ export default async function RecurringPage() {
         <div>
           <h1 className="text-2xl font-semibold">Wiederkehrende Rechnungen</h1>
           <p className="text-sm text-gray-500">
-            Werden automatisch erzeugt und versendet. Softwareartikel-Preise werden bei jeder Erzeugung neu gelesen.
+            Rechnungen werden zum Termin erzeugt und bei aktiviertem Auto-Versand per E-Mail verschickt. Softwareartikel-Preise werden bei jeder Erzeugung neu gelesen.
           </p>
         </div>
         <Link
@@ -33,7 +41,7 @@ export default async function RecurringPage() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[68rem] text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
               <th className="px-4 py-3">Name</th>
@@ -88,6 +96,11 @@ export default async function RecurringPage() {
                     >
                       {t.active ? "Aktiv" : "Pausiert"}
                     </span>
+                    {(issueCount.get(t.id) ?? 0) > 0 && (
+                      <Link href={`/recurring/${t.id}`} className="mt-1 block text-xs font-semibold text-red-700 underline">
+                        {issueCount.get(t.id)} Versandproblem(e)
+                      </Link>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     <Link href={`/recurring/${t.id}`} className="text-blue-700 hover:underline">

@@ -39,12 +39,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.modules = user.modules;
       }
+      if (typeof token.id !== "string") return null;
+      // Berechtigungen nie aus einer möglicherweise veralteten Sitzung übernehmen.
+      const current = await prisma.user.findUnique({ where: { id: token.id },
+        select: { role: true, modules: true, name: true, email: true } });
+      if (!current) return null;
+      token.role = current.role;
+      token.modules = current.modules;
+      token.name = current.name;
+      token.email = current.email;
       return token;
     },
     session({ session, token }) {

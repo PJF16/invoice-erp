@@ -9,6 +9,7 @@ export type ItemSelectOption = {
 };
 
 type Props = {
+  id?: string;
   items: ItemSelectOption[];
   value: string;
   onValueChange: (itemId: string) => void;
@@ -20,9 +21,11 @@ function itemLabel(item: ItemSelectOption) {
   return item.sku ? `${item.sku} · ${item.name}` : item.name;
 }
 
-export function ItemSelect({ items, value, onValueChange, required = false, className = "" }: Props) {
+export function ItemSelect({ id, items, value, onValueChange, required = false, className = "" }: Props) {
   return (
     <SearchSelect
+      id={id}
+      label="Artikel"
       options={items}
       value={value}
       onValueChange={onValueChange}

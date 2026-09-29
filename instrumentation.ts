@@ -10,25 +10,17 @@ export async function register() {
   const { runDueBackup } = await import("@/lib/backup");
 
   const run = async () => {
-    try {
-      const { generated } = await runDueRecurringInvoices();
-      if (generated > 0) {
-        console.log(`Scheduler: ${generated} wiederkehrende Rechnung(en) erzeugt.`);
-      }
-      const { sent } = await runAutoReminders();
-      if (sent > 0) {
-        console.log(`Scheduler: ${sent} Zahlungserinnerung(en) versendet.`);
-      }
-      const { sent: exportsSent } = await runDueExportSchedules();
-      if (exportsSent > 0) {
-        console.log(`Scheduler: ${exportsSent} Belegexport(e) versendet.`);
-      }
-      const backup = await runDueBackup();
-      if (backup.ran) {
-        console.log(`Scheduler: Backup ${backup.filename} erstellt.`);
-      }
-    } catch (e) {
-      console.error("Scheduler-Fehler:", e);
+    const jobs = [
+      async () => {
+        const result = await runDueRecurringInvoices();
+        if (result.generated || result.sent || result.failed || result.review) console.log(`Scheduler: ${result.generated} Rechnungen erzeugt, ${result.sent} Versandaufträge erledigt, ${result.failed} fehlgeschlagen, ${result.review} zu prüfen.`);
+      },
+      async () => { const { sent } = await runAutoReminders(); if (sent) console.log(`Scheduler: ${sent} Zahlungserinnerung(en) versendet.`); },
+      async () => { const { sent } = await runDueExportSchedules(); if (sent) console.log(`Scheduler: ${sent} Belegexport(e) versendet.`); },
+      async () => { const backup = await runDueBackup(); if (backup.ran) console.log(`Scheduler: Backup ${backup.filename} erstellt.`); },
+    ];
+    for (const job of jobs) {
+      try { await job(); } catch (error) { console.error("Scheduler-Fehler:", error); }
     }
   };
 

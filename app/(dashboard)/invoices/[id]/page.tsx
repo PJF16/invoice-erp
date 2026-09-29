@@ -8,6 +8,7 @@ import { InvoiceActions } from "@/components/invoice-actions";
 import { InvoicePayments } from "@/components/invoice-payments";
 import { EU_COUNTRY_CODES, SUPPLY_KIND_LABELS } from "@/lib/tax-rules";
 import { InvoiceEvidences } from "@/components/invoice-evidences";
+import { RECURRING_DELIVERY_LABELS } from "@/lib/recurring-delivery-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -104,9 +105,22 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             type: invoice.type,
             number: invoice.number,
             customerEmail: invoice.customer.email,
+            recurringDeliveryState: invoice.recurringDeliveryState,
           }}
         />
       </div>
+
+      {invoice.recurringDeliveryState && (
+        <div className={`mb-6 rounded-xl border px-4 py-3 text-sm ${RECURRING_DELIVERY_LABELS[invoice.recurringDeliveryState].className}`}>
+          <p className="font-semibold">Automatischer E-Mail-Versand: {RECURRING_DELIVERY_LABELS[invoice.recurringDeliveryState].label}</p>
+          {invoice.recurringDeliveryState === "FAILED" && (
+            <p className="mt-1">Der Versand wird {invoice.recurringDeliveryRetryAt ? `ab ${new Intl.DateTimeFormat("de-AT", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Vienna" }).format(invoice.recurringDeliveryRetryAt)}` : "bei der nächsten Scheduler-Ausführung"} erneut versucht. {invoice.recurringDeliveryError}</p>
+          )}
+          {invoice.recurringDeliveryState === "REVIEW" && (
+            <p className="mt-1">{invoice.recurringDeliveryError} Prüfe zuerst das <Link href="/mail-monitoring" className="font-medium underline">Mail-Monitoring</Link>; sende die Rechnung danach bei Bedarf manuell.</p>
+          )}
+        </div>
+      )}
 
       {hasThirdCountryServiceExportMismatch && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

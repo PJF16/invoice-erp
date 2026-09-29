@@ -1,3 +1,4 @@
+import { openAmount } from "@/lib/payments";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { eur, formatDate } from "@/lib/format";
@@ -17,7 +18,7 @@ export default async function RemindersPage() {
     getSettings(),
   ]);
   const smtp = await isSmtpConfigured(settings);
-  const totalOverdue = overdue.reduce((sum, i) => sum + Number(i.grossTotal), 0);
+  const totalOverdue = overdue.reduce((sum, i) => sum + Math.max(0, openAmount(i)), 0);
 
   return (
     <div className="mx-auto max-w-[100rem]">
@@ -62,7 +63,7 @@ export default async function RemindersPage() {
               <th className="px-4 py-3">Kunde</th>
               <th className="px-4 py-3">Fällig seit</th>
               <th className="px-4 py-3 text-right">Überfällig</th>
-              <th className="px-4 py-3 text-right">Brutto</th>
+              <th className="px-4 py-3 text-right">Offener Betrag</th>
               <th className="px-4 py-3">Mahnstufe</th>
               <th className="px-4 py-3 text-right">Aktionen</th>
             </tr>
@@ -90,7 +91,7 @@ export default async function RemindersPage() {
                     {days} Tage
                   </td>
                   <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                    {eur.format(Number(inv.grossTotal))}
+                    {eur.format(Math.max(0, openAmount(inv)))}
                   </td>
                   <td className="px-4 py-3 text-gray-500">
                     {inv.reminderCount === 0

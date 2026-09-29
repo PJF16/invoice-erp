@@ -11,6 +11,7 @@ export type SoftwareItemSelectOption = {
 };
 
 type Props = {
+  id?: string;
   items: SoftwareItemSelectOption[];
   value: string;
   onValueChange: (itemId: string) => void;
@@ -23,9 +24,11 @@ function softwareLabel(item: SoftwareItemSelectOption) {
   return `${item.name} (${eur.format(item.unitPrice)}/${item.unit})`;
 }
 
-export function SoftwareItemSelect({ items, value, onValueChange, required = false, allowFreeText = false, className = "" }: Props) {
+export function SoftwareItemSelect({ id, items, value, onValueChange, required = false, allowFreeText = false, className = "" }: Props) {
   return (
     <SearchSelect
+      id={id}
+      label="Softwareartikel"
       options={items}
       value={value}
       onValueChange={onValueChange}

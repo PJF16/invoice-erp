@@ -67,6 +67,7 @@ export default async function ItemDetailPage({
           <StockActions
             itemId={item.id}
             itemName={item.name}
+            stocks={item.stocks.map(({ warehouseId, quantity }) => ({ warehouseId, quantity }))}
             warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}
             customers={customers}
           />

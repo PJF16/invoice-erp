@@ -1,3 +1,5 @@
+import { ListPagination } from "@/components/list-pagination";
+import { readListQuery, type ListParams } from "@/lib/list-query";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import type { MovementBillingStatus, MovementType } from "@/lib/generated/prisma/enums";
@@ -20,17 +22,20 @@ const billingLabels: Record<MovementBillingStatus, string> = {
 export default async function MovementsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lager?: string; typ?: string }>;
+  searchParams: Promise<ListParams>;
 }) {
-  const { lager, typ } = await searchParams;
+  const params = await searchParams;
+  const { lager, typ } = params;
+  const query = readListQuery(params);
   const type = typ === "IN" || typ === "OUT" || typ === "ADJUST" ? typ : undefined;
 
+  const pagination = query.pagination(await prisma.movement.count({ where: { warehouseId: lager || undefined, type } }));
   const [warehouses, movements] = await Promise.all([
     prisma.warehouse.findMany({ orderBy: { name: "asc" } }),
     prisma.movement.findMany({
       where: { warehouseId: lager || undefined, type },
-      orderBy: { createdAt: "desc" },
-      take: 200,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: pagination.take, skip: pagination.skip,
       include: {
         item: { select: { name: true, sku: true } },
         warehouse: { select: { name: true } },
@@ -51,7 +56,7 @@ export default async function MovementsPage({
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Historie</h1>
-          <p className="text-sm text-gray-500">Letzte {movements.length} Bewegungen</p>
+          <p className="text-sm text-gray-500">{pagination.total} Bewegungen</p>
         </div>
         <form className="flex flex-wrap gap-2" method="GET">
           <select
@@ -86,7 +91,7 @@ export default async function MovementsPage({
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[48rem] text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
               <th className="px-4 py-3">Zeitpunkt</th>
@@ -139,6 +144,7 @@ export default async function MovementsPage({
           </tbody>
         </table>
       </div>
+      <ListPagination {...pagination} params={params} />
     </div>
   );
 }

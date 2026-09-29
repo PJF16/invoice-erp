@@ -1,5 +1,7 @@
 "use client";
 
+import { safeFetch as fetch } from "@/lib/client-fetch";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -11,6 +13,7 @@ type Props = {
     type: string;
     number: string | null;
     customerEmail: string | null;
+    recurringDeliveryState: string | null;
   };
 };
 
@@ -111,25 +114,25 @@ export function InvoiceActions({ invoice }: Props) {
           </>
         )}
 
-        {(s === "OPEN" || s === "SENT") && (
+        {(s === "OPEN" || s === "SENT" || s === "PAID") && (
           <>
             <button
-              disabled={loading !== null}
+              disabled={loading !== null || invoice.recurringDeliveryState === "SENDING"}
               onClick={() =>
                 action(
                   "send",
                   `/api/invoices/${invoice.id}/send`,
                   {},
                   invoice.customerEmail
-                    ? `${invoice.type === "CREDIT_NOTE" ? "Stornorechnung" : "Rechnung"} per E-Mail an ${invoice.customerEmail} senden?`
+                    ? `${invoice.type === "CREDIT_NOTE" ? "Stornorechnung" : "Rechnung"} per E-Mail an ${invoice.customerEmail} senden?${invoice.recurringDeliveryState === "REVIEW" ? " Bitte zuvor im Mail-Monitoring prüfen, ob ein früherer Versuch angenommen wurde." : ""}`
                     : undefined,
                 )
               }
               className={`${btn} bg-blue-600 text-white hover:bg-blue-700`}
             >
-              {loading === "send" ? "Sende…" : s === "SENT" ? "Erneut senden" : "Per E-Mail senden"}
+              {loading === "send" ? "Sende…" : invoice.recurringDeliveryState === "SENDING" ? "Versand läuft…" : s === "SENT" ? "Erneut senden" : "Per E-Mail senden"}
             </button>
-            {invoice.type === "INVOICE" && (
+            {invoice.type === "INVOICE" && s !== "PAID" && (
               <button
                 disabled={loading !== null}
                 onClick={() => action("paid", `/api/invoices/${invoice.id}/status`, { status: "PAID" })}

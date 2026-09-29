@@ -77,7 +77,8 @@ export function NavLinks({ isAdmin, modules }: { isAdmin: boolean; modules: Modu
                 <Link
                   key={href}
                   href={href}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                  aria-current={active ? "page" : undefined}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium ${
                     active
                       ? "bg-blue-50 text-blue-700"
                       : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"

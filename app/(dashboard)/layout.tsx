@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { NavLinks } from "@/components/nav-links";
-import { LogoutButton } from "@/components/logout-button";
+import { DashboardNavigation } from "@/components/dashboard-navigation";
 
 export default async function DashboardLayout({
   children,
@@ -10,19 +9,9 @@ export default async function DashboardLayout({
   if (!session?.user) redirect("/login");
 
   return (
-    <div className="flex min-h-screen flex-1">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white print:hidden">
-        <div className="px-5 py-5">
-          <span className="text-lg font-semibold tracking-tight">📦 Lager</span>
-        </div>
-        <NavLinks isAdmin={session.user.role === "ADMIN"} modules={session.user.modules} />
-        <div className="mt-auto border-t border-gray-200 px-5 py-4">
-          <p className="truncate text-sm font-medium">{session.user.name}</p>
-          <p className="truncate text-xs text-gray-500">{session.user.email}</p>
-          <LogoutButton />
-        </div>
-      </aside>
-      <main className="flex-1 overflow-x-auto p-6 lg:p-8 print:p-0">{children}</main>
+    <div className="flex min-h-screen min-w-0 flex-1 flex-col md:flex-row">
+      <DashboardNavigation user={session.user} />
+      <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8 print:p-0">{children}</main>
     </div>
   );
 }

@@ -58,6 +58,14 @@ enum InvoiceStatus {
   CANCELED
 }
 
+enum RecurringDeliveryState {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  REVIEW
+}
+
 enum InvoiceType {
   INVOICE
   CREDIT_NOTE
@@ -388,6 +396,12 @@ model Invoice {
   skontoDays             Int               @default(0)
   recurringInvoice       RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
   recurringInvoiceId     String?
+  recurringPeriod        DateTime?
+  recurringDeliveryState RecurringDeliveryState?
+  recurringDeliveryAttempts Int @default(0)
+  recurringDeliveryStartedAt DateTime?
+  recurringDeliveryRetryAt DateTime?
+  recurringDeliveryError String?
   sourceOffer            Offer?            @relation("OfferInvoice", fields: [sourceOfferId], references: [id], onDelete: SetNull)
   sourceOfferId          String?           @unique
   sentAt                 DateTime?
@@ -398,6 +412,7 @@ model Invoice {
   evidences              InvoiceEvidence[]
   mailEvents             MailEvent[]
 
+  @@unique([recurringInvoiceId, recurringPeriod])
   @@index([status, issueDate])
 }
 
@@ -618,6 +633,8 @@ model InvoiceLine {
   sourceDeliveryNoteLine   DeliveryNoteLine? @relation("DeliveryNoteLineInvoiceLine", fields: [sourceDeliveryNoteLineId], references: [id], onDelete: SetNull)
   sourceDeliveryNoteLineId String?           @unique
   stockBookedByInvoice     Boolean           @default(false)
+  historicalSourceMovementId String?
+  historicalSourceDeliveryNoteLineId String?
 }
 
 model RecurringInvoice {

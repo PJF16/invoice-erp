@@ -10,6 +10,7 @@ export type CustomerSelectOption = {
 };
 
 type Props = {
+  id?: string;
   customers: CustomerSelectOption[];
   value?: string;
   defaultValue?: string;
@@ -27,6 +28,7 @@ function customerLabel(customer: CustomerSelectOption) {
 }
 
 export function CustomerSelect({
+  id,
   customers,
   value,
   defaultValue = "",
@@ -43,6 +45,8 @@ export function CustomerSelect({
 
   return (
     <SearchSelect
+      id={id}
+      label="Kunde"
       options={customers}
       value={selectedId}
       onValueChange={(customerId) => {

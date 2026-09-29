@@ -41,6 +41,7 @@ export default async function StockPage({
       id: item.id,
       name: item.name,
       sku: item.sku,
+      stocks: item.stocks.map(({ warehouseId, quantity }) => ({ warehouseId, quantity })),
       quantity: relevant.reduce((sum, s) => sum + s.quantity, 0),
       breakdown: item.stocks
         .filter((s) => s.quantity !== 0)
@@ -128,6 +129,7 @@ export default async function StockPage({
                   <StockActions
                     itemId={row.id}
                     itemName={row.name}
+                    stocks={row.stocks}
                     warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}
                     customers={customers}
                     defaultWarehouseId={warehouseFilter}
