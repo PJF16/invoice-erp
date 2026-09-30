@@ -39,7 +39,7 @@ const groups: {
       { href: "/reminders", label: "Mahnwesen" },
       { href: "/recurring", label: "Wiederkehrend" },
       { href: "/customers", label: "Kunden" },
-      { href: "/software", label: "Software" },
+      { href: "/software", label: "Software & Dienste" },
       { href: "/export", label: "Export" },
       { href: "/mail-monitoring", label: "Mail-Monitoring" },
     ],

@@ -36,6 +36,11 @@ enum SupplyKind {
   ELECTRONIC_SERVICE
 }
 
+enum CatalogItemType {
+  SOFTWARE
+  SERVICE
+}
+
 enum VatVerificationStatus {
   VALID
   INVALID
@@ -353,6 +358,7 @@ model SoftwareItem {
   unit           String                 @default("Monat")
   active         Boolean                @default(true)
   supplyKind     SupplyKind             @default(ELECTRONIC_SERVICE)
+  catalogType    CatalogItemType        @default(SOFTWARE)
   createdAt      DateTime               @default(now())
   invoiceLines   InvoiceLine[]
   offerLines     OfferLine[]

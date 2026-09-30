@@ -23,7 +23,7 @@ export type InvoiceFormData = {
     customerType: CustomerType;
     uid: string | null;
   }[];
-  softwareItems: { id: string; name: string; description: string | null; unitPrice: number; unit: string; supplyKind: SupplyKind }[];
+  softwareItems: { id: string; name: string; description: string | null; unitPrice: number; unit: string; supplyKind: SupplyKind; catalogType: "SOFTWARE" | "SERVICE" }[];
   hardwareItems: {
     id: string;
     name: string;
@@ -120,8 +120,8 @@ export function InvoiceForm({
     return formatLocalizedDateInput(toDateInput(date));
   });
   const [deliveryDate, setDeliveryDate] = useState(initial?.deliveryDate ? formatLocalizedDateInput(initial.deliveryDate) : "");
-  const [periodStart, setPeriodStart] = useState(initial?.servicePeriodStart ? formatLocalizedDateInput(initial.servicePeriodStart) : "");
-  const [periodEnd, setPeriodEnd] = useState(initial?.servicePeriodEnd ? formatLocalizedDateInput(initial.servicePeriodEnd) : "");
+  const [periodStart, setPeriodStart] = useState(() => formatLocalizedDateInput(initial?.servicePeriodStart ?? (isEditing ? "" : toDateInput(new Date()))));
+  const [periodEnd, setPeriodEnd] = useState(() => formatLocalizedDateInput(initial?.servicePeriodEnd ?? (isEditing ? "" : toDateInput(new Date()))));
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [lines, setLines] = useState<Line[]>(
     initial
@@ -366,7 +366,7 @@ export function InvoiceForm({
                       className="rounded-lg border border-gray-300 px-2 py-1 text-xs disabled:bg-gray-100 disabled:text-gray-500"
                     >
                       <option value="FREE">Freitext</option>
-                      <option value="SOFTWARE">Softwareartikel</option>
+                      <option value="SOFTWARE">Software / Dienstleistung</option>
                       <option value="HARDWARE">Hardware (Lager)</option>
                     </select>
                     {lines.length > 1 && (
@@ -384,7 +384,7 @@ export function InvoiceForm({
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   {line.type === "SOFTWARE" && (
                     <div className="xl:col-span-2">
-                      <label className={label}>Softwareartikel</label>
+                      <label className={label}>Software / Dienstleistung</label>
                       <SoftwareItemSelect
                         items={data.softwareItems}
                         required

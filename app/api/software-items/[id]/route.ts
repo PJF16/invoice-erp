@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     await requireModule("INVOICES");
     const { id } = await params;
     const item = await prisma.softwareItem.findUnique({ where: { id } });
-    if (!item) return NextResponse.json({ error: "Softwareartikel nicht gefunden" }, { status: 404 });
+    if (!item) return NextResponse.json({ error: "Eintrag nicht gefunden" }, { status: 404 });
     return NextResponse.json(item);
   } catch (error) {
     return handleApiError(error);
@@ -39,7 +39,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     const usage = await prisma.recurringInvoiceLine.count({ where: { softwareItemId: id } });
     if (usage > 0) {
       return NextResponse.json(
-        { error: "Artikel wird in wiederkehrenden Rechnungen verwendet — stattdessen deaktivieren" },
+        { error: "Eintrag wird in wiederkehrenden Rechnungen verwendet — stattdessen deaktivieren" },
         { status: 400 },
       );
     }

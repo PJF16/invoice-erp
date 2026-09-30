@@ -29,7 +29,7 @@ export default async function RecurringPage() {
         <div>
           <h1 className="text-2xl font-semibold">Wiederkehrende Rechnungen</h1>
           <p className="text-sm text-gray-500">
-            Rechnungen werden zum Termin erzeugt und bei aktiviertem Auto-Versand per E-Mail verschickt. Softwareartikel-Preise werden bei jeder Erzeugung neu gelesen.
+            Rechnungen werden zum Termin erzeugt und bei aktiviertem Auto-Versand per E-Mail verschickt. Preise gespeicherter Leistungen werden bei jeder Erzeugung neu gelesen.
           </p>
         </div>
         <Link

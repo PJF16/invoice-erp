@@ -114,6 +114,7 @@ export const softwareItemSchema = z.object({
   unit: z.string().trim().min(1).default("Monat"),
   active: z.boolean().default(true),
   supplyKind: softwareSupplyKind.default("ELECTRONIC_SERVICE"),
+  catalogType: z.enum(["SOFTWARE", "SERVICE"]).default("SOFTWARE"),
 });
 
 const documentLineSchema = z.object({

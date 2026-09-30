@@ -14,12 +14,12 @@ export default async function SoftwarePage() {
     <div className="mx-auto max-w-[100rem]">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Softwareartikel</h1>
+          <h1 className="text-2xl font-semibold">Software & Dienstleistungen</h1>
           <p className="text-sm text-gray-500">
             Preisänderungen wirken automatisch auf alle künftig erzeugten wiederkehrenden Rechnungen.
           </p>
         </div>
-        <SoftwareForm />
+        <div className="flex flex-wrap gap-2"><SoftwareForm /></div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -27,6 +27,7 @@ export default async function SoftwarePage() {
           <thead>
             <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
               <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">Typ</th>
               <th className="px-4 py-3">Beschreibung</th>
               <th className="px-4 py-3 text-right">Preis (netto)</th>
               <th className="px-4 py-3">Einheit</th>
@@ -39,14 +40,15 @@ export default async function SoftwarePage() {
           <tbody>
             {items.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                  Noch keine Softwareartikel angelegt.
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                  Noch keine Softwareartikel oder Dienstleistungen angelegt.
                 </td>
               </tr>
             )}
             {items.map((item) => (
               <tr key={item.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium">{item.name}</td>
+                <td className="px-4 py-3 text-gray-500">{item.catalogType === "SERVICE" ? "Dienstleistung" : "Software"}</td>
                 <td className="px-4 py-3 text-xs text-gray-500">{item.description ?? "–"}</td>
                 <td className="px-4 py-3 text-right font-semibold tabular-nums">
                   {eur.format(Number(item.unitPrice))}
@@ -77,6 +79,7 @@ export default async function SoftwarePage() {
                       unit: item.unit,
                       active: item.active,
                       supplyKind: item.supplyKind,
+                      catalogType: item.catalogType,
                     }}
                   />
                 </td>

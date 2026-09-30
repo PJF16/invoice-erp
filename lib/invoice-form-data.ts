@@ -27,6 +27,7 @@ export async function loadInvoiceFormData(): Promise<InvoiceFormData> {
       unitPrice: Number(s.unitPrice),
       unit: s.unit,
       supplyKind: s.supplyKind,
+      catalogType: s.catalogType,
     })),
     hardwareItems: hardwareItems.map((i) => ({
       id: i.id,

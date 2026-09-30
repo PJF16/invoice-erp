@@ -296,7 +296,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
                       className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
                     >
                       <option value="FREE">Freitext</option>
-                      <option value="SOFTWARE">Softwareartikel</option>
+                      <option value="SOFTWARE">Software / Dienstleistung</option>
                       <option value="HARDWARE">Hardware</option>
                     </select>
                     {lines.length > 1 && (
@@ -309,7 +309,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
                 <div className="grid gap-3 lg:grid-cols-12">
                   {line.type === "SOFTWARE" && (
                     <div className="lg:col-span-4">
-                      <label className={label}>Softwareartikel</label>
+                      <label className={label}>Software / Dienstleistung</label>
                       <SoftwareItemSelect
                         items={data.softwareItems}
                         value={line.softwareItemId}

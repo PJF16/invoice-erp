@@ -184,7 +184,7 @@ async function resolveReferencedSupplyKinds(tx: Tx, lines: LineInput[]): Promise
     tx.softwareItem.findMany({ where: { id: { in: softwareIds } }, select: { id: true, supplyKind: true } }),
     tx.item.findMany({ where: { id: { in: itemIds } }, select: { id: true, supplyKind: true } }),
   ]);
-  if (softwareItems.length !== softwareIds.length) throw new ApiError(404, "Softwareartikel nicht gefunden");
+  if (softwareItems.length !== softwareIds.length) throw new ApiError(404, "Gespeicherte Leistung nicht gefunden");
   if (items.length !== itemIds.length) throw new ApiError(404, "Hardware-Artikel nicht gefunden");
   const softwareKinds = new Map(softwareItems.map((item) => [item.id, item.supplyKind]));
   const itemKinds = new Map(items.map((item) => [item.id, item.supplyKind]));

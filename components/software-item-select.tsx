@@ -28,7 +28,7 @@ export function SoftwareItemSelect({ id, items, value, onValueChange, required =
   return (
     <SearchSelect
       id={id}
-      label="Softwareartikel"
+      label="Software oder Dienstleistung"
       options={items}
       value={value}
       onValueChange={onValueChange}
@@ -38,10 +38,10 @@ export function SoftwareItemSelect({ id, items, value, onValueChange, required =
       renderOption={(item) => <><span className="font-medium">{item.name}</span><span className="ml-2 text-xs text-gray-500">{eur.format(item.unitPrice)}/{item.unit}</span></>}
       required={required}
       emptyLabel={allowFreeText ? "– Freitext-Position –" : undefined}
-      placeholder="Softwareartikel suchen…"
-      clearLabel="Softwareartikelauswahl löschen"
-      noResultsLabel="Keine Softwareartikel gefunden."
-      validationMessage="Bitte einen Softwareartikel aus der Trefferliste auswählen"
+      placeholder="Software oder Dienstleistung suchen…"
+      clearLabel="Auswahl löschen"
+      noResultsLabel="Keine Einträge gefunden."
+      validationMessage="Bitte einen Eintrag aus der Trefferliste auswählen"
       className={className}
     />
   );

@@ -41,7 +41,7 @@ async function validateReferences(tx: Tx, input: OfferInput) {
     tx.warehouse.count({ where: { id: { in: warehouseIds } } }),
   ]);
   if (!customer) throw new ApiError(404, "Kunde nicht gefunden");
-  if (softwareItems.length !== softwareIds.length) throw new ApiError(404, "Softwareartikel nicht gefunden");
+  if (softwareItems.length !== softwareIds.length) throw new ApiError(404, "Gespeicherte Leistung nicht gefunden");
   if (items.length !== itemIds.length) throw new ApiError(404, "Hardware-Artikel nicht gefunden");
   if (warehouseCount !== warehouseIds.length) throw new ApiError(404, "Lager nicht gefunden");
   const softwareKinds = new Map(softwareItems.map((item) => [item.id, item.supplyKind]));

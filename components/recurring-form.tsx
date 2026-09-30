@@ -223,7 +223,7 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
       <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <h2 className="mb-1 text-sm font-semibold">Positionen</h2>
         <p className="mb-4 text-xs text-gray-500">
-          Softwareartikel-Positionen übernehmen Preis und Bezeichnung bei jeder Erzeugung automatisch vom
+          Gespeicherte Softwareartikel und Dienstleistungen übernehmen Preis und Bezeichnung bei jeder Erzeugung automatisch vom
           Artikel. Ein Aufschlag oder Rabatt wird dann auf den jeweils aktuellen Artikelpreis angewendet.
         </p>
         <div className="space-y-4">
@@ -253,7 +253,7 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className={label}>Softwareartikel (optional)</label>
+                    <label className={label}>Software / Dienstleistung (optional)</label>
                     <SoftwareItemSelect
                       items={data.softwareItems}
                       value={line.softwareItemId}
