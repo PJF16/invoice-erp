@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { CustomerSelect } from "@/components/customer-select";
 import { SoftwareItemSelect } from "@/components/software-item-select";
 import type { InvoiceFormData } from "@/components/invoice-form";
-import { eur, TAX_TREATMENT_OPTIONS } from "@/lib/format";
+import { eur, toDateInput, TAX_TREATMENT_OPTIONS } from "@/lib/format";
 import { assessTaxTreatment, SUPPLY_KIND_OPTIONS } from "@/lib/tax-rules";
 import type { SupplyKind } from "@/lib/generated/prisma/enums";
 import { DecimalInput } from "@/components/localized-inputs";
@@ -70,8 +70,8 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
   const [issueDate, setIssueDate] = useState(formatLocalizedDateInput(initial.issueDate));
   const [validUntil, setValidUntil] = useState(formatLocalizedDateInput(initial.validUntil));
   const [deliveryDate, setDeliveryDate] = useState(initial.deliveryDate ? formatLocalizedDateInput(initial.deliveryDate) : "");
-  const [periodStart, setPeriodStart] = useState(initial.servicePeriodStart ? formatLocalizedDateInput(initial.servicePeriodStart) : "");
-  const [periodEnd, setPeriodEnd] = useState(initial.servicePeriodEnd ? formatLocalizedDateInput(initial.servicePeriodEnd) : "");
+  const [periodStart, setPeriodStart] = useState(() => formatLocalizedDateInput(initial.servicePeriodStart ?? (isEditing ? "" : toDateInput(new Date()))));
+  const [periodEnd, setPeriodEnd] = useState(() => formatLocalizedDateInput(initial.servicePeriodEnd ?? (isEditing ? "" : toDateInput(new Date()))));
   const [taxTreatment, setTaxTreatment] = useState(initial.taxTreatment);
   const [notes, setNotes] = useState(initial.notes ?? "");
   const [lines, setLines] = useState<OfferLine[]>(
