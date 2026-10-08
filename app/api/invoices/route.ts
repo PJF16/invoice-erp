@@ -1,3 +1,4 @@
+import { invoiceSearchWhere } from "@/lib/invoice-search";
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireModule, handleApiError, getPagination } from "@/lib/api-helpers";
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
       where: {
         status,
         customerId,
-        ...(q ? { OR: [{ number: { contains: q, mode: "insensitive" } }, { customerName: { contains: q, mode: "insensitive" } }] } : {}),
+        ...invoiceSearchWhere(q),
       },
       orderBy: { createdAt: "desc" },
       ...getPagination(req.nextUrl.searchParams, { limit: 200, max: 500 }),

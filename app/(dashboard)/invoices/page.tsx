@@ -1,3 +1,4 @@
+import { invoiceSearchWhere } from "@/lib/invoice-search";
 import { DocumentFilters } from "@/components/document-filters";
 import { ListPagination } from "@/components/list-pagination";
 import { readListQuery, type ListParams } from "@/lib/list-query";
@@ -27,7 +28,7 @@ export default async function InvoicesPage({
 
   const where: Prisma.InvoiceWhereInput = {
     status: statusFilter, issueDate: query.dateRange,
-    ...(query.q ? { OR: [{ number: { contains: query.q, mode: "insensitive" } }, { customerName: { contains: query.q, mode: "insensitive" } }, { customer: { name: { contains: query.q, mode: "insensitive" } } }, { customer: { customerNumber: { contains: query.q, mode: "insensitive" } } }] } : {}),
+    ...invoiceSearchWhere(query.q),
   };
   const pagination = query.pagination(await prisma.invoice.count({ where }));
   const orderBy: Prisma.InvoiceOrderByWithRelationInput = query.sort === "number" ? { number: "asc" } : query.sort === "amount_desc" ? { grossTotal: "desc" } : { issueDate: query.sort === "date_asc" ? "asc" : "desc" };
@@ -51,7 +52,7 @@ export default async function InvoicesPage({
         </div>
       </div>
 
-      <DocumentFilters params={params} amounts><label className="text-sm font-medium">Status<select name="status" defaultValue={statusFilter ?? ""} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"><option value="">Alle Status</option>{STATUSES.map((s) => <option key={s} value={s}>{INVOICE_STATUS_LABELS[s].label}</option>)}</select></label></DocumentFilters>
+      <DocumentFilters params={params} amounts searchPlaceholder="Nummer, Kunde, Artikel oder Inhalt…"><label className="text-sm font-medium">Status<select name="status" defaultValue={statusFilter ?? ""} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"><option value="">Alle Status</option>{STATUSES.map((s) => <option key={s} value={s}>{INVOICE_STATUS_LABELS[s].label}</option>)}</select></label></DocumentFilters>
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
         <table className="w-full min-w-[48rem] text-sm">
           <thead>

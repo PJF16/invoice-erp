@@ -1,12 +1,14 @@
+import { recurringInvoiceSearchWhere } from "@/lib/invoice-search";
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireModule, handleApiError } from "@/lib/api-helpers";
 import { recurringInvoiceSchema } from "@/lib/validation";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await requireModule("INVOICES");
     const templates = await prisma.recurringInvoice.findMany({
+      where: recurringInvoiceSearchWhere(req.nextUrl.searchParams.get("q") ?? undefined),
       orderBy: { name: "asc" },
       include: {
         customer: { select: { id: true, name: true } },

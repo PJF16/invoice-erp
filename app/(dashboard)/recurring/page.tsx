@@ -2,12 +2,16 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { eur, formatDate, INTERVAL_LABELS } from "@/lib/format";
 import { RecurringRowActions } from "@/components/recurring-actions";
+import { readListQuery, type ListParams } from "@/lib/list-query";
+import { recurringInvoiceSearchWhere } from "@/lib/invoice-search";
 
 export const dynamic = "force-dynamic";
 
-export default async function RecurringPage() {
+export default async function RecurringPage({ searchParams }: { searchParams: Promise<ListParams> }) {
+  const { q } = readListQuery(await searchParams);
   const [templates, deliveryIssues] = await Promise.all([
     prisma.recurringInvoice.findMany({
+      where: recurringInvoiceSearchWhere(q),
       orderBy: { name: "asc" },
       include: {
         customer: { select: { name: true, email: true } },
@@ -40,6 +44,15 @@ export default async function RecurringPage() {
         </Link>
       </div>
 
+      <form method="GET" className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-white p-4">
+        <label className="min-w-0 flex-1 text-sm font-medium">
+          Suche
+          <input type="search" name="q" defaultValue={q} placeholder="Name, Kunde, Artikel oder Inhalt…" className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+        </label>
+        <button className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white">Suchen</button>
+        <Link href="/recurring" className="py-2 text-sm text-gray-600 underline">Suche zurücksetzen</Link>
+      </form>
+
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
         <table className="w-full min-w-[68rem] text-sm">
           <thead>
@@ -59,7 +72,7 @@ export default async function RecurringPage() {
             {templates.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                  Noch keine Vorlagen. Lege z.B. einen monatlichen Wartungsvertrag an.
+                  {q ? "Keine wiederkehrenden Rechnungen für diese Suche gefunden." : "Noch keine Vorlagen. Lege z.B. einen monatlichen Wartungsvertrag an."}
                 </td>
               </tr>
             )}
