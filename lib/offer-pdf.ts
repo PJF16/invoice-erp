@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
-import { computeTotals, TAX_NOTES } from "@/lib/invoices";
+import { TAX_NOTES } from "@/lib/invoices";
+import { calculateTaxBreakdown, matchesTaxTotal } from "@/lib/document-totals";
 import { formatTaxRate } from "@/lib/format";
 import { renderPdfLineDescription } from "@/lib/pdf-line-description";
 import { renderPdfMetaRows } from "@/lib/pdf-meta";
@@ -70,17 +71,9 @@ export async function renderOfferPdf(offer: OfferWithLines, settings: CompanySet
     doc.moveTo(55, doc.y + 3).lineTo(55 + pageWidth, doc.y + 3).strokeColor("#cccccc").stroke();
     doc.moveDown(0.6);
 
-    const { taxBreakdown } = computeTotals(
-      offer.lines.map((line) => ({
-        description: line.description,
-        quantity: num(line.quantity),
-        unit: line.unit,
-        unitPrice: num(line.unitPrice),
-        taxRate: line.taxRate,
-        supplyKind: line.supplyKind,
-      })),
-      offer.taxTreatment,
-    );
+    const taxBreakdown = offer.taxTreatment === "STANDARD"
+      ? calculateTaxBreakdown(offer.lines.map(({ lineNet, taxRate }) => ({ lineNet: num(lineNet), taxRate })))
+      : [];
 
     for (const line of offer.lines) {
       const rowY = doc.y;
@@ -108,8 +101,12 @@ export async function renderOfferPdf(offer: OfferWithLines, settings: CompanySet
       doc.moveDown(0.35);
     };
     sumRow("Nettobetrag", eur.format(num(offer.netTotal)));
-    for (const tax of taxBreakdown) {
-      sumRow(`zzgl. ${tax.rate}% USt auf ${eur.format(tax.net)}`, eur.format(tax.tax));
+    if (matchesTaxTotal(taxBreakdown, num(offer.taxTotal))) {
+      for (const tax of taxBreakdown) {
+        sumRow(`zzgl. ${tax.rate}% USt auf ${eur.format(tax.net)}`, eur.format(tax.tax));
+      }
+    } else {
+      sumRow("USt gesamt", eur.format(num(offer.taxTotal)));
     }
     doc.moveDown(0.2);
     sumRow("Angebotssumme", eur.format(num(offer.grossTotal)), true);

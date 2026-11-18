@@ -1,16 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { consumePortalMagicLink, setPortalSessionCookie } from "@/lib/portal-auth";
+import { consumePortalMagicLink, portalOrigin, setPortalSessionCookie } from "@/lib/portal-auth";
+import { handleApiError } from "@/lib/api-helpers";
 
 export async function GET(req: NextRequest) {
-  const token = req.nextUrl.searchParams.get("token");
-  if (!token) return NextResponse.redirect(new URL("/portal/login?error=link", req.url));
-
   try {
-    const session = await consumePortalMagicLink(token);
-    const response = NextResponse.redirect(new URL("/portal", req.url));
-    setPortalSessionCookie(response, session, req);
-    return response;
-  } catch {
-    return NextResponse.redirect(new URL("/portal/login?error=link", req.url));
+    const origin = portalOrigin();
+    const invalidLink = new URL("/portal/login?error=link", origin);
+    const token = req.nextUrl.searchParams.get("token");
+    if (!token) return NextResponse.redirect(invalidLink);
+    try {
+      const session = await consumePortalMagicLink(token);
+      const response = NextResponse.redirect(new URL("/portal", origin));
+      setPortalSessionCookie(response, session);
+      return response;
+    } catch {
+      return NextResponse.redirect(invalidLink);
+    }
+  } catch (error) {
+    return handleApiError(error);
   }
 }

@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     if (!customer) return NextResponse.json({ error: "Kunde nicht gefunden" }, { status: 404 });
 
     const response = NextResponse.json({ ok: true });
-    setPortalImpersonationCookie(response, req, customer.id, session.user.id);
+    setPortalImpersonationCookie(response, customer.id, session.user.id);
     return response;
   } catch (error) {
     return handleApiError(error);
@@ -35,7 +35,7 @@ export async function DELETE(req: NextRequest) {
   try {
     assertSameOrigin(req);
     const response = NextResponse.json({ ok: true });
-    clearPortalImpersonationCookie(response, req);
+    clearPortalImpersonationCookie(response);
     return response;
   } catch (error) {
     return handleApiError(error);

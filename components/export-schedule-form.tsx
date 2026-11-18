@@ -209,28 +209,37 @@ export function ExportScheduleForm() {
 
 export function ExportScheduleRowActions({
   schedule,
+  running,
+  reviewRunId,
 }: {
   schedule: ScheduleData & { id: string };
+  running: boolean;
+  reviewRunId: string | null;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function runNow() {
-    if (!confirm(`„${schedule.name}" jetzt ausführen und per E-Mail versenden?`)) return;
+    const prompt = reviewRunId
+      ? "Der Mailserver könnte den Export bereits angenommen haben. Versandstatus prüfen und denselben Zeitraum erneut senden?"
+      : `„${schedule.name}“ jetzt ausführen und per E-Mail versenden?`;
+    if (!confirm(prompt)) return;
     setLoading(true);
-    const res = await fetch(`/api/export-schedules/${schedule.id}/run`, { method: "POST" });
-    setLoading(false);
-    const data = await res.json().catch(() => null);
-    if (res.ok) {
-      alert(
-        data.sent
-          ? `${data.count} Beleg(e) für „${data.label}" versendet an ${data.recipient}.`
-          : (data.reason ?? "Keine Belege gefunden."),
-      );
+    try {
+      const query = reviewRunId ? `?${new URLSearchParams({ retry: reviewRunId })}` : "";
+      const res = await fetch(`/api/export-schedules/${schedule.id}/run${query}`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      alert(res.ok
+        ? data.sent
+          ? `${data.count} Beleg(e) für „${data.label}“ versendet an ${data.recipient}.`
+          : (data.reason ?? "Keine Belege gefunden.")
+        : (data?.error ?? "Ausführung fehlgeschlagen"));
+    } catch {
+      alert("Ausführung fehlgeschlagen");
+    } finally {
+      setLoading(false);
       router.refresh();
-    } else {
-      alert(data?.error ?? "Ausführung fehlgeschlagen");
     }
   }
 
@@ -245,10 +254,10 @@ export function ExportScheduleRowActions({
     <div className="inline-flex gap-1">
       <button
         onClick={runNow}
-        disabled={loading}
+        disabled={loading || running}
         className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
       >
-        {loading ? "Läuft…" : "Jetzt ausführen"}
+        {loading || running ? "Läuft…" : reviewRunId ? "Erneut senden" : "Jetzt ausführen"}
       </button>
       <button onClick={() => setEditing(true)} className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs hover:bg-gray-100">
         Bearbeiten

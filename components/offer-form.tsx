@@ -1,5 +1,7 @@
 "use client";
 
+import { calculateDocumentTotals, calculateLineAmounts } from "@/lib/document-totals";
+
 import { safeFetch as fetch } from "@/lib/client-fetch";
 
 import { useMemo, useState } from "react";
@@ -97,19 +99,9 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
     : null;
 
   const totals = useMemo(() => {
-    const net = lines.reduce((sum, line) => sum + Math.round(line.quantity * line.unitPrice * 100) / 100, 0);
-    const tax = isStandard
-      ? lines.reduce(
-          (sum, line) => sum + (Math.round(line.quantity * line.unitPrice * 100) / 100) * (line.taxRate / 100),
-          0,
-        )
-      : 0;
-    return {
-      net: Math.round(net * 100) / 100,
-      tax: Math.round(tax * 100) / 100,
-      gross: Math.round((net + tax) * 100) / 100,
-    };
-  }, [isStandard, lines]);
+    const { netTotal, taxTotal, grossTotal } = calculateDocumentTotals(lines, isStandard);
+    return { net: netTotal, tax: taxTotal, gross: grossTotal };
+  }, [lines, isStandard]);
 
   function updateLine(key: number, patch: Partial<OfferLine>) {
     const nextLines = lines.map((line) => line.key === key ? { ...line, ...patch } : line);
@@ -375,7 +367,7 @@ export function OfferForm({ data, initial }: { data: InvoiceFormData; initial: O
                     )}
                   </div>
                 </div>
-                <p className="mt-2 text-right text-sm text-gray-500">Netto: <span className="font-semibold text-gray-900">{eur.format(Math.round(line.quantity * line.unitPrice * 100) / 100)}</span></p>
+                <p className="mt-2 text-right text-sm text-gray-500">Netto: <span className="font-semibold text-gray-900">{eur.format(calculateLineAmounts(line).lineNet)}</span></p>
               </div>
             );
           })}

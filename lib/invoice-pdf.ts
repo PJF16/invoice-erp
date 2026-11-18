@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
-import { computeTotals, TAX_NOTES } from "@/lib/invoices";
+import { TAX_NOTES } from "@/lib/invoices";
+import { invoiceIssuer, invoiceTaxBreakdown, type InvoiceIssuer } from "@/lib/invoice-snapshot";
 import { formatTaxRate } from "@/lib/format";
 import { renderPdfLineDescription } from "@/lib/pdf-line-description";
 import { renderPdfMetaRows } from "@/lib/pdf-meta";
@@ -13,7 +14,7 @@ const dateFmt = new Intl.DateTimeFormat("de-AT", { dateStyle: "medium" });
 const num = (d: Prisma.Decimal | number) => Number(d);
 
 // EPC069-12 ("GiroCode"): SEPA-Überweisungsdaten als QR-Code, von den meisten Banking-Apps lesbar.
-function buildGiroCodeData(settings: CompanySettings, invoice: InvoiceWithLines): string {
+function buildGiroCodeData(settings: InvoiceIssuer, invoice: InvoiceWithLines): string {
   const amount = num(invoice.grossTotal).toFixed(2);
   return [
     "BCD",
@@ -30,7 +31,7 @@ function buildGiroCodeData(settings: CompanySettings, invoice: InvoiceWithLines)
   ].join("\n");
 }
 
-async function renderGiroCodePng(settings: CompanySettings, invoice: InvoiceWithLines): Promise<Buffer> {
+async function renderGiroCodePng(settings: InvoiceIssuer, invoice: InvoiceWithLines): Promise<Buffer> {
   return QRCode.toBuffer(buildGiroCodeData(settings, invoice), {
     type: "png",
     errorCorrectionLevel: "M",
@@ -41,8 +42,9 @@ async function renderGiroCodePng(settings: CompanySettings, invoice: InvoiceWith
 
 export async function renderInvoicePdf(
   invoice: InvoiceWithLines,
-  settings: CompanySettings,
+  companySettings: CompanySettings,
 ): Promise<Buffer> {
+  const settings = invoiceIssuer(companySettings, invoice.issuerSnapshot);
   const showGiroCode = invoice.type === "INVOICE" && Boolean(settings.iban) && num(invoice.grossTotal) > 0;
   const giroCodePng = showGiroCode ? await renderGiroCodePng(settings, invoice) : null;
 
@@ -117,17 +119,7 @@ export async function renderInvoicePdf(
     doc.moveTo(55, doc.y + 3).lineTo(55 + pageWidth, doc.y + 3).strokeColor("#cccccc").stroke();
     doc.moveDown(0.6);
 
-    const { taxBreakdown } = computeTotals(
-      invoice.lines.map((l) => ({
-        description: l.description,
-        quantity: num(l.quantity),
-        unit: l.unit,
-        unitPrice: num(l.unitPrice),
-        taxRate: l.taxRate,
-        supplyKind: l.supplyKind,
-      })),
-      invoice.taxTreatment,
-    );
+    const taxBreakdown = invoiceTaxBreakdown(invoice);
 
     for (const line of invoice.lines) {
       const rowY = doc.y;
@@ -156,7 +148,8 @@ export async function renderInvoicePdf(
       doc.moveDown(0.35);
     };
     sumRow("Nettobetrag", eur.format(num(invoice.netTotal)));
-    for (const t of taxBreakdown) {
+    if (!taxBreakdown) sumRow("USt gesamt", eur.format(num(invoice.taxTotal)));
+    for (const t of taxBreakdown ?? []) {
       sumRow(`zzgl. ${t.rate}% USt auf ${eur.format(t.net)}`, eur.format(t.tax));
     }
     doc.moveDown(0.2);

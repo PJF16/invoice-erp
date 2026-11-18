@@ -1,5 +1,7 @@
 "use client";
 
+import { calculateDocumentTotals, calculateLineAmounts } from "@/lib/document-totals";
+
 import { safeFetch as fetch } from "@/lib/client-fetch";
 
 import { useMemo, useState } from "react";
@@ -153,14 +155,8 @@ export function InvoiceForm({
     : null;
 
   const totals = useMemo(() => {
-    const net = lines.reduce((sum, l) => sum + Math.round(l.quantity * l.unitPrice * 100) / 100, 0);
-    const tax = isStandard
-      ? lines.reduce(
-          (sum, l) => sum + (Math.round(l.quantity * l.unitPrice * 100) / 100) * (l.taxRate / 100),
-          0,
-        )
-      : 0;
-    return { net, tax: Math.round(tax * 100) / 100, gross: Math.round((net + tax) * 100) / 100 };
+    const { netTotal, taxTotal, grossTotal } = calculateDocumentTotals(lines, isStandard);
+    return { net: netTotal, tax: taxTotal, gross: grossTotal };
   }, [lines, isStandard]);
 
   function updateLine(key: number, patch: Partial<Line>) {
@@ -527,7 +523,7 @@ export function InvoiceForm({
                   </p>
                 )}
                 <p className="mt-2 text-right text-sm text-gray-500">
-                  Netto: <span className="font-semibold text-gray-900">{eur.format(Math.round(line.quantity * line.unitPrice * 100) / 100)}</span>
+                  Netto: <span className="font-semibold text-gray-900">{eur.format(calculateLineAmounts(line).lineNet)}</span>
                 </p>
               </div>
             );

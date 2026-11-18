@@ -4,8 +4,6 @@ type NumberSettings = {
   invoicePrefix: string;
   invoiceNumberCycle: "YEARLY" | "DAILY" | "CUSTOM";
   nextInvoiceNumber: number;
-  lastInvoiceYear: number;
-  lastInvoiceSeq: number;
   offerPrefix: string;
   lastOfferYear: number;
   lastOfferSeq: number;
@@ -22,7 +20,7 @@ async function lockNumberSettings(tx: Tx): Promise<NumberSettings> {
   });
   const [settings] = await tx.$queryRaw<NumberSettings[]>`
     SELECT
-      "invoicePrefix", "invoiceNumberCycle", "nextInvoiceNumber", "lastInvoiceYear", "lastInvoiceSeq",
+      "invoicePrefix", "invoiceNumberCycle", "nextInvoiceNumber",
       "offerPrefix", "lastOfferYear", "lastOfferSeq",
       "deliveryNotePrefix", "lastDeliveryNoteYear", "lastDeliveryNoteSeq"
     FROM "CompanySettings"
@@ -62,7 +60,12 @@ export async function assignInvoiceNumberTx(tx: Tx, issueDate: Date) {
   }
 
   const year = issueDate.getFullYear();
-  const seq = settings.lastInvoiceYear === year ? settings.lastInvoiceSeq + 1 : 1;
+  const sequence = await tx.invoiceYearlySequence.upsert({
+    where: { year },
+    create: { year, lastSeq: 1 },
+    update: { lastSeq: { increment: 1 } },
+  });
+  const seq = sequence.lastSeq;
   await tx.companySettings.update({
     where: { id: "singleton" },
     data: { lastInvoiceYear: year, lastInvoiceSeq: seq },

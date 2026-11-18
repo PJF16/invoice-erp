@@ -34,8 +34,7 @@ type Settings = {
   skontoDays: number;
   emailSubject: string;
   emailBody: string;
-  lastInvoiceYear: number;
-  lastInvoiceSeq: number;
+  currentYearlyInvoiceSeq: number;
   lastOfferYear: number;
   lastOfferSeq: number;
   lastDeliveryNoteYear: number;
@@ -117,7 +116,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
       : invoiceNumberCycle === "DAILY"
       ? `${invoicePrefix}${todayKey}-${String(settings.currentDailyInvoiceSeq + 1).padStart(3, "0")}`
       : `${invoicePrefix}${today.getFullYear()}-${String(
-          settings.lastInvoiceYear === today.getFullYear() ? settings.lastInvoiceSeq + 1 : 1,
+          settings.currentYearlyInvoiceSeq + 1,
         ).padStart(3, "0")}`;
   const nextOfferNumber = `${settings.offerPrefix}${new Date().getFullYear()}-${String(
     settings.lastOfferYear === new Date().getFullYear() ? settings.lastOfferSeq + 1 : 1,

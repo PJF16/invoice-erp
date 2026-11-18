@@ -15,9 +15,6 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSCameraUsageDescription: "Die Kamera wird zum Scannen von Barcodes benötigt."
-        NSAppTransportSecurity:
-          # Erlaubt HTTP im lokalen Netz (Server ohne TLS). Für Internet-Zugriff HTTPS verwenden.
-          NSAllowsArbitraryLoads: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: consulting.philipp.WarehouseScanner

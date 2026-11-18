@@ -75,6 +75,8 @@ npm run dev
 
 Danach auf <http://localhost:3000> mit `admin@example.com` / `admin1234` anmelden (**Passwort nach dem ersten Login ändern** bzw. per `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` in `.env` setzen, bevor geseedet wird).
 
+CI führt die Integrationstests gegen eine eigene PostgreSQL-17-Datenbank aus. Lokal lässt sich dieselbe Suite mit `npm run test:integration` ausführen. Dazu `TEST_DATABASE_URL` auf eine migrierte Testdatenbank mit dem Namenssuffix `_test` setzen.
+
 ## Produktion (Docker auf eigenem Server)
 
 ```bash
@@ -91,6 +93,10 @@ docker compose exec app npx prisma db seed 2>/dev/null || true
 Falls das Image kein Seed-Tooling enthält, alternativ lokal mit `DATABASE_URL` auf den Server zeigen und `npm run db:seed` ausführen. Davor ggf. `SEED_ADMIN_EMAIL` und `SEED_ADMIN_PASSWORD` setzen.
 
 > **Hinweis:** Für den Betrieb über das Internet einen Reverse-Proxy mit HTTPS davorschalten (z.B. Caddy oder Traefik).
+
+Für das Kundenportal in Produktion die öffentliche HTTPS-Adresse in `PORTAL_BASE_URL` oder `AUTH_URL` hinterlegen. Magic Links und Portal-Weiterleitungen verwenden diese Adresse. Ohne Konfiguration nutzt der Entwicklungsserver `http://localhost:3000`.
+
+Geplante Exporte holen fällige Zeiträume nach einem Ausfall chronologisch nach. Ein manueller Versand vor dem Plantermin lässt diesen Termin bestehen. Erscheint „Versand prüfen“, lässt sich im Mail-Monitoring klären, ob der Mailserver die Nachricht bereits angenommen hat.
 
 ## API-Überblick
 

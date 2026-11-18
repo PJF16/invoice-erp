@@ -73,11 +73,15 @@ export default async function ExportPage() {
                         : "border-gray-200 bg-gray-50 text-gray-500"
                     }`}
                   >
-                    {s.active ? "Aktiv" : "Pausiert"}
+                    {s.exportRunPhase === "REVIEW" ? "Versand prüfen"
+                      : s.exportRunPhase ? "Läuft"
+                        : s.active ? "Aktiv" : "Pausiert"}
                   </span>
                 </td>
                 <td className="px-5 py-3 text-right">
                   <ExportScheduleRowActions
+                    running={s.exportRunPhase === "PREPARING" || s.exportRunPhase === "SENDING"}
+                    reviewRunId={s.exportRunPhase === "REVIEW" ? s.exportRunId : null}
                     schedule={{
                       id: s.id,
                       name: s.name,

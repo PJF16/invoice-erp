@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   try {
     assertSameOrigin(req);
     const response = NextResponse.json({ ok: true });
-    await clearPortalSession(response, req);
+    await clearPortalSession(response);
     return response;
   } catch (error) {
     return handleApiError(error);

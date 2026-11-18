@@ -92,6 +92,7 @@ type MonitoredMailContext = {
   subject: string;
   invoiceId?: string;
   deliveryNoteId?: string;
+  exportRunId?: string;
 };
 
 type MailResult = {
@@ -147,6 +148,7 @@ export async function sendMonitoredMail(context: MonitoredMailContext, options: 
       subject: context.subject,
       invoiceId: context.invoiceId,
       deliveryNoteId: context.deliveryNoteId,
+      exportRunId: context.exportRunId,
     },
   });
 

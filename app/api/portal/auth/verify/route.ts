@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
     const session = await verifyPortalCode(input.data.email, input.data.code);
     const response = NextResponse.json({ ok: true });
-    setPortalSessionCookie(response, session, req);
+    setPortalSessionCookie(response, session);
     return response;
   } catch (error) {
     return handleApiError(error);

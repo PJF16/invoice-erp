@@ -8,6 +8,7 @@ import { eur, toDateInput, TAX_TREATMENT_OPTIONS } from "@/lib/format";
 import { CustomerSelect } from "@/components/customer-select";
 import { SoftwareItemSelect } from "@/components/software-item-select";
 import { assessTaxTreatment, SUPPLY_KIND_OPTIONS } from "@/lib/tax-rules";
+import { adjustedUnitPrice } from "@/lib/document-totals";
 import type { CustomerType, SupplyKind } from "@/lib/generated/prisma/enums";
 
 type FormData = {
@@ -229,14 +230,7 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
         <div className="space-y-4">
           {lines.map((line, idx) => {
             const software = data.softwareItems.find((s) => s.id === line.softwareItemId);
-            const adjustment = software
-              ? line.priceAdjustmentType === "PERCENTAGE"
-                ? software.unitPrice * (line.priceAdjustmentValue / 100)
-                : line.priceAdjustmentValue
-              : 0;
-            const adjustedUnitPrice = software
-              ? Math.max(0, software.unitPrice + (line.priceAdjustmentIsDiscount ? -adjustment : adjustment))
-              : 0;
+            const unitPriceWithAdjustment = software ? adjustedUnitPrice(software.unitPrice, line) : 0;
             return (
               <div key={line.key} className="rounded-lg border border-gray-200 p-4">
                 <div className="mb-3 flex items-center justify-between">
@@ -350,7 +344,7 @@ export function RecurringForm({ data, initial }: { data: FormData; initial?: Rec
                         </div>
                         {software && (
                           <p className="mt-1 text-xs text-gray-500">
-                            Aktuell: {eur.format(adjustedUnitPrice)}/{software.unit}
+                            Aktuell: {eur.format(unitPriceWithAdjustment)}/{software.unit}
                           </p>
                         )}
                       </div>

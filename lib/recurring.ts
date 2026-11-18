@@ -4,6 +4,7 @@ import { deliverRecurringInvoice, retryPendingRecurringDeliveries } from "@/lib/
 import { getSettings } from "@/lib/settings";
 import { ApiError } from "@/lib/api-helpers";
 import { addInterval } from "@/lib/dates";
+import { adjustedUnitPrice } from "@/lib/document-totals";
 
 /**
  * Erzeugt aus einer Vorlage eine finalisierte Rechnung.
@@ -35,10 +36,6 @@ export async function generateInvoiceFromTemplate(templateId: string, userId: st
 
   const lines: LineInput[] = template.lines.map((line) => {
     if (line.softwareItem) {
-      const basePrice = Number(line.softwareItem.unitPrice);
-      const adjustment = line.priceAdjustmentType === "PERCENTAGE"
-        ? basePrice * (Number(line.priceAdjustmentValue) / 100)
-        : Number(line.priceAdjustmentValue);
       return {
         description: [
           line.softwareItem.name,
@@ -47,7 +44,9 @@ export async function generateInvoiceFromTemplate(templateId: string, userId: st
         ].filter(Boolean).join("\n"),
         quantity: Number(line.quantity),
         unit: line.unit || line.softwareItem.unit,
-        unitPrice: Math.max(0, basePrice + (line.priceAdjustmentIsDiscount ? -adjustment : adjustment)),
+        unitPrice: adjustedUnitPrice(Number(line.softwareItem.unitPrice), {
+          ...line, priceAdjustmentValue: Number(line.priceAdjustmentValue),
+        }),
         taxRate: line.taxRate,
         supplyKind: line.softwareItem.supplyKind,
         softwareItemId: line.softwareItemId,

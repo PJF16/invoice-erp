@@ -7,6 +7,8 @@ import { assignInvoiceNumberTx } from "@/lib/document-numbers";
 import type { SupplyKind, TaxTreatment } from "@/lib/generated/prisma/enums";
 import { assessTaxTreatment } from "@/lib/tax-rules";
 import { normalizeVatId } from "@/lib/vat-id";
+import { calculateDocumentTotals } from "@/lib/document-totals";
+import { invoiceIssuer, invoiceTaxBreakdown } from "@/lib/invoice-snapshot";
 
 export const TAX_NOTES: Record<Exclude<TaxTreatment, "STANDARD">, string> = {
   REVERSE_CHARGE: "Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge).",
@@ -37,32 +39,13 @@ export type LineInput = {
   sourceDeliveryNoteLineId?: string | null;
 };
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 /**
  * Berechnet Netto/USt/Brutto. Bei allen Steuerbehandlungen außer STANDARD
  * wird keine österreichische USt berechnet (Reverse Charge, ig. Lieferung, Ausfuhr).
  * Der interne Steuersatz 0 dient nur der Datenkompatibilität und wird nicht als 0% ausgewiesen.
  */
 export function computeTotals(lines: LineInput[], treatment: TaxTreatment) {
-  const effective = lines.map((line) => ({
-    ...line,
-    taxRate: treatment === "STANDARD" ? line.taxRate : 0,
-    lineNet: round2(line.quantity * line.unitPrice),
-  }));
-
-  const netTotal = round2(effective.reduce((sum, l) => sum + l.lineNet, 0));
-  const byRate = new Map<number, number>();
-  for (const line of effective) {
-    byRate.set(line.taxRate, round2((byRate.get(line.taxRate) ?? 0) + line.lineNet));
-  }
-  const taxBreakdown = [...byRate.entries()]
-    .filter(([rate]) => rate > 0)
-    .sort((a, b) => b[0] - a[0])
-    .map(([rate, net]) => ({ rate, net, tax: round2((net * rate) / 100) }));
-  const taxTotal = round2(taxBreakdown.reduce((sum, t) => sum + t.tax, 0));
-
-  return { lines: effective, netTotal, taxTotal, grossTotal: round2(netTotal + taxTotal), taxBreakdown };
+  return calculateDocumentTotals(lines, treatment === "STANDARD");
 }
 
 type CreateInvoiceInput = {
@@ -128,7 +111,7 @@ async function reserveSourceMovements(tx: Tx, sourceIds: string[]) {
 async function validateSourceDeliveryLines(tx: Tx, input: CreateInvoiceInput) {
   const sourceIds = input.lines.map((line) => line.sourceDeliveryNoteLineId).filter((id): id is string => Boolean(id));
   if (new Set(sourceIds).size !== sourceIds.length) throw new ApiError(400, "Eine Kundenübergabe kann nur einmal verrechnet werden");
-  if (sourceIds.length === 0) return sourceIds;
+  if (sourceIds.length === 0) return [];
   const deliveryLines = await tx.deliveryNoteLine.findMany({
     where: { id: { in: sourceIds } },
     include: { deliveryNote: true },
@@ -141,20 +124,21 @@ async function validateSourceDeliveryLines(tx: Tx, input: CreateInvoiceInput) {
     if (source.deliveryNote.status !== "ACTIVE" || source.deliveryNote.customerId !== input.customerId || source.billingStatus !== "PENDING") {
       throw new ApiError(400, "Die Kundenübergabe ist nicht mehr zur Verrechnung verfügbar");
     }
-    if (line.softwareItemId || line.itemId !== source.itemId || line.warehouseId !== source.warehouseId || line.quantity !== source.quantity - source.canceledQuantity) {
+    if (line.softwareItemId || line.itemId !== source.itemId || (line.warehouseId ?? null) !== source.warehouseId || line.quantity !== source.quantity - source.canceledQuantity) {
       throw new ApiError(400, "Artikel und Menge einer Kundenübergabe dürfen nicht verändert werden");
     }
   }
-  return sourceIds;
+  return deliveryLines.map(({ id, canceledQuantity }) => ({ id, canceledQuantity }));
 }
 
-async function reserveSourceDeliveryLines(tx: Tx, sourceIds: string[]) {
-  if (sourceIds.length === 0) return;
+async function reserveSourceDeliveryLines(tx: Tx, sources: { id: string; canceledQuantity: number }[]) {
+  if (sources.length === 0) return;
   const updated = await tx.deliveryNoteLine.updateMany({
-    where: { id: { in: sourceIds }, billingStatus: "PENDING", deliveryNote: { status: "ACTIVE" } },
+    where: { OR: sources, billingStatus: "PENDING", deliveryNote: { status: "ACTIVE" } },
     data: { billingStatus: "INVOICED" },
   });
-  if (updated.count !== sourceIds.length) throw new ApiError(409, "Eine Kundenübergabe wurde zwischenzeitlich geändert");
+  if (updated.count !== sources.length) throw new ApiError(409, "Eine Kundenübergabe wurde zwischenzeitlich geändert");
+  const sourceIds = sources.map(({ id }) => id);
   const movements = await tx.deliveryNoteLine.findMany({ where: { id: { in: sourceIds }, movementId: { not: null } }, select: { movementId: true } });
   await tx.movement.updateMany({ where: { id: { in: movements.flatMap((line) => line.movementId ? [line.movementId] : []) } }, data: { billingStatus: "INVOICED" } });
 }
@@ -214,11 +198,11 @@ export async function createDraftInvoiceTx(tx: Tx, input: CreateInvoiceInput) {
     const resolvedLines = await resolveReferencedSupplyKinds(tx, input.lines);
     const { lines, netTotal, taxTotal, grossTotal } = computeTotals(resolvedLines, input.taxTreatment);
     const sourceIds = await validateSourceMovements(tx, input);
-    const deliverySourceIds = await validateSourceDeliveryLines(tx, input);
+    const deliverySources = await validateSourceDeliveryLines(tx, input);
     // Vor dem Anlegen der Positionen atomar reservieren. So endet ein
     // paralleler Entwurf kontrolliert mit 409 statt an der Unique-Constraint.
     await reserveSourceMovements(tx, sourceIds);
-    await reserveSourceDeliveryLines(tx, deliverySourceIds);
+    await reserveSourceDeliveryLines(tx, deliverySources);
     const invoice = await tx.invoice.create({
       data: {
         customerId: input.customerId,
@@ -272,9 +256,9 @@ export async function updateDraftInvoice(invoiceId: string, input: CreateInvoice
     }
     await tx.invoiceLine.deleteMany({ where: { invoiceId } });
     const sourceIds = await validateSourceMovements(tx, input);
-    const deliverySourceIds = await validateSourceDeliveryLines(tx, input);
+    const deliverySources = await validateSourceDeliveryLines(tx, input);
     await reserveSourceMovements(tx, sourceIds);
-    await reserveSourceDeliveryLines(tx, deliverySourceIds);
+    await reserveSourceDeliveryLines(tx, deliverySources);
     const invoice = await tx.invoice.update({
       where: { id: invoiceId },
       data: {
@@ -420,8 +404,18 @@ export async function finalizeInvoiceTx(
     }
 
     const number = await assignInvoiceNumberTx(tx, invoice.issueDate);
+    const issuerSnapshot = invoiceIssuer(await getSettings(tx));
+    const { lines, netTotal, taxTotal, grossTotal, taxBreakdown } = calculateDocumentTotals(
+      invoice.lines.map((line) => ({
+        ...line, storedLineNet: line.lineNet, quantity: Number(line.quantity), unitPrice: Number(line.unitPrice),
+      })),
+      invoice.taxTreatment === "STANDARD",
+    );
 
-    for (const line of invoice.lines) {
+    for (const line of lines) {
+      if (!line.storedLineNet.equals(line.lineNet)) {
+        await tx.invoiceLine.update({ where: { id: line.id }, data: { lineNet: line.lineNet } });
+      }
       if (line.itemId && line.warehouseId && !line.sourceMovementId && !line.sourceDeliveryNoteLineId) {
         const { movement } = await bookMovementTx(tx, {
           itemId: line.itemId,
@@ -446,6 +440,11 @@ export async function finalizeInvoiceTx(
       data: {
         number,
         status: "OPEN",
+        issuerSnapshot,
+        netTotal,
+        taxTotal,
+        grossTotal,
+        taxBreakdown,
         customerName: c.name,
         customerAddress: [c.street, `${c.zip} ${c.city}`.trim(), c.country]
           .filter(Boolean)
@@ -484,6 +483,7 @@ export async function createStornoInvoice(invoiceId: string, userId: string) {
 
     const now = new Date();
     const number = await assignInvoiceNumberTx(tx, now);
+    const breakdown = invoiceTaxBreakdown(invoice);
 
     for (const line of invoice.lines) {
       if (line.sourceDeliveryNoteLineId) {
@@ -537,6 +537,7 @@ export async function createStornoInvoice(invoiceId: string, userId: string) {
         customerUid: invoice.customerUid,
         customerCountryCode: invoice.customerCountryCode,
         customerType: invoice.customerType,
+        issuerSnapshot: invoiceIssuer(await getSettings(tx)),
         issueDate: now,
         dueDate: now,
         deliveryDate: invoice.deliveryDate,
@@ -549,6 +550,7 @@ export async function createStornoInvoice(invoiceId: string, userId: string) {
         notes: `Storno zu Rechnung ${invoice.number} vom ${new Intl.DateTimeFormat("de-AT", { dateStyle: "medium" }).format(invoice.issueDate)}.`,
         netTotal: -Number(invoice.netTotal),
         taxTotal: -Number(invoice.taxTotal),
+        taxBreakdown: breakdown?.map(({ rate, net, tax }) => ({ rate, net: -net, tax: -tax })),
         grossTotal: -Number(invoice.grossTotal),
         lines: {
           create: invoice.lines.map((line) => ({

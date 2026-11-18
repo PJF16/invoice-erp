@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { setTimeout as delay } from "node:timers/promises";
 
 const database = process.env.TEST_DATABASE_URL;
 test("PostgreSQL: Parallelität, Storno und wiederkehrende Rechnungen", { skip: !database }, async (t) => {
@@ -12,6 +13,7 @@ test("PostgreSQL: Parallelität, Storno und wiederkehrende Rechnungen", { skip: 
   const { generateInvoiceFromTemplate } = await import("../../lib/recurring");
   const { retryPendingRecurringDeliveries, sendInvoiceEmail } = await import("../../lib/mailer");
   const { createDeliveryNote } = await import("../../lib/delivery-notes");
+  const { runDueExportSchedules } = await import("../../lib/export-schedule");
   const tag = crypto.randomUUID();
   const user = await prisma.user.create({ data: { email: `${tag}@example.com`, name: "Regression", passwordHash: "unused", role: "ADMIN" } });
   const warehouse = await prisma.warehouse.create({ data: { name: `Test ${tag}` } });
@@ -62,6 +64,120 @@ test("PostgreSQL: Parallelität, Storno und wiederkehrende Rechnungen", { skip: 
       const first = await createDraftInvoice(input); await finalizeInvoice(first.id, user.id); await createStornoInvoice(first.id, user.id);
       const second = await createDraftInvoice(input); await finalizeInvoice(second.id, user.id);
       assert.equal((await prisma.invoiceLine.findFirstOrThrow({ where: { invoiceId: first.id } })).historicalSourceDeliveryNoteLineId, note.lines[0].id);
+    });
+    await t.test("paralleles Teilstorno verhindert die Reservierung der veralteten Menge", async () => {
+      const note = await createDeliveryNote({
+        customerId: customer.id, deliveryMethod: "DISTRIBUTOR_DIRECT", distributor: "Testdistributor",
+        lines: [{ itemId: item.id, quantity: 5 }],
+      }, user.id);
+      const lineId = note.lines[0].id;
+      const line = { ...base.lines[0], supplyKind: "GOODS" as const, itemId: item.id, sourceDeliveryNoteLineId: lineId };
+      let attempt: Promise<unknown> | undefined;
+      await prisma.$transaction(async (tx) => {
+        // Halte das Update des Teilstornos offen, bis der Entwurf mit der zuvor gelesenen Menge darauf wartet.
+        await tx.deliveryNoteLine.update({ where: { id: lineId }, data: { canceledQuantity: 2 } });
+        const [{ pid }] = await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+        attempt = createDraftInvoice({ ...base, lines: [{ ...line, quantity: 5 }] }).then(() => null, (error: unknown) => error);
+        const deadline = Date.now() + 3000;
+        while (Date.now() < deadline) {
+          const [{ blocked }] = await tx.$queryRaw<{ blocked: boolean }[]>`
+            SELECT EXISTS (
+              SELECT 1 FROM pg_stat_activity
+              WHERE ${pid}::integer = ANY (pg_blocking_pids(pid))
+            ) AS blocked
+          `;
+          if (blocked) return;
+          await delay(15);
+        }
+        assert.fail("Rechnungsentwurf wartete nicht auf das Teilstorno");
+      });
+      const result = await attempt;
+      assert.equal((result as { status?: number } | null)?.status, 409);
+      const draft = await createDraftInvoice({ ...base, lines: [{ ...line, quantity: 3 }] });
+      assert.equal(Number(draft.lines[0].quantity), 3);
+    });
+    await t.test("Jahreszähler bleiben bei rückdatierten Rechnungen unabhängig", async () => {
+      const issue = async (date: string) => {
+        const issueDate = new Date(date + "T12:00:00Z");
+        const draft = await createDraftInvoice({ ...base, issueDate, dueDate: issueDate });
+        return (await finalizeInvoice(draft.id, user.id)).number!;
+      };
+      const prior = await issue("2025-12-30");
+      const current = await issue("2026-01-02");
+      const backdated = await issue("2025-12-31");
+      const next = await issue("2026-01-03");
+      const seq = (number: string) => Number(number.split("-").at(-1));
+      assert.match(backdated, /2025-\d+$/);
+      assert.match(next, /2026-\d+$/);
+      assert.equal(seq(backdated), seq(prior) + 1);
+      assert.equal(seq(next), seq(current) + 1);
+    });
+    await t.test("Rechnung und Storno frieren ihren Aussteller ein und spiegeln die Steuer", async () => {
+      const settings = await prisma.companySettings.findUniqueOrThrow({ where: { id: "singleton" } });
+      try {
+        await prisma.companySettings.update({ where: { id: settings.id }, data: { name: "Alt GmbH", iban: "AT111" } });
+        const draft = await createDraftInvoice({ ...base, lines: [{ ...base.lines[0], unitPrice: 0.05, taxRate: 10 }] });
+        const invoice = await finalizeInvoice(draft.id, user.id);
+        await prisma.companySettings.update({ where: { id: settings.id }, data: { name: "Neu GmbH", iban: "AT222" } });
+        const reversal = await createStornoInvoice(invoice.id, user.id);
+        const original = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+        assert.equal((original.issuerSnapshot as { iban: string }).iban, "AT111");
+        assert.equal((reversal.issuerSnapshot as { iban: string }).iban, "AT222");
+        assert.deepEqual(invoice.taxBreakdown, [{ rate: 10, net: 0.05, tax: 0.01 }]);
+        assert.deepEqual(reversal.taxBreakdown, [{ rate: 10, net: -0.05, tax: -0.01 }]);
+      } finally {
+        await prisma.companySettings.update({ where: { id: settings.id }, data: { name: settings.name, iban: settings.iban } });
+      }
+    });
+    await t.test("parallele Export-Worker holen jeden verpassten Monat einmal nach", async () => {
+      process.env.SMTP_JSON = "1";
+      const recipientEmail = `export-${tag}@example.invalid`;
+      for (const month of ["01", "02", "03"]) {
+        const issueDate = new Date(`2026-${month}-01T00:00:00Z`);
+        const draft = await createDraftInvoice({ ...base, issueDate, dueDate: issueDate });
+        await finalizeInvoice(draft.id, user.id);
+      }
+      const schedule = await prisma.exportSchedule.create({
+        data: { name: "Nachholtest", recipientEmail, nextRun: new Date("2026-02-01"), emailSubject: "Test {zeitraum}" },
+      });
+      const now = new Date("2026-04-01T01:00:00Z");
+      await Promise.all([runDueExportSchedules(now), runDueExportSchedules(now), runDueExportSchedules(now)]);
+      const events = await prisma.mailEvent.findMany({ where: { recipient: recipientEmail }, orderBy: { createdAt: "asc" } });
+      assert.deepEqual(events.map(({ subject }) => subject), ["Test Jänner 2026", "Test Februar 2026", "Test März 2026"]);
+      assert.ok(events.every(({ status, exportRunId }) => status === "SIMULATED" && exportRunId));
+      const updated = await prisma.exportSchedule.findUniqueOrThrow({ where: { id: schedule.id } });
+      assert.equal(updated.nextRun.toISOString(), "2026-05-01T00:00:00.000Z");
+      assert.equal(updated.exportRunId, null);
+    });
+    await t.test("ein bereits vom Mailserver angenommener Export wird nach einem Abbruch abgeglichen", async () => {
+      const recipientEmail = `recover-${tag}@example.invalid`;
+      const nextRun = new Date("2026-02-01");
+      const exportRunId = crypto.randomUUID();
+      const schedule = await prisma.exportSchedule.create({ data: {
+        name: "Abgleich", nextRun, recipientEmail, exportRunId, exportRunPhase: "SENDING",
+        exportRunStartedAt: nextRun, exportRunReference: nextRun, exportRunScheduled: true,
+      } });
+      await prisma.mailEvent.create({ data: { kind: "EXPORT", recipient: recipientEmail, subject: "Test", status: "ACCEPTED", exportRunId } });
+      await runDueExportSchedules(new Date("2026-02-03"));
+      const updated = await prisma.exportSchedule.findUniqueOrThrow({ where: { id: schedule.id } });
+      assert.equal(updated.nextRun.toISOString(), "2026-03-01T00:00:00.000Z");
+      assert.ok(updated.lastRunAt);
+      assert.equal(await prisma.mailEvent.count({ where: { recipient: recipientEmail } }), 1);
+    });
+    await t.test("ein unterbrochener Export mit unklarem Versand bleibt zur Prüfung stehen", async () => {
+      const recipientEmail = `review-${tag}@example.invalid`;
+      const nextRun = new Date("2026-02-01");
+      const exportRunId = crypto.randomUUID();
+      const schedule = await prisma.exportSchedule.create({ data: {
+        name: "Versand unklar", nextRun, recipientEmail, exportRunId, exportRunPhase: "SENDING",
+        exportRunStartedAt: nextRun, exportRunReference: nextRun, exportRunScheduled: true,
+      } });
+      await prisma.mailEvent.create({ data: { kind: "EXPORT", recipient: recipientEmail, subject: "Test", status: "PENDING", exportRunId } });
+      await runDueExportSchedules(new Date("2026-02-03"));
+      const updated = await prisma.exportSchedule.findUniqueOrThrow({ where: { id: schedule.id } });
+      assert.equal(updated.exportRunPhase, "REVIEW");
+      assert.equal(updated.nextRun.toISOString(), nextRun.toISOString());
+      assert.equal(await prisma.mailEvent.count({ where: { recipient: recipientEmail } }), 1);
     });
     await t.test("Vorlage pro Termin nur einmal, aktuelle Preise bei Folgeperiode", async () => {
       const software = await prisma.softwareItem.create({ data: { name: "Abo", unitPrice: 100 } });

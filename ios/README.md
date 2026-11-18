@@ -26,4 +26,4 @@ Das Projekt wird mit [XcodeGen](https://github.com/yonaskolb/XcodeGen) aus `proj
 
 - Der Barcode muss beim Artikel in der Weboberfläche hinterlegt sein (Feld „Barcode").
 - Im Simulator gibt es keine Kamera — dort die manuelle Barcode-Eingabe nutzen.
-- `Info.plist` erlaubt aktuell HTTP (`NSAllowsArbitraryLoads`) für Server im lokalen Netz. Sobald der Server über HTTPS erreichbar ist, sollte das entfernt werden.
+- Die App benötigt eine HTTPS-Serveradresse mit einem auf dem Gerät vertrauenswürdigen Zertifikat. Das gilt auch im Simulator und im lokalen Netz.

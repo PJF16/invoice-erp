@@ -86,29 +86,29 @@ export function requestIpHash(req: NextRequest) {
 }
 
 export function assertSameOrigin(req: NextRequest) {
+  const publicOrigin = portalOrigin().origin;
   const origin = req.headers.get("origin");
   if (!origin) return;
-
-  const forwardedHost = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  const forwardedProto = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
-  const expected = forwardedHost ? `${forwardedProto}://${forwardedHost}` : req.nextUrl.origin;
-  if (origin !== expected) throw new ApiError(403, "Ungültige Anfrage");
+  const appOrigin = configuredOrigin(process.env.AUTH_URL);
+  if (origin !== publicOrigin && origin !== appOrigin?.origin) {
+    throw new ApiError(403, "Ungültige Anfrage");
+  }
 }
 
-function publicOrigin(req: NextRequest) {
-  const configured = process.env.PORTAL_BASE_URL || process.env.AUTH_URL;
-  if (configured) return configured.replace(/\/$/, "");
-
-  const incomingHost = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  // 0.0.0.0 ist nur die Bind-Adresse des Servers und kein sinnvoller Link für
-  // den Browser. Beim lokalen Direktzugriff stattdessen localhost verwenden.
-  const host = incomingHost?.replace(/^0\.0\.0\.0(?=:|$)/, "localhost");
-  const proto = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
-  return host ? `${proto}://${host}` : req.nextUrl.origin;
+function configuredOrigin(value: string | undefined) {
+  const url = URL.parse(value?.trim() ?? "");
+  if (!url || url.username || url.password) return null;
+  if (url.protocol === "https:" || (process.env.NODE_ENV !== "production" && url.protocol === "http:")) {
+    return url;
+  }
+  return null;
 }
 
-function usesSecurePortalCookie(req: NextRequest) {
-  return publicOrigin(req).startsWith("https://");
+export function portalOrigin() {
+  const configured = process.env.PORTAL_BASE_URL?.trim() || process.env.AUTH_URL?.trim();
+  const url = configuredOrigin(configured || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000"));
+  if (!url) throw new ApiError(503, "Kundenportal: Bitte PORTAL_BASE_URL oder AUTH_URL konfigurieren.");
+  return new URL(url.origin);
 }
 
 function escapeHtml(value: string) {
@@ -125,6 +125,7 @@ function escapeHtml(value: string) {
 }
 
 export async function requestPortalLogin(emailInput: string, req: NextRequest) {
+  const baseUrl = portalOrigin();
   const email = normalizePortalEmail(emailInput);
   const now = new Date();
   const recent = new Date(now.getTime() - 15 * 60 * 1000);
@@ -163,8 +164,9 @@ export async function requestPortalLogin(emailInput: string, req: NextRequest) {
   });
 
   const settings = await getSettings();
-  const baseUrl = publicOrigin(req);
-  const magicUrl = `${baseUrl}/api/portal/auth/magic?token=${encodeURIComponent(linkToken)}`;
+  const link = new URL("/api/portal/auth/magic", baseUrl);
+  link.searchParams.set("token", linkToken);
+  const magicUrl = link.href;
   const company = settings.name || "Kundenportal";
 
   try {
@@ -266,10 +268,10 @@ export async function consumePortalMagicLink(linkToken: string): Promise<NewSess
   return session;
 }
 
-export function setPortalSessionCookie(response: NextResponse, session: NewSession, req: NextRequest) {
+export function setPortalSessionCookie(response: NextResponse, session: NewSession) {
   response.cookies.set(PORTAL_COOKIE, session.rawToken, {
     httpOnly: true,
-    secure: usesSecurePortalCookie(req),
+    secure: portalOrigin().protocol === "https:",
     sameSite: "lax",
     path: "/",
     expires: session.expiresAt,
@@ -339,24 +341,23 @@ export async function requirePortalPageSession() {
   return session;
 }
 
-export async function clearPortalSession(response: NextResponse, req: NextRequest) {
+export async function clearPortalSession(response: NextResponse) {
   const rawToken = (await cookies()).get(PORTAL_COOKIE)?.value;
   if (rawToken) {
     await prisma.portalSession.delete({ where: { id: sessionHash(rawToken) } }).catch(() => undefined);
   }
   response.cookies.set(PORTAL_COOKIE, "", {
     httpOnly: true,
-    secure: usesSecurePortalCookie(req),
+    secure: portalOrigin().protocol === "https:",
     sameSite: "lax",
     path: "/",
     maxAge: 0,
   });
-  clearPortalImpersonationCookie(response, req);
+  clearPortalImpersonationCookie(response);
 }
 
 export function setPortalImpersonationCookie(
   response: NextResponse,
-  req: NextRequest,
   customerId: string,
   adminUserId: string,
 ) {
@@ -364,17 +365,17 @@ export function setPortalImpersonationCookie(
   const token = createImpersonationToken({ customerId, adminUserId, expiresAt: expiresAt.getTime() });
   response.cookies.set(PORTAL_IMPERSONATION_COOKIE, token, {
     httpOnly: true,
-    secure: usesSecurePortalCookie(req),
+    secure: portalOrigin().protocol === "https:",
     sameSite: "lax",
     path: "/",
     expires: expiresAt,
   });
 }
 
-export function clearPortalImpersonationCookie(response: NextResponse, req: NextRequest) {
+export function clearPortalImpersonationCookie(response: NextResponse) {
   response.cookies.set(PORTAL_IMPERSONATION_COOKIE, "", {
     httpOnly: true,
-    secure: usesSecurePortalCookie(req),
+    secure: portalOrigin().protocol === "https:",
     sameSite: "lax",
     path: "/",
     maxAge: 0,

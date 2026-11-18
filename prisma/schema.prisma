@@ -295,6 +295,11 @@ model InvoiceDailySequence {
   lastSeq Int @default(0)
 }
 
+model InvoiceYearlySequence {
+  year    Int @id
+  lastSeq Int @default(0)
+}
+
 model Customer {
   id                  String             @id @default(cuid())
   customerNumber      String?            @unique
@@ -382,6 +387,7 @@ model Invoice {
   customerUid            String?
   customerCountryCode    String            @default("AT")
   customerType           CustomerType      @default(BUSINESS)
+  issuerSnapshot         Json?
   issueDate              DateTime
   dueDate                DateTime
   deliveryDate           DateTime?
@@ -395,6 +401,7 @@ model Invoice {
   notes                  String?
   netTotal               Decimal           @default(0) @db.Decimal(12, 2)
   taxTotal               Decimal           @default(0) @db.Decimal(12, 2)
+  taxBreakdown           Json?
   grossTotal             Decimal           @default(0) @db.Decimal(12, 2)
   paidTotal              Decimal           @default(0) @db.Decimal(12, 2)
   skontoGranted          Decimal           @default(0) @db.Decimal(12, 2)
@@ -420,6 +427,7 @@ model Invoice {
 
   @@unique([recurringInvoiceId, recurringPeriod])
   @@index([status, issueDate])
+  @@index([recurringDeliveryState, recurringDeliveryRetryAt])
 }
 
 model MailEvent {
@@ -432,6 +440,7 @@ model MailEvent {
   invoiceId     String?
   deliveryNote  DeliveryNote?      @relation(fields: [deliveryNoteId], references: [id], onDelete: SetNull)
   deliveryNoteId String?
+  exportRunId   String?            @unique
   messageId     String?
   accepted      String[]           @default([])
   rejected      String[]           @default([])
@@ -716,6 +725,12 @@ model InvoiceEvidence {
   @@index([invoiceId, createdAt])
 }
 
+enum ExportRunPhase {
+  PREPARING
+  SENDING
+  REVIEW
+}
+
 model ExportSchedule {
   id             String            @id @default(cuid())
   name           String
@@ -728,7 +743,15 @@ model ExportSchedule {
   emailSubject   String            @default("Belegexport {zeitraum}")
   emailBody      String            @default("Sehr geehrte Damen und Herren,\n\nanbei der Belegexport für {zeitraum}.\n\nMit freundlichen Grüßen")
   lastRunAt      DateTime?
+  exportRunId        String?
+  exportRunPhase     ExportRunPhase?
+  exportRunStartedAt DateTime?
+  exportRunReference DateTime?
+  exportRunScheduled Boolean @default(false)
   createdAt      DateTime          @default(now())
+
+  @@index([active, nextRun])
+  @@index([exportRunPhase, exportRunStartedAt])
 }
 
 model BackupSettings {

@@ -15,12 +15,14 @@ export default async function SettingsPage() {
   const session = await auth();
   if (session?.user.role !== "ADMIN") redirect("/");
 
-  const [settings, rawBackupSettings] = await Promise.all([getSettings(), getBackupSettings()]);
-  const backupSettings = publicBackupSettings(rawBackupSettings);
   const today = new Date();
-  const dailySequence = await prisma.invoiceDailySequence.findUnique({
-    where: { day: invoiceDayKey(today) },
-  });
+  const [settings, rawBackupSettings, dailySequence, yearlySequence] = await Promise.all([
+    getSettings(),
+    getBackupSettings(),
+    prisma.invoiceDailySequence.findUnique({ where: { day: invoiceDayKey(today) } }),
+    prisma.invoiceYearlySequence.findUnique({ where: { year: today.getFullYear() } }),
+  ]);
+  const backupSettings = publicBackupSettings(rawBackupSettings);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -57,8 +59,7 @@ export default async function SettingsPage() {
           maxReminders: settings.maxReminders,
           reminderSubject: settings.reminderSubject,
           reminderBody: settings.reminderBody,
-          lastInvoiceYear: settings.lastInvoiceYear,
-          lastInvoiceSeq: settings.lastInvoiceSeq,
+          currentYearlyInvoiceSeq: yearlySequence?.lastSeq ?? 0,
           lastOfferYear: settings.lastOfferYear,
           lastOfferSeq: settings.lastOfferSeq,
           lastDeliveryNoteYear: settings.lastDeliveryNoteYear,

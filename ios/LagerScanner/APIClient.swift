@@ -22,7 +22,7 @@ final class APIClient: ObservableObject {
     private let noRedirectDelegate = NoRedirectDelegate()
 
     init() {
-        baseURLString = UserDefaults.standard.string(forKey: "baseURL") ?? "http://192.168.0.10:3000"
+        baseURLString = UserDefaults.standard.string(forKey: "baseURL") ?? ""
         Task { await checkSession() }
     }
 
@@ -32,8 +32,8 @@ final class APIClient: ObservableObject {
         if !trimmed.contains("://") {
             trimmed = "https://" + trimmed
         }
-        guard let url = URL(string: trimmed), let scheme = url.scheme,
-              (scheme == "http" || scheme == "https"), url.host != nil else {
+        guard let url = URL(string: trimmed), url.scheme?.lowercased() == "https",
+              url.host != nil, url.user == nil, url.password == nil else {
             return nil
         }
         return url
@@ -47,7 +47,7 @@ final class APIClient: ObservableObject {
 
         var errorDescription: String? {
             switch self {
-            case .invalidURL: return "Ungültige Server-Adresse."
+            case .invalidURL: return "Bitte eine gültige HTTPS-Serveradresse eingeben."
             case .loginFailed: return "E-Mail oder Passwort ist falsch."
             case .server(let message): return message
             case .notFound: return "Nicht gefunden."

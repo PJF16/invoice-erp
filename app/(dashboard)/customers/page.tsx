@@ -3,44 +3,42 @@ import { prisma } from "@/lib/prisma";
 import { CustomerForm, CustomerRowActions } from "@/components/customer-form";
 import { TAX_TREATMENT_LABELS } from "@/lib/invoices";
 import { auth } from "@/lib/auth";
+import { customerSearchWhere } from "@/lib/customer-search";
+import { readListQuery, type ListParams } from "@/lib/list-query";
+import { ListPagination } from "@/components/list-pagination";
 
 export const dynamic = "force-dynamic";
 
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string | string[] }>;
+  searchParams: Promise<ListParams>;
 }) {
-  const { q: rawQuery } = await searchParams;
-  const q = typeof rawQuery === "string" ? rawQuery.trim() : "";
-  const match = { contains: q.replace(/[\\%_]/g, "\\$&"), mode: "insensitive" as const };
-  const [session, customers] = await Promise.all([
+  const query = readListQuery(await searchParams);
+  const { q } = query;
+  const where = customerSearchWhere(q);
+  const [session, total] = await Promise.all([
     auth(),
-    prisma.customer.findMany({
-      where: q ? {
-        OR: [
-          { name: match },
-          { customerNumber: match },
-          { email: match },
-          { zip: match },
-          { city: match },
-          { uid: match },
-        ],
-      } : undefined,
-      orderBy: { name: "asc" },
-      include: {
-        _count: { select: { invoices: true } },
-        vatVerifications: { orderBy: { checkedAt: "desc" }, take: 1 },
-      },
-    }),
+    prisma.customer.count({ where }),
   ]);
+  const pagination = query.pagination(total);
+  const customers = await prisma.customer.findMany({
+    where,
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    skip: pagination.skip,
+    take: pagination.take,
+    include: {
+      _count: { select: { invoices: true } },
+      vatVerifications: { orderBy: { checkedAt: "desc" }, take: 1 },
+    },
+  });
 
   return (
     <div className="mx-auto max-w-[100rem]">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Kunden</h1>
-          <p className="text-sm text-gray-500">{customers.length} {q ? "Treffer" : customers.length === 1 ? "Kunde" : "Kunden"}</p>
+          <p className="text-sm text-gray-500">{total} {q ? "Treffer" : total === 1 ? "Kunde" : "Kunden"}</p>
         </div>
         <CustomerForm />
       </div>
@@ -142,6 +140,7 @@ export default async function CustomersPage({
           </tbody>
         </table>
       </div>
+      {pagination.pages > 1 && <ListPagination {...pagination} params={{ q }} />}
     </div>
   );
 }
