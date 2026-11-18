@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { CustomerForm, CustomerRowActions } from "@/components/customer-form";
 import { TAX_TREATMENT_LABELS } from "@/lib/invoices";
@@ -5,10 +6,27 @@ import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function CustomersPage() {
+export default async function CustomersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[] }>;
+}) {
+  const { q: rawQuery } = await searchParams;
+  const q = typeof rawQuery === "string" ? rawQuery.trim() : "";
+  const match = { contains: q.replace(/[\\%_]/g, "\\$&"), mode: "insensitive" as const };
   const [session, customers] = await Promise.all([
     auth(),
     prisma.customer.findMany({
+      where: q ? {
+        OR: [
+          { name: match },
+          { customerNumber: match },
+          { email: match },
+          { zip: match },
+          { city: match },
+          { uid: match },
+        ],
+      } : undefined,
       orderBy: { name: "asc" },
       include: {
         _count: { select: { invoices: true } },
@@ -22,10 +40,28 @@ export default async function CustomersPage() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Kunden</h1>
-          <p className="text-sm text-gray-500">{customers.length} Kunden</p>
+          <p className="text-sm text-gray-500">{customers.length} {q ? "Treffer" : customers.length === 1 ? "Kunde" : "Kunden"}</p>
         </div>
         <CustomerForm />
       </div>
+
+      <form method="GET" className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-white p-4">
+        <label className="w-full text-sm font-medium sm:min-w-0 sm:flex-1">
+          Suche
+          <input
+            key={q}
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Name, Kundennummer, E-Mail, PLZ, Ort oder UID …"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </label>
+        <button type="submit" className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
+          Suchen
+        </button>
+        {q && <Link href="/customers" className="py-2 text-sm text-gray-600 underline">Suche zurücksetzen</Link>}
+      </form>
 
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
         <table className="w-full text-sm">
@@ -46,7 +82,7 @@ export default async function CustomersPage() {
             {customers.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                  Noch keine Kunden angelegt.
+                  {q ? "Keine Kunden für diese Suche gefunden." : "Noch keine Kunden angelegt."}
                 </td>
               </tr>
             )}
